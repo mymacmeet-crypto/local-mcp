@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from mcp.server.fastmcp import FastMCP  # noqa: E402
+from mcp.server.transport_security import TransportSecuritySettings  # noqa: E402
 from pydantic import Field  # noqa: E402
 
 import extract  # noqa: E402
@@ -42,6 +43,13 @@ mcp = FastMCP(
     lifespan=_lifespan,
     host=os.environ.get("MCP_HTTP_HOST", "127.0.0.1"),
     port=int(os.environ.get("MCP_HTTP_PORT", "3002")),
+    # Behind a public host (Vercel) the inbound Host header is the deployment
+    # domain, not localhost. FastMCP otherwise auto-enables DNS-rebinding
+    # protection that only allows 127.0.0.1/localhost, so every request to the
+    # streamable endpoint is rejected with "421 Invalid Host header". Disable it
+    # here — DNS rebinding only threatens localhost-bound servers reachable from
+    # a victim's browser, which a remote deployment is not.
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
 
 
