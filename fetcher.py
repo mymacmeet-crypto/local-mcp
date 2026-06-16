@@ -50,7 +50,13 @@ async def get_crawler():
     async with _crawler_lock:
         if _crawler is not None:
             return _crawler
-        from crawl4ai import AsyncWebCrawler, BrowserConfig
+        try:
+            from crawl4ai import AsyncWebCrawler, BrowserConfig
+        except ImportError as err:
+            raise RuntimeError(
+                "Browser rendering is unavailable: the optional 'crawl4ai' dependency "
+                "is not installed. Install it with `pip install \"claw-site[browser]\"`."
+            ) from err
 
         browser_config = BrowserConfig(headless=True, user_agent=USER_AGENT, verbose=False)
         crawler = AsyncWebCrawler(config=browser_config)

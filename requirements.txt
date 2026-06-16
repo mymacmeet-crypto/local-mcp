@@ -1,6 +1,9 @@
-# claw-site MCP server dependencies
+# claw-site MCP server dependencies (deployment / core runtime)
+# NOTE: crawl4ai is intentionally excluded here. It pulls in playwright +
+# a large ML stack (~600 MB) that exceeds Vercel's bundle limit and cannot
+# run a headless browser on serverless anyway. Install it locally for the
+# browser-render fallback with: pip install "claw-site[browser]"
 mcp>=1.2.0
-crawl4ai>=0.5.0
 httpx>=0.27.0
 beautifulsoup4>=4.12
 lxml>=5.0

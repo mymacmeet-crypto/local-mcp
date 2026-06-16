@@ -8,7 +8,6 @@ license = { text = "ISC" }
 keywords = ["mcp", "crawler", "links", "sitemap", "crawl4ai", "ocr", "tesseract"]
 dependencies = [
     "mcp>=1.2.0",
-    "crawl4ai>=0.5.0",
     "httpx>=0.27.0",
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
@@ -16,6 +15,12 @@ dependencies = [
     "Pillow>=10.0",
     "pytesseract>=0.3.13",
 ]
+
+[project.optional-dependencies]
+# Browser-render fallback used by extract_urls when static HTML has no links.
+# Heavy (playwright + ML stack); excluded from serverless deploys. Install with:
+#   pip install "claw-site[browser]"
+browser = ["crawl4ai>=0.5.0"]
 
 [project.scripts]
 claw-site = "server:main"
