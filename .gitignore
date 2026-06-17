@@ -17,3 +17,4 @@ dist/
 
 captures/
 .tmp/
+.python-version
