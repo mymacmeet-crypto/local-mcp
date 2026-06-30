@@ -194,6 +194,56 @@ class Tools:
     # Tools                                                                #
     # ------------------------------------------------------------------ #
 
+    async def web_search(
+        self,
+        query: str,
+        limit: int = 8,
+        categories: str = "general",
+        language: str = "auto",
+        pageno: int = 1,
+        safesearch: int = 0,
+        time_range: str = "",
+        engines: str = "",
+        searxng_url: str = "",
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Search the web through SearXNG and return citation-ready Markdown results.
+        :param query: Search query to send to SearXNG.
+        :param limit: Maximum number of search results to return. Allowed range is 1 to 20.
+        :param categories: SearXNG categories, for example 'general', 'news', 'images', or 'general,news'.
+        :param language: SearXNG language code. Use 'auto' for automatic language detection.
+        :param pageno: SearXNG result page number. Allowed range is 1 to 20.
+        :param safesearch: Safe-search level, where 0 is off, 1 is moderate, and 2 is strict.
+        :param time_range: Optional SearXNG time range: 'day', 'month', or 'year'.
+        :param engines: Optional comma-separated SearXNG engines override.
+        :param searxng_url: Optional SearXNG base URL for this request.
+        """
+        _log(
+            "web_search",
+            f"query={query} limit={limit} categories={categories} language={language}",
+        )
+        await self._emit_status(__event_emitter__, f"Searching for {query}...", False)
+
+        result = self._call(
+            "web_search",
+            {
+                "query": query,
+                "limit": limit,
+                "categories": categories,
+                "language": language,
+                "pageno": pageno,
+                "safesearch": safesearch,
+                "time_range": time_range,
+                "engines": engines,
+                "searxng_url": searxng_url,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
     async def extract_urls(
         self,
         url: str,

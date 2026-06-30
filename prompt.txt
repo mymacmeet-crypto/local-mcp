@@ -2,6 +2,20 @@
 
 Use these prompts after adding `claw-site` to Claude Desktop.
 
+## `web_search`
+
+```
+Using claw-site, search the web for OpenAI MCP protocol and return 5 results.
+```
+
+```
+Using claw-site, search recent news for SearXNG with categories=news, time_range=month, and limit=5.
+```
+
+```
+Using claw-site, search the web for local AI tool calling with engines=duckduckgo,brave and limit=8.
+```
+
 ## `extract_urls`
 
 ```

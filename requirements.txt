@@ -11,3 +11,4 @@ markdownify>=0.13
 python-dotenv>=1.0
 Pillow>=10.0
 pytesseract>=0.3.13
+requests>=2.31.0

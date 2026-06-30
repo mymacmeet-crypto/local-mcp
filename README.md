@@ -1,6 +1,6 @@
 # claw-site
 
-`claw-site` is a small Python MCP server with tools for extracting site URLs and extracting text from images.
+`claw-site` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, and extracting text from images.
 
 The tool follows this flow:
 
@@ -42,6 +42,31 @@ python server.py --http
 
 HTTP mode listens on `127.0.0.1:3002` by default.
 
+## SearXNG search
+
+Run SearXNG locally and enable JSON output in its `settings.yml`:
+
+```yaml
+search:
+  formats:
+    - html
+    - json
+```
+
+Then point this MCP server at it:
+
+```bash
+export SEARXNG_BASE_URL=http://127.0.0.1:8080
+```
+
+For failover, set a comma-separated list:
+
+```bash
+export SEARXNG_URLS=http://127.0.0.1:8080,https://your-backup-searxng.example
+```
+
+`CLAW_SITE_SEARXNG_URLS` is also supported as an alias. Individual `web_search` calls can override the base URL with the `searxng_url` parameter.
+
 ## Claude Desktop config
 
 ```json
@@ -56,6 +81,22 @@ HTTP mode listens on `127.0.0.1:3002` by default.
 ```
 
 ## Tools
+
+### `web_search`
+
+Parameters:
+
+- `query`: search query to send to SearXNG.
+- `limit`: maximum number of search results to return. Default: `8`.
+- `categories`: SearXNG categories, for example `general`, `news`, `images`, or `general,news`. Default: `general`.
+- `language`: SearXNG language code. Default: `auto`.
+- `pageno`: SearXNG result page number. Default: `1`.
+- `safesearch`: safe-search level, where `0` is off, `1` is moderate, and `2` is strict. Default: `0`.
+- `time_range`: optional SearXNG time range: `day`, `month`, or `year`.
+- `engines`: optional comma-separated SearXNG engines override.
+- `searxng_url`: optional SearXNG base URL for this request.
+
+The response is citation-ready Markdown with linked result titles, source URLs, snippets, engines, answers, and suggestions when SearXNG returns them.
 
 ### `extract_urls`
 
