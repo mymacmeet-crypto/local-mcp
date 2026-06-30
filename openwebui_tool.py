@@ -144,6 +144,22 @@ class Tools:
             return f"Error: {data['error'].get('message', 'unknown')}"
         return "Unexpected response."
 
+    def _do_call(self, tool_name: str, arguments: dict) -> requests.Response:
+        resp = requests.post(
+            self._url,
+            json={
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {"name": tool_name, "arguments": arguments},
+                "id": self._next_id(),
+            },
+            headers=self._headers(),
+            timeout=60,
+            stream=True,
+        )
+        _log("call", f"response status={resp.status_code}")
+        return resp
+
     def _call(self, tool_name: str, arguments: dict) -> str:
         arguments = {key: value for key, value in arguments.items() if value is not None}
         _log("call", f"tool={tool_name} args={arguments}")
@@ -153,19 +169,14 @@ class Tools:
                 self._init_session()
 
             _log("call", f"POSTing tools/call for {tool_name}...")
-            resp = requests.post(
-                self._url,
-                json={
-                    "jsonrpc": "2.0",
-                    "method": "tools/call",
-                    "params": {"name": tool_name, "arguments": arguments},
-                    "id": self._next_id(),
-                },
-                headers=self._headers(),
-                timeout=60,
-                stream=True,
-            )
-            _log("call", f"response status={resp.status_code}")
+            resp = self._do_call(tool_name, arguments)
+
+            if resp.status_code == 404:
+                _log("call", "Session not found (server restarted?); reinitializing...")
+                self._session_id = None
+                self._init_session()
+                resp = self._do_call(tool_name, arguments)
+
             resp.raise_for_status()
             result = self._parse(resp)
             _log("call", f"final result: {result[:80]}")
