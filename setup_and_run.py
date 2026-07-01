@@ -21,14 +21,91 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 VENV_DIR = PROJECT_ROOT / ".venv"
 REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
 MIN_PYTHON = (3, 10)
+USE_COLOR = False
+
+
+class Style:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    BLUE = "\033[34m"
+    CYAN = "\033[36m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    RED = "\033[31m"
+    WHITE = "\033[37m"
 
 
 def main() -> None:
-    _ensure_supported_python()
-    venv_python = _ensure_venv()
-    _install_core(venv_python)
-    _show_external_notes()
-    _menu(venv_python)
+    try:
+        _configure_terminal()
+        _ensure_supported_python()
+        venv_python = _ensure_venv()
+        _install_core(venv_python)
+        _show_external_notes()
+        _menu(venv_python)
+    except KeyboardInterrupt:
+        raise SystemExit(_paint("\nCancelled by user.", Style.YELLOW))
+
+
+def _configure_terminal() -> None:
+    global USE_COLOR
+    if os.environ.get("NO_COLOR"):
+        USE_COLOR = False
+        return
+    _enable_windows_ansi()
+    USE_COLOR = sys.stdout.isatty()
+
+
+def _enable_windows_ansi() -> None:
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)
+        mode = ctypes.c_ulong()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)
+    except Exception:
+        pass
+
+
+def _paint(text: str, *styles: str) -> str:
+    if not USE_COLOR:
+        return text
+    return "".join(styles) + text + Style.RESET
+
+
+def _heading(text: str) -> None:
+    print()
+    print(_paint(text, Style.BOLD, Style.CYAN))
+    print(_paint("-" * 72, Style.DIM))
+
+
+def _info(text: str) -> None:
+    print(_paint(text, Style.CYAN))
+
+
+def _success(text: str) -> None:
+    print(_paint(text, Style.GREEN))
+
+
+def _warning(text: str) -> None:
+    print(_paint(text, Style.YELLOW))
+
+
+def _error(text: str) -> str:
+    return _paint(text, Style.RED)
+
+
+def _menu_item(number: str, label: str, detail: str = "") -> None:
+    prefix = _paint(f"{number}.", Style.YELLOW, Style.BOLD)
+    if detail:
+        print(f"{prefix} {_paint(label, Style.WHITE)} {_paint(detail, Style.DIM)}")
+    else:
+        print(f"{prefix} {_paint(label, Style.WHITE)}")
 
 
 def _ensure_supported_python() -> None:
@@ -41,10 +118,10 @@ def _ensure_supported_python() -> None:
 def _ensure_venv() -> Path:
     python_path = _venv_python()
     if python_path.exists():
-        print(f"Using existing virtual environment: {VENV_DIR}")
+        _info(f"Using existing virtual environment: {VENV_DIR}")
         return python_path
 
-    print(f"Creating virtual environment: {VENV_DIR}")
+    _info(f"Creating virtual environment: {VENV_DIR}")
     venv.EnvBuilder(with_pip=True).create(VENV_DIR)
     return python_path
 
@@ -56,11 +133,10 @@ def _venv_python() -> Path:
 
 
 def _install_core(python_path: Path) -> None:
-    print("\nInstalling core dependencies...")
-    _run([python_path, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
+    _heading("Installing core dependencies")
     _run([python_path, "-m", "pip", "install", "-r", REQUIREMENTS_FILE])
     _run([python_path, "-m", "pip", "install", "-e", PROJECT_ROOT])
-    print("Core install complete.\n")
+    _success("Core install complete.")
 
 
 def _show_external_notes() -> None:
@@ -71,9 +147,9 @@ def _show_external_notes() -> None:
         notes.append("No SearXNG URL environment variable is set. web_search needs a reachable SearXNG instance.")
 
     if notes:
-        print("External requirement notes:")
+        _heading("External requirement notes")
         for note in notes:
-            print(f"- {note}")
+            _warning(f"- {note}")
         print()
 
 
@@ -91,15 +167,20 @@ def _has_tesseract() -> bool:
 
 def _menu(python_path: Path) -> None:
     while True:
-        print("local-mcp options")
-        print("1. Run MCP over stdio")
-        print("2. Run MCP over HTTP at http://127.0.0.1:3002/mcp")
-        print("3. Install browser fallback extra: local-mcp[browser]")
-        print("4. Install fast document extras: local-mcp[document-fast]")
-        print("5. Install all document extras")
-        print("6. Run tests")
-        print("0. Exit")
-        choice = input("Choose an option: ").strip()
+        _heading("local-mcp control panel")
+        print(f"{_paint('Project', Style.DIM)}  {_paint(str(PROJECT_ROOT), Style.CYAN)}")
+        print(f"{_paint('Python ', Style.DIM)}  {_paint(str(python_path), Style.CYAN)}")
+        print()
+        _menu_item("1", "Run MCP over stdio")
+        _menu_item("2", "Run MCP over HTTP", "http://127.0.0.1:3002/mcp")
+        _menu_item("3", "Install browser fallback extra", "local-mcp[browser]")
+        _menu_item("4", "Install fast document extras", "local-mcp[document-fast]")
+        _menu_item("5", "Install all document extras")
+        _menu_item("6", "Upgrade pip, setuptools, and wheel")
+        _menu_item("7", "Run tests")
+        _menu_item("0", "Exit")
+        print()
+        choice = input(_paint("Choose an option: ", Style.BOLD, Style.GREEN)).strip()
 
         if choice == "1":
             _run([python_path, "server.py"], cwd=PROJECT_ROOT)
@@ -113,38 +194,49 @@ def _menu(python_path: Path) -> None:
         elif choice == "5":
             _install_extra(python_path, "document-fast,document-structured,document-deep")
         elif choice == "6":
+            _upgrade_packaging_tools(python_path)
+        elif choice == "7":
             _run([python_path, "-m", "unittest", "discover", "-s", "tests"], cwd=PROJECT_ROOT)
         elif choice == "0":
-            print("Done.")
+            _success("Done.")
             return
         else:
-            print("Unknown option. Try again.\n")
+            _warning("Unknown option. Try again.\n")
 
 
 def _install_extra(python_path: Path, extra: str) -> None:
     package = f"{PROJECT_ROOT}[{extra}]"
-    print(f"\nInstalling optional extra: {extra}")
+    _heading(f"Installing optional extra: {extra}")
     _run([python_path, "-m", "pip", "install", "-e", package])
-    print(f"Optional extra installed: {extra}\n")
+    _success(f"Optional extra installed: {extra}")
+
+
+def _upgrade_packaging_tools(python_path: Path) -> None:
+    _heading("Upgrading pip, setuptools, and wheel")
+    _run([python_path, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
+    _success("Packaging tools upgraded.")
 
 
 def _maybe_run_crawl4ai_setup() -> None:
     setup_exe = VENV_DIR / ("Scripts/crawl4ai-setup.exe" if os.name == "nt" else "bin/crawl4ai-setup")
     if not setup_exe.exists():
-        print("crawl4ai-setup was not found in the virtual environment. Skipping browser setup.\n")
+        _warning("crawl4ai-setup was not found in the virtual environment. Skipping browser setup.\n")
         return
-    answer = input("Run crawl4ai-setup now? This can download browser assets. [y/N]: ").strip().lower()
+    prompt = _paint("Run crawl4ai-setup now? This can download browser assets. [y/N]: ", Style.BOLD, Style.YELLOW)
+    answer = input(prompt).strip().lower()
     if answer == "y":
         _run([setup_exe], cwd=PROJECT_ROOT)
 
 
 def _run(command: list[object], *, cwd: Path | None = None) -> None:
     printable = " ".join(str(part) for part in command)
-    print(f"> {printable}")
+    print(_paint("> ", Style.GREEN, Style.BOLD) + _paint(printable, Style.CYAN))
     try:
         subprocess.check_call([str(part) for part in command], cwd=str(cwd or PROJECT_ROOT))
+    except KeyboardInterrupt:
+        raise SystemExit(_paint("\nCancelled by user.", Style.YELLOW))
     except subprocess.CalledProcessError as err:
-        raise SystemExit(f"Command failed with exit code {err.returncode}: {printable}") from err
+        raise SystemExit(_error(f"Command failed with exit code {err.returncode}: {printable}")) from err
 
 
 if __name__ == "__main__":
