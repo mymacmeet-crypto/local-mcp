@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, discover URLs, extract readable Markdown from web pages, and run OCR on images. The tools are registered in [`server.py`](../server.py) with FastMCP and can also be used from OpenWebUI through [`openwebui_tool.py`](../openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, discover URLs, extract readable Markdown from web pages, run OCR on images, and parse PDFs/documents. The tools are registered in [`server.py`](../server.py) with FastMCP and can also be used from OpenWebUI through [`openwebui_tool.py`](../openwebui_tool.py).
 
 ## Tool Index
 
@@ -12,6 +12,7 @@ This folder documents every tool exposed by the `local-mcp` MCP server.
 | `extract_urls` | [extract_urls.md](extract_urls.md) | Discover URLs from `robots.txt`, XML sitemaps, static HTML links, and optional browser-rendered pages. |
 | `extract_content` | [extract_content.md](extract_content.md) | Fetch a page and return readable Markdown, with browser-render fallback for JavaScript-heavy pages. |
 | `extract_image_text` | [extract_image_text.md](extract_image_text.md) | Extract text from local, remote, data URL, or base64 image input using Tesseract OCR. |
+| `parse_document` | [parse_document.md](parse_document.md) | Parse PDFs and documents into Markdown, text, or JSON using local parser backends. |
 
 ## Shared Project Setup
 
@@ -29,6 +30,14 @@ Install the optional browser-render fallback when you want JavaScript-rendered c
 ```powershell
 python -m pip install ".[browser]"
 crawl4ai-setup
+```
+
+Install optional document parser engines when you need more than the default lightweight PDF text extraction:
+
+```powershell
+python -m pip install ".[document-fast]"        # PyMuPDF4LLM + pdfplumber
+python -m pip install ".[document-structured]"  # Docling
+python -m pip install ".[document-deep]"        # Marker + MinerU
 ```
 
 Start the MCP server over stdio for desktop MCP clients:
@@ -67,6 +76,12 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `TESSERACT_CMD` | auto-detected | `extract_image_text` | Path to the native Tesseract executable. |
 | `LOCAL_MCP_OCR_MAX_IMAGE_BYTES` | `20971520` | `extract_image_text` | Maximum accepted image size in bytes. |
 | `LOCAL_MCP_TESSERACT_CONFIG` | empty | `extract_image_text` | Extra config string passed to Tesseract. |
+| `LOCAL_MCP_DOCUMENT_MAX_BYTES` | `104857600` | `parse_document` | Maximum accepted local, remote, or base64 document size in bytes. |
+| `LOCAL_MCP_DOCUMENT_PARSER_TIMEOUT_S` | `900` | `parse_document` | Timeout for Marker and MinerU CLI parsers. |
+| `LOCAL_MCP_DOCUMENT_TMPDIR` | `.tmp/documents` | `parse_document` | Directory for downloaded/base64 documents and parser output temp files. |
+| `LOCAL_MCP_MARKER_CMD` | auto-detected | `parse_document` | Optional path to the `marker_single` executable. |
+| `LOCAL_MCP_MINERU_CMD` | auto-detected | `parse_document` | Optional path to the `mineru` executable. |
+| `LOCAL_MCP_MINERU_BACKEND` | `pipeline` | `parse_document` | MinerU backend passed with `-b`; `pipeline` is CPU-friendly. |
 
 ## MCP Client Example
 
@@ -84,4 +99,3 @@ For Claude Desktop or another stdio MCP client, configure this repository's Pyth
 ```
 
 For OpenWebUI, run the server in HTTP mode and paste the contents of [`openwebui_tool.py`](../openwebui_tool.py) into OpenWebUI's tool editor. The bridge forwards OpenWebUI tool calls to `http://localhost:3002/mcp`.
-

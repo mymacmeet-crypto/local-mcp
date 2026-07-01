@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, and extracting text from images.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, extracting text from images, and parsing PDFs/documents.
 
 The tool follows this flow:
 
@@ -31,6 +31,14 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 crawl4ai-setup
+```
+
+Optional document parser engines can be installed as needed:
+
+```bash
+pip install ".[document-fast]"        # PyMuPDF4LLM + pdfplumber
+pip install ".[document-structured]"  # Docling
+pip install ".[document-deep]"        # Marker + MinerU
 ```
 
 ## Run
@@ -126,3 +134,16 @@ Parameters:
 - `lang`: Tesseract language code. Default: `eng`.
 
 The response is only the text recognized from the image.
+
+### `parse_document`
+
+Parameters:
+
+- `document`: document file path, `file://` URI, HTTP(S) URL, data URL, or base64 document content.
+- `parser`: backend to use: `auto`, `pypdf`, `pymupdf4llm`, `pdfplumber`, `docling`, `marker`, `mineru`, or `text`. Default: `auto`.
+- `output_format`: `markdown`, `text`, or `json`. Default: `markdown`.
+- `pages`: optional 1-based page range such as `1-3,5`. Empty parses all pages.
+- `include_metadata`: include parser/source metadata before Markdown or text output. Default: `true`.
+- `max_chars`: maximum content characters returned before truncation. Default: `120000`.
+
+The response is parsed document content. `auto` prefers PyMuPDF4LLM when installed for fast digital PDFs, falls back to lightweight `pypdf`, and can use optional engines for structured OCR, deep-learning parsing, CJK/scientific documents, or table coordinates.

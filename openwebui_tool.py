@@ -16,6 +16,7 @@ import requests
 
 MCP_SERVER_URL = "http://localhost:3002/mcp"
 MCP_PROTOCOL_VERSION = "2024-11-05"
+MCP_REQUEST_TIMEOUT = 600
 
 # Type alias for the OpenWebUI event emitter injected at call time.
 EventEmitter = Optional[Callable[[dict], Awaitable[None]]]
@@ -154,7 +155,7 @@ class Tools:
                 "id": self._next_id(),
             },
             headers=self._headers(),
-            timeout=60,
+            timeout=MCP_REQUEST_TIMEOUT,
             stream=True,
         )
         _log("call", f"response status={resp.status_code}")
@@ -339,4 +340,45 @@ class Tools:
             __event_emitter__,
             f"\n**Extracted text:**\n```\n{result}\n```\n",
         )
+        return result
+
+    async def parse_document(
+        self,
+        document: str,
+        parser: str = "auto",
+        output_format: str = "markdown",
+        pages: str = "",
+        include_metadata: bool = True,
+        max_chars: int = 120000,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Parse a PDF or document into Markdown, text, or JSON.
+        :param document: Document file path, file URL, HTTP(S) URL, data URL, or base64 document content.
+        :param parser: Parser backend: auto, pypdf, pymupdf4llm, pdfplumber, docling, marker, mineru, or text.
+        :param output_format: Output format: markdown, text, or json.
+        :param pages: Optional 1-based page range like '1-3,5'. Empty parses all pages.
+        :param include_metadata: Include parser/source metadata before Markdown or text output.
+        :param max_chars: Maximum returned content characters before truncation.
+        """
+        _log(
+            "parse_document",
+            f"document={document[:80]} parser={parser} output_format={output_format} pages={pages}",
+        )
+        await self._emit_status(__event_emitter__, "Parsing document...", False)
+
+        result = self._call(
+            "parse_document",
+            {
+                "document": document,
+                "parser": parser,
+                "output_format": output_format,
+                "pages": pages,
+                "include_metadata": include_metadata,
+                "max_chars": max_chars,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
