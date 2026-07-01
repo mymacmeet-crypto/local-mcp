@@ -1,45 +1,73 @@
-# claw-site MCP - Test Prompts
+# local-mcp MCP - Test Prompts
 
-Use these prompts after adding `claw-site` to Claude Desktop.
+Use these prompts after adding `local-mcp` to Claude Desktop.
+
+## `web_search`
+
+```
+Using local-mcp, search the web for OpenAI MCP protocol and return 5 results.
+```
+
+```
+Using local-mcp, search recent news for SearXNG with categories=news, time_range=month, and limit=5.
+```
+
+```
+Using local-mcp, search the web for local AI tool calling with engines=duckduckgo,brave and limit=8.
+```
 
 ## `extract_urls`
 
 ```
-Using claw-site, extract URLs from https://example.com.
+Using local-mcp, extract URLs from https://example.com.
 ```
 
 ```
-Using claw-site, extract URLs from https://quotes.toscrape.com with same_domain=true, same_path=true, and limit=25.
+Using local-mcp, extract URLs from https://quotes.toscrape.com with same_domain=true, same_path=true, and limit=25.
 ```
 
 ```
-Using claw-site, extract URLs from https://www.python.org with same_domain=false, same_path=false, and limit=100.
+Using local-mcp, extract URLs from https://www.python.org with same_domain=false, same_path=false, and limit=100.
 ```
 
 ## `extract_content`
 
 ```
-Using claw-site, extract the page content from https://example.com.
+Using local-mcp, extract the page content from https://example.com.
 ```
 
 ```
-Using claw-site, extract the page content from example.com without including the title.
+Using local-mcp, extract the page content from example.com without including the title.
 ```
 
 ```
-Using claw-site, extract the readable Markdown content from https://quotes.toscrape.com.
+Using local-mcp, extract the readable Markdown content from https://quotes.toscrape.com.
 ```
 
 ## `extract_image_text`
 
 ```
-Using claw-site, extract text from the image at C:\path\to\image.png.
+Using local-mcp, extract text from the image at C:\path\to\image.png.
 ```
 
 ```
-Using claw-site, extract text from the image URL https://example.com/image.png.
+Using local-mcp, extract text from the image URL https://example.com/image.png.
 ```
 
 ```
-Using claw-site, extract text from a base64-encoded image using lang=eng.
+Using local-mcp, extract text from a base64-encoded image using lang=eng.
+```
+
+## `parse_document`
+
+```
+Using local-mcp, parse the PDF at C:\path\to\paper.pdf.
+```
+
+```
+Using local-mcp, parse C:\path\to\paper.pdf with parser=pymupdf4llm and pages=1-5.
+```
+
+```
+Using local-mcp, parse C:\path\to\report.pdf with parser=pdfplumber and output_format=json.
 ```

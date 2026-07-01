@@ -1,11 +1,3 @@
-"""Compatibility wrapper for moved sitemap helpers."""
-
-from __future__ import annotations
-
-from local_mcp.web.sitemap import *  # noqa: F401,F403
-
-
-_UNUSED_LEGACY_SOURCE = r'''
 """robots.txt sitemap discovery and XML sitemap parsing."""
 
 from __future__ import annotations
@@ -16,8 +8,8 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from urllib.parse import urljoin, urlparse
 
-import fetcher
-from extract import normalize_discovered_url
+from local_mcp.shared.urls import normalize_discovered_url
+from local_mcp.web import fetcher
 
 SITEMAP_RE = re.compile(r"^\s*sitemap\s*:\s*(?P<url>\S+)\s*$", re.I | re.M)
 SourcedUrl = tuple[str, str]
@@ -145,4 +137,3 @@ def _unique_sourced(values: list[SourcedUrl]) -> list[SourcedUrl]:
         seen.add(value)
         unique_values.append((value, source))
     return unique_values
-'''

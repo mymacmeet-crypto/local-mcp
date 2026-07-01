@@ -1,11 +1,11 @@
 [project]
-name = "claw-site"
+name = "local-mcp"
 version = "1.0.0"
-description = "MCP server for extracting URLs and OCR text from images"
+description = "MCP server for SearXNG web search, URL extraction, content extraction, OCR, and document parsing"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "ISC" }
-keywords = ["mcp", "crawler", "links", "sitemap", "crawl4ai", "ocr", "tesseract"]
+keywords = ["mcp", "crawler", "links", "sitemap", "crawl4ai", "ocr", "tesseract", "searxng", "search", "pdf", "documents"]
 dependencies = [
     "mcp>=1.2.0",
     "httpx>=0.27.0",
@@ -15,20 +15,25 @@ dependencies = [
     "python-dotenv>=1.0",
     "Pillow>=10.0",
     "pytesseract>=0.3.13",
+    "pypdf>=5.0",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
 # Browser-render fallback used by extract_urls when static HTML has no links.
 # Heavy (playwright + ML stack); excluded from serverless deploys. Install with:
-#   pip install "claw-site[browser]"
+#   pip install "local-mcp[browser]"
 browser = ["crawl4ai>=0.5.0"]
+document-fast = ["pymupdf4llm>=1.28.0", "pdfplumber>=0.11.0"]
+document-structured = ["docling>=2.107.0"]
+document-deep = ["marker-pdf>=1.10.2", "mineru>=3.4.0"]
 
 [project.scripts]
-claw-site = "server:main"
+local-mcp = "local_mcp.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-py-modules = ["server", "fetcher", "extract", "errors", "sitemap", "ocr"]
+[tool.setuptools.packages.find]
+include = ["local_mcp*"]

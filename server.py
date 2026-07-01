@@ -1,4 +1,32 @@
-"""claw-site MCP server.
+"""Compatibility entry point for the packaged local-mcp server."""
+
+from __future__ import annotations
+
+from local_mcp.app import app, mcp
+from local_mcp.cli import main
+from local_mcp.tools.documents import parse_document
+from local_mcp.tools.ocr import extract_image_text
+from local_mcp.tools.search import web_search
+from local_mcp.tools.web import extract_content, extract_urls
+
+__all__ = [
+    "app",
+    "mcp",
+    "main",
+    "extract_urls",
+    "extract_content",
+    "web_search",
+    "extract_image_text",
+    "parse_document",
+]
+
+
+if __name__ == "__main__":
+    main()
+
+
+_UNUSED_LEGACY_SOURCE = r'''
+"""local-mcp MCP server.
 
 Tools:
 - extract URLs from a site using this flow:
@@ -6,7 +34,9 @@ robots.txt -> sitemap discovery -> sitemap parsing -> page fetch with httpx
 -> link extraction, falling back to crawl4ai when static content has no links.
 - extract a page's readable content as Markdown (httpx -> HTML-to-Markdown,
   falling back to crawl4ai's native Markdown for JS-rendered pages).
+- search the web through a self-hosted SearXNG instance.
 - extract text from images with Tesseract OCR.
+- parse PDFs and documents with local parser backends.
 """
 
 from __future__ import annotations
@@ -25,11 +55,13 @@ from pydantic import Field  # noqa: E402
 
 import extract  # noqa: E402
 import fetcher  # noqa: E402
+import document_parser  # noqa: E402
 import ocr  # noqa: E402
+import searxng  # noqa: E402
 import sitemap  # noqa: E402
 from errors import describe_fetch_error, normalize_url, tool_error  # noqa: E402
 
-DEFAULT_LIMIT = int(os.environ.get("CLAW_SITE_URL_LIMIT", "500"))
+DEFAULT_LIMIT = int(os.environ.get("LOCAL_MCP_URL_LIMIT", "500"))
 
 
 @contextlib.asynccontextmanager
@@ -41,7 +73,7 @@ async def _lifespan(_server: "FastMCP"):
 
 
 mcp = FastMCP(
-    "claw-site",
+    "local-mcp",
     lifespan=_lifespan,
     host=os.environ.get("MCP_HTTP_HOST", "127.0.0.1"),
     port=int(os.environ.get("MCP_HTTP_PORT", "3002")),
@@ -136,7 +168,7 @@ async def extract_urls(
     )
 
 
-MIN_MARKDOWN_CHARS = int(os.environ.get("CLAW_SITE_MIN_MARKDOWN_CHARS", "200"))
+MIN_MARKDOWN_CHARS = int(os.environ.get("LOCAL_MCP_MIN_MARKDOWN_CHARS", "200"))
 
 
 @mcp.tool()
@@ -184,6 +216,70 @@ async def extract_content(
 
 
 @mcp.tool()
+async def web_search(
+    query: Annotated[str, Field(description="Search query to send to SearXNG.")],
+    limit: Annotated[int, Field(description="Maximum number of search results to return.", ge=1, le=20)] = 8,
+    categories: Annotated[
+        str,
+        Field(description="SearXNG categories, for example `general`, `news`, `images`, or `general,news`."),
+    ] = "general",
+    language: Annotated[
+        str,
+        Field(description="SearXNG language code. Use `auto` for automatic language detection."),
+    ] = "auto",
+    pageno: Annotated[int, Field(description="SearXNG result page number.", ge=1, le=20)] = 1,
+    safesearch: Annotated[
+        int,
+        Field(description="SearXNG safe-search level: 0 off, 1 moderate, 2 strict.", ge=0, le=2),
+    ] = 0,
+    time_range: Annotated[
+        str,
+        Field(description="Optional SearXNG time range: `day`, `month`, or `year`. Empty means any time."),
+    ] = "",
+    engines: Annotated[
+        str,
+        Field(description="Optional comma-separated SearXNG engines override. Empty uses the instance defaults."),
+    ] = "",
+    searxng_url: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional SearXNG base URL for this request. Empty uses SEARXNG_URLS, "
+                "LOCAL_MCP_SEARXNG_URLS, or SEARXNG_BASE_URL."
+            )
+        ),
+    ] = "",
+) -> str:
+    """Search the web through SearXNG and return citation-ready Markdown results.
+
+    Configure a local instance with SEARXNG_BASE_URL, or set SEARXNG_URLS /
+    LOCAL_MCP_SEARXNG_URLS to a comma-separated failover list.
+    """
+    try:
+        instance_url, results, answers, suggestions = await searxng.search(
+            query,
+            limit=limit,
+            categories=categories,
+            language=language,
+            pageno=pageno,
+            safesearch=safesearch,
+            time_range=time_range.strip() or None,
+            engines=engines.strip() or None,
+            base_url=searxng_url.strip() or None,
+        )
+    except Exception as err:
+        raise tool_error(f"SearXNG search failed: {err}")
+
+    return _format_search_response(
+        query=query,
+        instance_url=instance_url,
+        results=results,
+        answers=answers,
+        suggestions=suggestions,
+    )
+
+
+@mcp.tool()
 async def extract_image_text(
     image: Annotated[
         str,
@@ -200,6 +296,56 @@ async def extract_image_text(
     """
     try:
         return await ocr.extract_image_text(image, lang=lang)
+    except Exception as err:
+        raise tool_error(str(err))
+
+
+@mcp.tool()
+async def parse_document(
+    document: Annotated[
+        str,
+        Field(description="Document file path, file:// URI, HTTP(S) URL, data URL, or base64 document content."),
+    ],
+    parser: Annotated[
+        str,
+        Field(
+            description=(
+                "Parser backend: auto, pypdf, pymupdf4llm, pdfplumber, docling, marker, mineru, or text."
+            ),
+        ),
+    ] = "auto",
+    output_format: Annotated[
+        str,
+        Field(description="Output format: markdown, text, or json."),
+    ] = "markdown",
+    pages: Annotated[
+        str,
+        Field(description="Optional 1-based page range like '1-3,5'. Empty parses all pages."),
+    ] = "",
+    include_metadata: Annotated[
+        bool,
+        Field(description="Include parser/source metadata before markdown or text output."),
+    ] = True,
+    max_chars: Annotated[
+        int,
+        Field(description="Maximum returned content characters before truncation.", ge=1000, le=1_000_000),
+    ] = 120_000,
+) -> str:
+    """Parse a PDF or document into Markdown, plain text, or JSON.
+
+    The default `auto` backend prefers PyMuPDF4LLM when installed for fast
+    digital PDFs, falls back to pypdf for lightweight text extraction, and can
+    use optional Docling, Marker, MinerU, or pdfplumber backends when selected.
+    """
+    try:
+        return await document_parser.parse_document(
+            document,
+            parser=parser,
+            output_format=output_format,
+            pages=pages,
+            include_metadata=include_metadata,
+            max_chars=max_chars,
+        )
     except Exception as err:
         raise tool_error(str(err))
 
@@ -255,6 +401,55 @@ def _format_sourced_url(url: str, source: str) -> str:
     return f"- [{url}]({_markdown_link_target(url)}) ({source})"
 
 
+def _format_search_response(
+    *,
+    query: str,
+    instance_url: str,
+    results: list[searxng.SearchResult],
+    answers: list[str],
+    suggestions: list[str],
+) -> str:
+    lines = [
+        f'Search query: "{query.strip()}"',
+        f"SearXNG instance: {instance_url}",
+        f"Results returned: {len(results)}",
+    ]
+
+    if answers:
+        lines.extend(["", "Answers:"])
+        lines.extend(f"- {answer}" for answer in answers[:5])
+
+    if not results:
+        lines.extend(["", "No search results found."])
+    else:
+        lines.extend(["", "Results:"])
+        for index, result in enumerate(results, start=1):
+            lines.append(f"{index}. [{result.title}]({_markdown_link_target(result.url)})")
+            if result.content:
+                lines.append(f"   {result.content}")
+            lines.append(f"   URL: {result.url}")
+            metadata = _format_search_metadata(result)
+            if metadata:
+                lines.append(f"   {metadata}")
+
+    if suggestions:
+        lines.extend(["", "Suggestions:"])
+        lines.extend(f"- {suggestion}" for suggestion in suggestions[:5])
+
+    return "\n".join(lines)
+
+
+def _format_search_metadata(result: searxng.SearchResult) -> str:
+    metadata: list[str] = []
+    if result.engines:
+        metadata.append(f"Engines: {', '.join(result.engines)}")
+    if result.published_date:
+        metadata.append(f"Published: {result.published_date}")
+    if result.score is not None:
+        metadata.append(f"Score: {result.score:g}")
+    return " | ".join(metadata)
+
+
 def _markdown_link_target(url: str) -> str:
     from urllib.parse import quote
 
@@ -267,7 +462,7 @@ with contextlib.suppress(Exception):
 
     @mcp.custom_route("/health", methods=["GET"])
     async def health(_req: "Request") -> "JSONResponse":
-        return JSONResponse({"status": "ok", "server": "claw-site"})
+        return JSONResponse({"status": "ok", "server": "local-mcp"})
 
 
 # Top-level ASGI application for serverless/ASGI hosts (e.g. Vercel, uvicorn).
@@ -294,3 +489,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+'''

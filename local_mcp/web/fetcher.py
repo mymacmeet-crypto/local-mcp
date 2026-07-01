@@ -1,11 +1,3 @@
-"""Compatibility wrapper for moved web fetching helpers."""
-
-from __future__ import annotations
-
-from local_mcp.web.fetcher import *  # noqa: F401,F403
-
-
-_UNUSED_LEGACY_SOURCE = r'''
 """Fetch pages with httpx first, then crawl4ai when browser rendering is needed."""
 
 from __future__ import annotations
@@ -120,4 +112,3 @@ def _extract_markdown(markdown: Any) -> str | None:
             return value.strip()
     text = str(markdown).strip()
     return text or None
-'''

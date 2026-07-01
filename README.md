@@ -1,6 +1,6 @@
-# claw-site
+# local-mcp
 
-`claw-site` is a small Python MCP server with tools for extracting site URLs and extracting text from images.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, extracting text from images, and parsing PDFs/documents.
 
 The tool follows this flow:
 
@@ -20,17 +20,31 @@ robots.txt
 
 Requires Python 3.10+.
 
+For an interactive setup that creates `.venv`, installs the core runtime, and then offers run options:
+
+```bash
+python setup_and_run.py
+```
+
 The `extract_image_text` tool also requires the native Tesseract OCR executable:
 
 - Windows: install Tesseract OCR. The tool auto-detects the standard `C:\Program Files\Tesseract-OCR\tesseract.exe` install path; set `TESSERACT_CMD` if it is installed elsewhere.
 - macOS/Linux: install `tesseract` with your system package manager.
 
 ```bash
-cd claw-site
+cd local-mcp
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 crawl4ai-setup
+```
+
+Optional document parser engines can be installed as needed:
+
+```bash
+pip install ".[document-fast]"        # PyMuPDF4LLM + pdfplumber
+pip install ".[document-structured]"  # Docling
+pip install ".[document-deep]"        # Marker + MinerU
 ```
 
 ## Run
@@ -42,20 +56,63 @@ python server.py --http
 
 HTTP mode listens on `127.0.0.1:3002` by default.
 
+For the full package layout and request flow, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## SearXNG search
+
+Run SearXNG locally and enable JSON output in its `settings.yml`:
+
+```yaml
+search:
+  formats:
+    - html
+    - json
+```
+
+Then point this MCP server at it:
+
+```bash
+export SEARXNG_BASE_URL=http://127.0.0.1:8080
+```
+
+For failover, set a comma-separated list:
+
+```bash
+export SEARXNG_URLS=http://127.0.0.1:8080,https://your-backup-searxng.example
+```
+
+`LOCAL_MCP_SEARXNG_URLS` is also supported as an alias. Individual `web_search` calls can override the base URL with the `searxng_url` parameter.
+
 ## Claude Desktop config
 
 ```json
 {
   "mcpServers": {
-    "claw-site": {
-      "command": "D:\\MCP\\claw-site\\.venv\\Scripts\\python.exe",
-      "args": ["D:\\MCP\\claw-site\\server.py"]
+    "local-mcp": {
+      "command": "D:\\MCP\\local-mcp\\.venv\\Scripts\\python.exe",
+      "args": ["D:\\MCP\\local-mcp\\server.py"]
     }
   }
 }
 ```
 
 ## Tools
+
+### `web_search`
+
+Parameters:
+
+- `query`: search query to send to SearXNG.
+- `limit`: maximum number of search results to return. Default: `8`.
+- `categories`: SearXNG categories, for example `general`, `news`, `images`, or `general,news`. Default: `general`.
+- `language`: SearXNG language code. Default: `auto`.
+- `pageno`: SearXNG result page number. Default: `1`.
+- `safesearch`: safe-search level, where `0` is off, `1` is moderate, and `2` is strict. Default: `0`.
+- `time_range`: optional SearXNG time range: `day`, `month`, or `year`.
+- `engines`: optional comma-separated SearXNG engines override.
+- `searxng_url`: optional SearXNG base URL for this request.
+
+The response is citation-ready Markdown with linked result titles, source URLs, snippets, engines, answers, and suggestions when SearXNG returns them.
 
 ### `extract_urls`
 
@@ -85,3 +142,16 @@ Parameters:
 - `lang`: Tesseract language code. Default: `eng`.
 
 The response is only the text recognized from the image.
+
+### `parse_document`
+
+Parameters:
+
+- `document`: document file path, `file://` URI, HTTP(S) URL, data URL, or base64 document content.
+- `parser`: backend to use: `auto`, `pypdf`, `pymupdf4llm`, `pdfplumber`, `docling`, `marker`, `mineru`, or `text`. Default: `auto`.
+- `output_format`: `markdown`, `text`, or `json`. Default: `markdown`.
+- `pages`: optional 1-based page range such as `1-3,5`. Empty parses all pages.
+- `include_metadata`: include parser/source metadata before Markdown or text output. Default: `true`.
+- `max_chars`: maximum content characters returned before truncation. Default: `120000`.
+
+The response is parsed document content. `auto` prefers PyMuPDF4LLM when installed for fast digital PDFs, falls back to lightweight `pypdf`, and can use optional engines for structured OCR, deep-learning parsing, CJK/scientific documents, or table coordinates.

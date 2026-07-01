@@ -1,0 +1,13 @@
+# Local SearXNG config for MCP web_search.
+# JSON output is disabled by default in SearXNG; web_search needs it.
+
+use_default_settings: true
+
+search:
+  formats:
+    - html
+    - json
+
+server:
+  secret_key: "change-this-local-dev-secret"
+  image_proxy: true

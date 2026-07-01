@@ -1,13 +1,5 @@
-"""Compatibility wrapper for the moved OpenWebUI integration."""
-
-from __future__ import annotations
-
-from integrations.openwebui_tool import *  # noqa: F401,F403
-
-
-_UNUSED_LEGACY_SOURCE = r'''
 """
-OpenWebUI native tool for the local-mcp MCP server in server.py.
+OpenWebUI native tool for the local-mcp MCP server.
 
 Paste the entire contents of this file into OpenWebUI -> Tools -> Create Tool.
 Make sure server.py is running in HTTP mode:
@@ -390,4 +382,3 @@ class Tools:
         await self._emit_status(__event_emitter__, "Done", True)
         await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
-'''
