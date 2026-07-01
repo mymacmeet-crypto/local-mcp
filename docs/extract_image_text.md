@@ -134,7 +134,7 @@ For OpenWebUI:
 python server.py --http
 ```
 
-Then add [`openwebui_tool.py`](../openwebui_tool.py) in OpenWebUI.
+Then add [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
 
 ## Usage
 
@@ -314,11 +314,10 @@ Try these improvements:
 
 ## References
 
-- Project implementation: [`server.py`](../server.py), [`ocr.py`](../ocr.py), [`fetcher.py`](../fetcher.py)
+- Project implementation: [`local_mcp/tools/ocr.py`](../local_mcp/tools/ocr.py), [`local_mcp/ocr/tesseract.py`](../local_mcp/ocr/tesseract.py), [`local_mcp/web/fetcher.py`](../local_mcp/web/fetcher.py)
 - Project prompts: [`prompt.txt`](../prompt.txt)
 - Tesseract command-line usage: <https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html>
 - Tesseract documentation: <https://tesseract-ocr.github.io/tessdoc/>
 - pytesseract package: <https://github.com/madmaze/pytesseract>
 - Pillow documentation: <https://pillow.readthedocs.io/>
 - MCP Python SDK: <https://github.com/modelcontextprotocol/python-sdk>
-

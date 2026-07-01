@@ -20,6 +20,12 @@ robots.txt
 
 Requires Python 3.10+.
 
+For an interactive setup that creates `.venv`, installs the core runtime, and then offers run options:
+
+```bash
+python setup_and_run.py
+```
+
 The `extract_image_text` tool also requires the native Tesseract OCR executable:
 
 - Windows: install Tesseract OCR. The tool auto-detects the standard `C:\Program Files\Tesseract-OCR\tesseract.exe` install path; set `TESSERACT_CMD` if it is installed elsewhere.
@@ -49,6 +55,8 @@ python server.py --http
 ```
 
 HTTP mode listens on `127.0.0.1:3002` by default.
+
+For the full package layout and request flow, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## SearXNG search
 

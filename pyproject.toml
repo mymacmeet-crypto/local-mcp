@@ -29,11 +29,11 @@ document-structured = ["docling>=2.107.0"]
 document-deep = ["marker-pdf>=1.10.2", "mineru>=3.4.0"]
 
 [project.scripts]
-local-mcp = "server:main"
+local-mcp = "local_mcp.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-py-modules = ["server", "fetcher", "extract", "errors", "sitemap", "ocr", "searxng", "document_parser"]
+[tool.setuptools.packages.find]
+include = ["local_mcp*"]

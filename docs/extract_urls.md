@@ -100,7 +100,7 @@ For OpenWebUI:
 python server.py --http
 ```
 
-Then configure [`openwebui_tool.py`](../openwebui_tool.py) in OpenWebUI.
+Then configure [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
 
 ## Usage
 
@@ -255,10 +255,9 @@ The target page may not exist or may block automated requests. Try a different U
 
 ## References
 
-- Project implementation: [`server.py`](../server.py), [`sitemap.py`](../sitemap.py), [`extract.py`](../extract.py), [`fetcher.py`](../fetcher.py)
+- Project implementation: [`local_mcp/tools/web.py`](../local_mcp/tools/web.py), [`local_mcp/web/sitemap.py`](../local_mcp/web/sitemap.py), [`local_mcp/web/html.py`](../local_mcp/web/html.py), [`local_mcp/web/fetcher.py`](../local_mcp/web/fetcher.py)
 - Project prompts: [`prompt.txt`](../prompt.txt)
 - MCP Python SDK: <https://github.com/modelcontextprotocol/python-sdk>
 - Crawl4AI documentation: <https://docs.crawl4ai.com/>
 - Beautiful Soup documentation: <https://beautiful-soup-4.readthedocs.io/en/latest/>
 - HTTPX documentation: <https://www.python-httpx.org/>
-

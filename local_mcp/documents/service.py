@@ -1,11 +1,10 @@
-"""Compatibility wrapper for moved document parsing helpers."""
+"""Compatibility wrapper for the split document parsing service."""
 
 from __future__ import annotations
 
 from local_mcp.documents.api import parse_document
-from local_mcp.documents.models import DocumentSource, ParseResult
 
-__all__ = ["parse_document", "DocumentSource", "ParseResult"]
+__all__ = ["parse_document"]
 
 
 _UNUSED_LEGACY_SOURCE = r'''
@@ -30,15 +29,15 @@ from urllib.parse import ParseResult, unquote, urlparse
 
 import httpx
 
-from errors import describe_fetch_error, tool_error
-from fetcher import TIMEOUT_S, USER_AGENT
+from local_mcp.shared.errors import describe_fetch_error, tool_error
+from local_mcp.web.fetcher import TIMEOUT_S, USER_AGENT
 
 MAX_DOCUMENT_BYTES = int(os.environ.get("LOCAL_MCP_DOCUMENT_MAX_BYTES", str(100 * 1024 * 1024)))
 PARSER_TIMEOUT_S = int(os.environ.get("LOCAL_MCP_DOCUMENT_PARSER_TIMEOUT_S", "900"))
 DOCUMENT_TEMP_ROOT = os.environ.get("LOCAL_MCP_DOCUMENT_TMPDIR", "")
 BASE64_RE = re.compile(r"^[A-Za-z0-9+/=\s]+$")
 WINDOWS_DRIVE_PATH_RE = re.compile(r"^/[A-Za-z]:([\\/]|$)")
-MODULE_DIR = Path(__file__).resolve().parent
+MODULE_DIR = Path(__file__).resolve().parents[2]
 
 PARSERS = {"auto", "pypdf", "pymupdf4llm", "pdfplumber", "docling", "marker", "mineru", "text"}
 OUTPUT_FORMATS = {"markdown", "text", "json"}

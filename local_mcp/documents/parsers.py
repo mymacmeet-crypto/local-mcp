@@ -1,44 +1,21 @@
-"""Compatibility wrapper for moved document parsing helpers."""
+"""Document parser backend selection and implementations."""
 
 from __future__ import annotations
 
-from local_mcp.documents.api import parse_document
-from local_mcp.documents.models import DocumentSource, ParseResult
-
-__all__ = ["parse_document", "DocumentSource", "ParseResult"]
-
-
-_UNUSED_LEGACY_SOURCE = r'''
-"""PDF and document parsing helpers."""
-
-from __future__ import annotations
-
-import asyncio
-import base64
-import binascii
 import importlib.util
 import inspect
 import json
 import os
-import re
 import shutil
 import subprocess
-import tempfile
-from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import ParseResult, unquote, urlparse
 
-import httpx
+from local_mcp.documents.formatting import json_string
+from local_mcp.documents.models import ParseResult
+from local_mcp.documents.source import temporary_directory
+from local_mcp.shared.errors import tool_error
 
-from errors import describe_fetch_error, tool_error
-from fetcher import TIMEOUT_S, USER_AGENT
-
-MAX_DOCUMENT_BYTES = int(os.environ.get("LOCAL_MCP_DOCUMENT_MAX_BYTES", str(100 * 1024 * 1024)))
 PARSER_TIMEOUT_S = int(os.environ.get("LOCAL_MCP_DOCUMENT_PARSER_TIMEOUT_S", "900"))
-DOCUMENT_TEMP_ROOT = os.environ.get("LOCAL_MCP_DOCUMENT_TMPDIR", "")
-BASE64_RE = re.compile(r"^[A-Za-z0-9+/=\s]+$")
-WINDOWS_DRIVE_PATH_RE = re.compile(r"^/[A-Za-z]:([\\/]|$)")
-MODULE_DIR = Path(__file__).resolve().parent
 
 PARSERS = {"auto", "pypdf", "pymupdf4llm", "pdfplumber", "docling", "marker", "mineru", "text"}
 OUTPUT_FORMATS = {"markdown", "text", "json"}
@@ -54,57 +31,8 @@ INSTALL_HINTS = {
 }
 
 
-@dataclass
-class DocumentSource:
-    path: Path
-    label: str
-    cleanup_dir: tempfile.TemporaryDirectory[str] | None = None
-
-    def cleanup(self) -> None:
-        if self.cleanup_dir is not None:
-            self.cleanup_dir.cleanup()
-
-
-@dataclass
-class ParseResult:
-    parser: str
-    output_format: str
-    content: str
-    source: str
-    metadata: dict[str, object] = field(default_factory=dict)
-    warnings: list[str] = field(default_factory=list)
-
-
-async def parse_document(
-    document: str,
-    *,
-    parser: str = "auto",
-    output_format: str = "markdown",
-    pages: str = "",
-    include_metadata: bool = True,
-    max_chars: int = 120_000,
-) -> str:
-    """Parse a document source and return Markdown, text, or JSON."""
-    parser_name = _validate_choice(parser, PARSERS, "parser")
-    format_name = _validate_choice(output_format, OUTPUT_FORMATS, "output_format")
-    source = await _load_document_source(document)
-    try:
-        result = await asyncio.to_thread(
-            _parse_document_path,
-            source.path,
-            source.label,
-            parser_name,
-            format_name,
-            pages,
-        )
-    finally:
-        source.cleanup()
-
-    return _format_result(result, include_metadata=include_metadata, max_chars=max_chars)
-
-
-def _parse_document_path(path: Path, source_label: str, parser: str, output_format: str, pages: str) -> ParseResult:
-    selected_parser = _choose_auto_parser(path) if parser == "auto" else parser
+def parse_document_path(path: Path, source_label: str, parser: str, output_format: str, pages: str) -> ParseResult:
+    selected_parser = choose_auto_parser(path) if parser == "auto" else parser
     if selected_parser == "pypdf":
         return _parse_with_pypdf(path, source_label, output_format, pages)
     if selected_parser == "pymupdf4llm":
@@ -122,16 +50,16 @@ def _parse_document_path(path: Path, source_label: str, parser: str, output_form
     raise tool_error(f"Unsupported parser: {selected_parser}")
 
 
-def _choose_auto_parser(path: Path) -> str:
+def choose_auto_parser(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         for parser in ("pymupdf4llm", "pypdf", "pdfplumber", "docling"):
-            if _parser_available(parser):
+            if parser_available(parser):
                 return parser
     if suffix in TEXT_EXTENSIONS:
         return "text"
     for parser in ("docling", "marker", "mineru", "pymupdf4llm"):
-        if _parser_available(parser):
+        if parser_available(parser):
             return parser
     raise tool_error(
         "No document parser is available for this file. "
@@ -139,7 +67,7 @@ def _choose_auto_parser(path: Path) -> str:
     )
 
 
-def _parser_available(parser: str) -> bool:
+def parser_available(parser: str) -> bool:
     if parser == "marker":
         return bool(_marker_command())
     if parser == "mineru":
@@ -153,214 +81,6 @@ def _has_module(module_name: str) -> bool:
     return importlib.util.find_spec(module_name) is not None
 
 
-async def _load_document_source(document: str) -> DocumentSource:
-    source = _clean_document_source(document)
-    if not source:
-        raise tool_error("Document path, URL, data URL, or base64 content is required.")
-
-    parsed = urlparse(source)
-    if parsed.scheme in ("http", "https"):
-        return await _download_document(source)
-    if parsed.scheme == "data":
-        return _decode_data_url(source)
-
-    local = _local_document_source(source, parsed)
-    if local is not None:
-        return local
-
-    if _looks_like_base64(source):
-        return _bytes_document_source(_decode_base64(source), "document.pdf")
-
-    raise tool_error(f"Document not found or unsupported document source: {source}")
-
-
-def _clean_document_source(document: str) -> str:
-    source = (document or "").strip()
-    if len(source) >= 2 and source[0] == source[-1] and source[0] in ("'", '"'):
-        return source[1:-1].strip()
-    return source
-
-
-def _local_document_source(source: str, parsed: ParseResult) -> DocumentSource | None:
-    for path in _local_path_candidates(source, parsed):
-        try:
-            if not path.is_file():
-                continue
-            size = path.stat().st_size
-            if size > MAX_DOCUMENT_BYTES:
-                raise tool_error(f"Document is too large. Maximum size is {MAX_DOCUMENT_BYTES} bytes.")
-            return DocumentSource(path=path, label=str(path))
-        except OSError as err:
-            raise tool_error(f"Could not read document file: {err}")
-    return None
-
-
-def _local_path_candidates(source: str, parsed: ParseResult) -> list[Path]:
-    if parsed.scheme == "file":
-        path_source = _file_uri_to_path(parsed)
-    else:
-        path_source = source
-
-    path = Path(path_source).expanduser()
-    candidates = [path]
-    if not path.is_absolute():
-        candidates.append(Path.cwd() / path)
-        candidates.append(MODULE_DIR / path)
-    return _unique_paths(candidates)
-
-
-def _file_uri_to_path(parsed: ParseResult) -> str:
-    path = unquote(parsed.path)
-    host = unquote(parsed.netloc)
-
-    if os.name == "nt":
-        if host and host.lower() != "localhost":
-            if re.fullmatch(r"[A-Za-z]:", host):
-                path = f"{host}{path}"
-            else:
-                path = f"//{host}{path}"
-        if WINDOWS_DRIVE_PATH_RE.match(path):
-            path = path[1:]
-        return path
-
-    if host and host.lower() != "localhost":
-        raise tool_error("Only local file:// document URLs are supported.")
-    return path
-
-
-def _unique_paths(paths: list[Path]) -> list[Path]:
-    unique_paths: list[Path] = []
-    seen: set[str] = set()
-    for path in paths:
-        key = str(path)
-        if key in seen:
-            continue
-        seen.add(key)
-        unique_paths.append(path)
-    return unique_paths
-
-
-def _temporary_directory(prefix: str) -> tempfile.TemporaryDirectory[str]:
-    temp_root = _document_temp_root()
-    if temp_root is not None:
-        return tempfile.TemporaryDirectory(prefix=prefix, dir=str(temp_root))
-    return tempfile.TemporaryDirectory(prefix=prefix)
-
-
-def _document_temp_root() -> Path | None:
-    candidates = [Path(DOCUMENT_TEMP_ROOT).expanduser()] if DOCUMENT_TEMP_ROOT else [MODULE_DIR / ".tmp" / "documents"]
-    for candidate in candidates:
-        try:
-            candidate.mkdir(parents=True, exist_ok=True)
-            probe = candidate / ".write-test"
-            probe.write_text("ok", encoding="utf-8")
-            probe.unlink(missing_ok=True)
-            return candidate
-        except OSError:
-            continue
-    return None
-
-
-async def _download_document(url: str) -> DocumentSource:
-    headers = {
-        "User-Agent": USER_AGENT,
-        "Accept": "application/pdf,application/octet-stream,*/*;q=0.8",
-    }
-    suffix = _suffix_from_url(url) or ".bin"
-    tmp_dir = _temporary_directory(prefix="local-mcp-doc-")
-    path = Path(tmp_dir.name) / f"document{suffix}"
-    total = 0
-
-    try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=TIMEOUT_S, headers=headers) as client:
-            async with client.stream("GET", url) as response:
-                response.raise_for_status()
-                content_length = response.headers.get("Content-Length")
-                if content_length and int(content_length) > MAX_DOCUMENT_BYTES:
-                    raise tool_error(f"Document is too large. Maximum size is {MAX_DOCUMENT_BYTES} bytes.")
-                with path.open("wb") as file:
-                    async for chunk in response.aiter_bytes():
-                        total += len(chunk)
-                        if total > MAX_DOCUMENT_BYTES:
-                            raise tool_error(f"Document is too large. Maximum size is {MAX_DOCUMENT_BYTES} bytes.")
-                        file.write(chunk)
-    except Exception as err:
-        tmp_dir.cleanup()
-        if err.__class__.__name__ == "ToolError":
-            raise
-        raise tool_error(describe_fetch_error(err, url))
-
-    if path.suffix == ".bin":
-        path = _rename_with_detected_suffix(path)
-    return DocumentSource(path=path, label=url, cleanup_dir=tmp_dir)
-
-
-def _decode_data_url(source: str) -> DocumentSource:
-    header, separator, payload = source.partition(",")
-    if not separator or ";base64" not in header.lower():
-        raise tool_error("Only base64 document data URLs are supported.")
-    suffix = _suffix_from_mime(header.partition(":")[2].partition(";")[0]) or ".bin"
-    return _bytes_document_source(_decode_base64(payload), f"document{suffix}")
-
-
-def _bytes_document_source(content: bytes, filename: str) -> DocumentSource:
-    if len(content) > MAX_DOCUMENT_BYTES:
-        raise tool_error(f"Document is too large. Maximum size is {MAX_DOCUMENT_BYTES} bytes.")
-    tmp_dir = _temporary_directory(prefix="local-mcp-doc-")
-    path = Path(tmp_dir.name) / filename
-    path.write_bytes(content)
-    if path.suffix == ".bin":
-        path = _rename_with_detected_suffix(path)
-    return DocumentSource(path=path, label=filename, cleanup_dir=tmp_dir)
-
-
-def _looks_like_base64(source: str) -> bool:
-    compact = "".join(source.split())
-    return len(compact) >= 64 and len(compact) % 4 == 0 and bool(BASE64_RE.fullmatch(source))
-
-
-def _decode_base64(payload: str) -> bytes:
-    compact_payload = "".join(payload.split())
-    try:
-        return base64.b64decode(compact_payload, validate=True)
-    except binascii.Error:
-        raise tool_error("Document base64 content is invalid.")
-
-
-def _suffix_from_url(url: str) -> str | None:
-    suffix = Path(urlparse(url).path).suffix.lower()
-    if suffix and re.fullmatch(r"\.[A-Za-z0-9]{1,8}", suffix):
-        return suffix
-    return None
-
-
-def _suffix_from_mime(mime: str) -> str | None:
-    normalized = (mime or "").lower()
-    return {
-        "application/pdf": ".pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
-        "text/plain": ".txt",
-        "text/markdown": ".md",
-        "text/html": ".html",
-        "application/json": ".json",
-    }.get(normalized)
-
-
-def _rename_with_detected_suffix(path: Path) -> Path:
-    try:
-        header = path.read_bytes()[:8]
-    except OSError:
-        return path
-    suffix = ".pdf" if header.startswith(b"%PDF") else ".docx" if header.startswith(b"PK") else ""
-    if not suffix:
-        return path
-    new_path = path.with_suffix(suffix)
-    path.replace(new_path)
-    return new_path
-
-
 def _parse_with_pypdf(path: Path, source: str, output_format: str, pages: str) -> ParseResult:
     try:
         from pypdf import PdfReader
@@ -368,7 +88,7 @@ def _parse_with_pypdf(path: Path, source: str, output_format: str, pages: str) -
         raise _missing_parser("pypdf") from err
 
     reader = PdfReader(str(path))
-    page_indexes = _parse_page_selection(pages, len(reader.pages))
+    page_indexes = parse_page_selection(pages, len(reader.pages))
     selected = page_indexes or list(range(len(reader.pages)))
     page_payloads: list[dict[str, object]] = []
 
@@ -394,7 +114,7 @@ def _parse_with_pdfplumber(path: Path, source: str, output_format: str, pages: s
 
     page_payloads: list[dict[str, object]] = []
     with pdfplumber.open(str(path)) as pdf:
-        selected = _parse_page_selection(pages, len(pdf.pages)) or list(range(len(pdf.pages)))
+        selected = parse_page_selection(pages, len(pdf.pages)) or list(range(len(pdf.pages)))
         for index in selected:
             page = pdf.pages[index]
             text = (page.extract_text() or "").strip()
@@ -423,10 +143,10 @@ def _parse_with_pymupdf4llm(path: Path, source: str, output_format: str, pages: 
     except ImportError as err:
         raise _missing_parser("pymupdf4llm") from err
 
-    selected = _parse_page_selection(pages, None)
+    selected = parse_page_selection(pages, None)
     if output_format == "json" and hasattr(pymupdf4llm, "to_json"):
         raw = _call_parser_function(pymupdf4llm.to_json, path, selected)
-        content = _json_string(raw)
+        content = json_string(raw)
     elif output_format == "text" and hasattr(pymupdf4llm, "to_text"):
         content = str(_call_parser_function(pymupdf4llm.to_text, path, selected)).strip()
     else:
@@ -450,7 +170,7 @@ def _parse_with_docling(path: Path, source: str, output_format: str, pages: str)
     metadata = _object_metadata(result)
 
     if output_format == "json":
-        content = _json_string(_export_object(document, ("export_to_dict", "model_dump", "dict")))
+        content = json_string(_export_object(document, ("export_to_dict", "model_dump", "dict")))
     elif output_format == "text" and hasattr(document, "export_to_text"):
         content = str(document.export_to_text()).strip()
     else:
@@ -464,7 +184,7 @@ def _parse_with_marker(path: Path, source: str, output_format: str, pages: str) 
         raise _missing_parser("marker")
 
     marker_format = "json" if output_format == "json" else "markdown"
-    with _temporary_directory(prefix="local-mcp-marker-") as output_dir:
+    with temporary_directory(prefix="local-mcp-marker-") as output_dir:
         args = [
             command,
             str(path),
@@ -474,7 +194,7 @@ def _parse_with_marker(path: Path, source: str, output_format: str, pages: str) 
             output_dir,
             "--disable_image_extraction",
         ]
-        marker_pages = _marker_page_range(pages)
+        marker_pages = marker_page_range(pages)
         if marker_pages:
             args.extend(["--page_range", marker_pages])
         _run_cli_parser(args, "Marker")
@@ -494,7 +214,7 @@ def _parse_with_mineru(path: Path, source: str, output_format: str, pages: str) 
         raise _missing_parser("mineru")
 
     backend = os.environ.get("LOCAL_MCP_MINERU_BACKEND", "pipeline").strip()
-    with _temporary_directory(prefix="local-mcp-mineru-") as output_dir:
+    with temporary_directory(prefix="local-mcp-mineru-") as output_dir:
         args = [command, "-p", str(path), "-o", output_dir]
         if backend:
             args.extend(["-b", backend])
@@ -560,7 +280,7 @@ def _call_parser_function(func, path: Path, pages: list[int] | None) -> object:
     return func(str(path), **kwargs)
 
 
-def _parse_page_selection(pages: str, page_count: int | None) -> list[int] | None:
+def parse_page_selection(pages: str, page_count: int | None) -> list[int] | None:
     value = (pages or "").strip()
     if not value:
         return None
@@ -597,8 +317,8 @@ def _parse_page_selection(pages: str, page_count: int | None) -> list[int] | Non
     return selected
 
 
-def _marker_page_range(pages: str) -> str:
-    selected = _parse_page_selection(pages, None)
+def marker_page_range(pages: str) -> str:
+    selected = parse_page_selection(pages, None)
     if not selected:
         return ""
     ranges: list[str] = []
@@ -672,61 +392,6 @@ def _strip_markdown_tables(markdown: str) -> str:
     return "\n".join(lines).strip()
 
 
-def _json_string(value: object) -> str:
-    if isinstance(value, str):
-        return value.strip()
-    return json.dumps(value, ensure_ascii=False, indent=2, default=str)
-
-
-def _format_result(result: ParseResult, *, include_metadata: bool, max_chars: int) -> str:
-    content, truncated = _truncate(result.content, max_chars)
-    warnings = list(result.warnings)
-    if truncated:
-        warnings.append(f"Content truncated to {max_chars} characters.")
-
-    if result.output_format == "json":
-        payload = {
-            "parser": result.parser,
-            "source": result.source,
-            "output_format": result.output_format,
-            "metadata": result.metadata,
-            "warnings": warnings,
-            "content": content,
-        }
-        return json.dumps(payload, ensure_ascii=False, indent=2)
-
-    if not include_metadata:
-        return content
-
-    lines = [
-        f"Parser: {result.parser}",
-        f"Source: {result.source}",
-        f"Output format: {result.output_format}",
-    ]
-    if result.metadata:
-        lines.append("Metadata:")
-        for key, value in result.metadata.items():
-            lines.append(f"- {key}: {value}")
-    if warnings:
-        lines.append("Warnings:")
-        lines.extend(f"- {warning}" for warning in warnings)
-    return "\n".join(lines).strip() + "\n\n" + content
-
-
-def _truncate(content: str, max_chars: int) -> tuple[str, bool]:
-    if max_chars <= 0 or len(content) <= max_chars:
-        return content, False
-    return content[:max_chars].rstrip(), True
-
-
-def _validate_choice(value: str, allowed: set[str], label: str) -> str:
-    normalized = (value or "").strip().lower()
-    if normalized not in allowed:
-        choices = ", ".join(sorted(allowed))
-        raise tool_error(f"Unsupported {label}: {value}. Choose one of: {choices}.")
-    return normalized
-
-
 def _missing_parser(parser: str):
     return tool_error(f"{parser} is not installed or not on PATH. {INSTALL_HINTS.get(parser, '')}".strip())
 
@@ -765,4 +430,3 @@ def _find_parser_output(output_dir: Path, suffix: str) -> Path:
     if not matches:
         raise tool_error(f"Parser completed but no {suffix} output file was found.")
     return max(matches, key=lambda path: path.stat().st_size)
-'''

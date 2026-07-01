@@ -1,11 +1,3 @@
-"""Compatibility wrapper for moved SearXNG helpers."""
-
-from __future__ import annotations
-
-from local_mcp.search.searxng import *  # noqa: F401,F403
-
-
-_UNUSED_LEGACY_SOURCE = r'''
 """SearXNG search client and formatting helpers."""
 
 from __future__ import annotations
@@ -193,4 +185,3 @@ def _parse_score(value: Any) -> float | None:
 
 def _clean_text(value: Any) -> str:
     return " ".join(str(value or "").split())
-'''

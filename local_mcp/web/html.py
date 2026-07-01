@@ -1,33 +1,13 @@
-"""Compatibility wrapper for moved HTML extraction helpers."""
-
-from __future__ import annotations
-
-from local_mcp.web.html import *  # noqa: F401,F403
-
-
-_UNUSED_LEGACY_SOURCE = r'''
 """HTML URL extraction helpers."""
 
 from __future__ import annotations
 
 import re
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-
-def normalize_discovered_url(raw_url: str, base_url: str | None = None) -> str | None:
-    raw = (raw_url or "").strip()
-    if not raw or re.match(r"^(javascript:|mailto:|tel:|#)", raw, re.I):
-        return None
-    try:
-        absolute_url = urljoin(base_url, raw) if base_url else raw
-    except ValueError:
-        return None
-    parsed = urlparse(absolute_url)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        return None
-    return urlunparse(parsed._replace(fragment=""))
+from local_mcp.shared.urls import normalize_discovered_url
 
 
 def extract_links(html: str, base_url: str, *, same_domain: bool = True) -> list[str]:
@@ -103,4 +83,3 @@ def _absolutize_refs(node, base_url: str) -> None:
 
 def _collapse_blank_lines(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text or "")
-'''

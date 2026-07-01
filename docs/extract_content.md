@@ -96,7 +96,7 @@ For OpenWebUI, run:
 python server.py --http
 ```
 
-Then add [`openwebui_tool.py`](../openwebui_tool.py) in OpenWebUI.
+Then add [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
 
 ## Usage
 
@@ -239,11 +239,10 @@ The target server returned an HTTP error or blocked the request. Confirm the URL
 
 ## References
 
-- Project implementation: [`server.py`](../server.py), [`extract.py`](../extract.py), [`fetcher.py`](../fetcher.py)
+- Project implementation: [`local_mcp/tools/web.py`](../local_mcp/tools/web.py), [`local_mcp/web/html.py`](../local_mcp/web/html.py), [`local_mcp/web/fetcher.py`](../local_mcp/web/fetcher.py)
 - Project prompts: [`prompt.txt`](../prompt.txt)
 - MCP Python SDK: <https://github.com/modelcontextprotocol/python-sdk>
 - Crawl4AI documentation: <https://docs.crawl4ai.com/>
 - Markdownify package: <https://pypi.org/project/markdownify/>
 - Beautiful Soup documentation: <https://beautiful-soup-4.readthedocs.io/en/latest/>
 - HTTPX documentation: <https://www.python-httpx.org/>
-

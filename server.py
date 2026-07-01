@@ -1,3 +1,31 @@
+"""Compatibility entry point for the packaged local-mcp server."""
+
+from __future__ import annotations
+
+from local_mcp.app import app, mcp
+from local_mcp.cli import main
+from local_mcp.tools.documents import parse_document
+from local_mcp.tools.ocr import extract_image_text
+from local_mcp.tools.search import web_search
+from local_mcp.tools.web import extract_content, extract_urls
+
+__all__ = [
+    "app",
+    "mcp",
+    "main",
+    "extract_urls",
+    "extract_content",
+    "web_search",
+    "extract_image_text",
+    "parse_document",
+]
+
+
+if __name__ == "__main__":
+    main()
+
+
+_UNUSED_LEGACY_SOURCE = r'''
 """local-mcp MCP server.
 
 Tools:
@@ -461,3 +489,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+'''

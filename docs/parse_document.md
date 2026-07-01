@@ -159,7 +159,7 @@ Run over HTTP:
 python server.py --http
 ```
 
-For OpenWebUI, run HTTP mode and add [`openwebui_tool.py`](../openwebui_tool.py) in OpenWebUI.
+For OpenWebUI, run HTTP mode and add [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
 
 ## Configuration
 
@@ -226,7 +226,7 @@ Use a frontier model client that accepts PDFs directly. This local tool does not
 
 ## References
 
-- Project implementation: [`server.py`](../server.py), [`document_parser.py`](../document_parser.py)
+- Project implementation: [`local_mcp/tools/documents.py`](../local_mcp/tools/documents.py), [`local_mcp/documents/`](../local_mcp/documents/)
 - Project prompts: [`prompt.txt`](../prompt.txt)
 - PyMuPDF4LLM documentation: <https://pymupdf.readthedocs.io/>
 - Docling documentation: <https://docling-project.github.io/docling/>

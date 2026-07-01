@@ -1,20 +1,6 @@
-"""Compatibility wrapper for moved shared helpers."""
+"""MCP tool error helpers."""
 
 from __future__ import annotations
-
-from local_mcp.shared.errors import describe_fetch_error, tool_error
-from local_mcp.shared.urls import normalize_url
-
-__all__ = ["describe_fetch_error", "tool_error", "normalize_url"]
-
-
-_UNUSED_LEGACY_SOURCE = r'''
-"""URL validation and MCP tool error helpers."""
-
-from __future__ import annotations
-
-import re
-from urllib.parse import urlparse, urlunparse
 
 import httpx
 from mcp.server.fastmcp.exceptions import ToolError
@@ -41,23 +27,3 @@ def describe_fetch_error(err: Exception, label: str) -> str:
 
 def tool_error(text: str) -> ToolError:
     return ToolError(text)
-
-
-def normalize_url(raw: str) -> str:
-    candidate = (raw or "").strip()
-    if not candidate:
-        raise ToolError('"" is not a valid URL.')
-    if re.match(r"^https?//", candidate, re.I):
-        candidate = candidate.replace("//", "://", 1)
-
-    parsed = urlparse(candidate)
-    if not parsed.scheme:
-        parsed = urlparse(f"https://{candidate}")
-
-    if parsed.scheme not in ("http", "https"):
-        raise ToolError(f"Only http and https URLs are supported (got {parsed.scheme or '<none>'}).")
-    if not parsed.netloc:
-        raise ToolError(f'"{raw}" is not a valid URL.')
-
-    return urlunparse(parsed)
-'''

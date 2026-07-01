@@ -101,7 +101,7 @@ For OpenWebUI, start the server in HTTP mode:
 python server.py --http
 ```
 
-Then paste [`openwebui_tool.py`](../openwebui_tool.py) into OpenWebUI under `Tools -> Create Tool`.
+Then paste [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) into OpenWebUI under `Tools -> Create Tool`.
 
 ## Usage
 
@@ -259,9 +259,8 @@ Try a broader query, different `categories`, or different `engines`. Some engine
 
 ## References
 
-- Project implementation: [`server.py`](../server.py), [`searxng.py`](../searxng.py), [`openwebui_tool.py`](../openwebui_tool.py)
+- Project implementation: [`local_mcp/tools/search.py`](../local_mcp/tools/search.py), [`local_mcp/search/searxng.py`](../local_mcp/search/searxng.py), [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py)
 - Project SearXNG sample config: [`searxng-settings.yml`](../searxng-settings.yml)
 - SearXNG Search API: <https://docs.searxng.org/dev/search_api.html>
 - SearXNG settings documentation: <https://docs.searxng.org/admin/settings/settings.html>
 - MCP Python SDK: <https://github.com/modelcontextprotocol/python-sdk>
-

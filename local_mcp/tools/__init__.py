@@ -1,0 +1,18 @@
+"""MCP tool registration."""
+
+from __future__ import annotations
+
+from mcp.server.fastmcp import FastMCP
+
+
+def register_tools(mcp: FastMCP) -> None:
+    from local_mcp.tools import documents, ocr, search, web
+
+    for tool in (
+        web.extract_urls,
+        web.extract_content,
+        search.web_search,
+        ocr.extract_image_text,
+        documents.parse_document,
+    ):
+        mcp.tool()(tool)

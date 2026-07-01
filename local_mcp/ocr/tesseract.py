@@ -1,36 +1,25 @@
-"""Compatibility wrapper for moved OCR helpers."""
-
-from __future__ import annotations
-
-from local_mcp.ocr.tesseract import *  # noqa: F401,F403
-
-
-_UNUSED_LEGACY_SOURCE = r'''
 """Image OCR helpers backed by Tesseract."""
 
 from __future__ import annotations
 
 import asyncio
-import base64
-import binascii
 import os
 import re
 import shutil
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import ParseResult, unquote, urlparse
+from urllib.parse import ParseResult, urlparse
 
 import httpx
 
-from errors import describe_fetch_error, tool_error
-from fetcher import TIMEOUT_S, USER_AGENT
+from local_mcp.shared.errors import describe_fetch_error, tool_error
+from local_mcp.shared.files import clean_wrapped_source, decode_base64, local_path_candidates, looks_like_base64
+from local_mcp.web.fetcher import TIMEOUT_S, USER_AGENT
 
 MAX_IMAGE_BYTES = int(os.environ.get("LOCAL_MCP_OCR_MAX_IMAGE_BYTES", str(20 * 1024 * 1024)))
 TESSERACT_CONFIG = os.environ.get("LOCAL_MCP_TESSERACT_CONFIG", "")
-BASE64_RE = re.compile(r"^[A-Za-z0-9+/=\s]+$")
 LANG_RE = re.compile(r"^[A-Za-z0-9_+-]+$")
-WINDOWS_DRIVE_PATH_RE = re.compile(r"^/[A-Za-z]:([\\/]|$)")
-MODULE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 async def extract_image_text(image: str, *, lang: str = "eng") -> str:
@@ -49,7 +38,7 @@ def _validate_language(lang: str) -> str:
 
 
 async def _load_image_bytes(image: str) -> bytes:
-    source = _clean_image_source(image)
+    source = clean_wrapped_source(image)
     if not source:
         raise tool_error("Image path, URL, data URL, or base64 content is required.")
 
@@ -63,21 +52,14 @@ async def _load_image_bytes(image: str) -> bytes:
     if image_bytes is not None:
         return image_bytes
 
-    if _looks_like_base64(source):
-        return _decode_base64(source)
+    if looks_like_base64(source, min_length=32):
+        return _decode_image_base64(source)
 
     raise tool_error(f"Image not found or unsupported image source: {source}")
 
 
-def _clean_image_source(image: str) -> str:
-    source = (image or "").strip()
-    if len(source) >= 2 and source[0] == source[-1] and source[0] in ("'", '"'):
-        return source[1:-1].strip()
-    return source
-
-
 def _read_local_image(source: str, parsed: ParseResult) -> bytes | None:
-    for path in _local_path_candidates(source, parsed):
+    for path in local_path_candidates(source, parsed, relative_root=PROJECT_ROOT, source_kind="image"):
         try:
             if not path.is_file():
                 continue
@@ -88,51 +70,6 @@ def _read_local_image(source: str, parsed: ParseResult) -> bytes | None:
         except OSError as err:
             raise tool_error(f"Could not read image file: {err}")
     return None
-
-
-def _local_path_candidates(source: str, parsed: ParseResult) -> list[Path]:
-    if parsed.scheme == "file":
-        path_source = _file_uri_to_path(parsed)
-    else:
-        path_source = source
-
-    path = Path(path_source).expanduser()
-    candidates = [path]
-    if not path.is_absolute():
-        candidates.append(Path.cwd() / path)
-        candidates.append(MODULE_DIR / path)
-    return _unique_paths(candidates)
-
-
-def _file_uri_to_path(parsed: ParseResult) -> str:
-    path = unquote(parsed.path)
-    host = unquote(parsed.netloc)
-
-    if os.name == "nt":
-        if host and host.lower() != "localhost":
-            if re.fullmatch(r"[A-Za-z]:", host):
-                path = f"{host}{path}"
-            else:
-                path = f"//{host}{path}"
-        if WINDOWS_DRIVE_PATH_RE.match(path):
-            path = path[1:]
-        return path
-
-    if host and host.lower() != "localhost":
-        raise tool_error("Only local file:// image URLs are supported.")
-    return path
-
-
-def _unique_paths(paths: list[Path]) -> list[Path]:
-    unique_paths: list[Path] = []
-    seen: set[str] = set()
-    for path in paths:
-        key = str(path)
-        if key in seen:
-            continue
-        seen.add(key)
-        unique_paths.append(path)
-    return unique_paths
 
 
 async def _fetch_image(url: str) -> bytes:
@@ -157,20 +94,11 @@ def _decode_data_url(source: str) -> bytes:
     header, separator, payload = source.partition(",")
     if not separator or ";base64" not in header.lower():
         raise tool_error("Only base64 image data URLs are supported.")
-    return _decode_base64(payload)
+    return _decode_image_base64(payload)
 
 
-def _looks_like_base64(source: str) -> bool:
-    compact = "".join(source.split())
-    return len(compact) >= 32 and len(compact) % 4 == 0 and bool(BASE64_RE.fullmatch(source))
-
-
-def _decode_base64(payload: str) -> bytes:
-    compact_payload = "".join(payload.split())
-    try:
-        data = base64.b64decode(compact_payload, validate=True)
-    except binascii.Error:
-        raise tool_error("Image base64 content is invalid.")
+def _decode_image_base64(payload: str) -> bytes:
+    data = decode_base64(payload, source_kind="image")
     if len(data) > MAX_IMAGE_BYTES:
         raise tool_error(f"Image is too large. Maximum size is {MAX_IMAGE_BYTES} bytes.")
     return data
@@ -227,4 +155,3 @@ def _find_tesseract_cmd() -> str | None:
             return str(candidate)
 
     return None
-'''
