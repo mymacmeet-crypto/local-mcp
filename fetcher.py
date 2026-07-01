@@ -10,10 +10,10 @@ from typing import Any, Optional
 import httpx
 
 USER_AGENT = os.environ.get(
-    "CLAW_SITE_USER_AGENT",
-    "claw-site/1.0 (+https://github.com/your-org/claw-site)",
+    "LOCAL_MCP_USER_AGENT",
+    "local-mcp/1.0 (+https://github.com/your-org/local-mcp)",
 )
-TIMEOUT_MS = int(os.environ.get("CLAW_SITE_TIMEOUT_MS", "15000"))
+TIMEOUT_MS = int(os.environ.get("LOCAL_MCP_TIMEOUT_MS", "15000"))
 TIMEOUT_S = TIMEOUT_MS / 1000.0
 
 
@@ -56,7 +56,7 @@ async def get_crawler():
         except ImportError as err:
             raise RuntimeError(
                 "Browser rendering is unavailable: the optional 'crawl4ai' dependency "
-                "is not installed. Install it with `pip install \"claw-site[browser]\"`."
+                "is not installed. Install it with `pip install \"local-mcp[browser]\"`."
             ) from err
 
         browser_config = BrowserConfig(headless=True, user_agent=USER_AGENT, verbose=False)

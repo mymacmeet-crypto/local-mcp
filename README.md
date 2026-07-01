@@ -1,6 +1,6 @@
-# claw-site
+# local-mcp
 
-`claw-site` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, and extracting text from images.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, and extracting text from images.
 
 The tool follows this flow:
 
@@ -26,7 +26,7 @@ The `extract_image_text` tool also requires the native Tesseract OCR executable:
 - macOS/Linux: install `tesseract` with your system package manager.
 
 ```bash
-cd claw-site
+cd local-mcp
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -65,16 +65,16 @@ For failover, set a comma-separated list:
 export SEARXNG_URLS=http://127.0.0.1:8080,https://your-backup-searxng.example
 ```
 
-`CLAW_SITE_SEARXNG_URLS` is also supported as an alias. Individual `web_search` calls can override the base URL with the `searxng_url` parameter.
+`LOCAL_MCP_SEARXNG_URLS` is also supported as an alias. Individual `web_search` calls can override the base URL with the `searxng_url` parameter.
 
 ## Claude Desktop config
 
 ```json
 {
   "mcpServers": {
-    "claw-site": {
-      "command": "D:\\MCP\\claw-site\\.venv\\Scripts\\python.exe",
-      "args": ["D:\\MCP\\claw-site\\server.py"]
+    "local-mcp": {
+      "command": "D:\\MCP\\local-mcp\\.venv\\Scripts\\python.exe",
+      "args": ["D:\\MCP\\local-mcp\\server.py"]
     }
   }
 }

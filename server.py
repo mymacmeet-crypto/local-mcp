@@ -1,4 +1,4 @@
-"""claw-site MCP server.
+"""local-mcp MCP server.
 
 Tools:
 - extract URLs from a site using this flow:
@@ -31,7 +31,7 @@ import searxng  # noqa: E402
 import sitemap  # noqa: E402
 from errors import describe_fetch_error, normalize_url, tool_error  # noqa: E402
 
-DEFAULT_LIMIT = int(os.environ.get("CLAW_SITE_URL_LIMIT", "500"))
+DEFAULT_LIMIT = int(os.environ.get("LOCAL_MCP_URL_LIMIT", "500"))
 
 
 @contextlib.asynccontextmanager
@@ -43,7 +43,7 @@ async def _lifespan(_server: "FastMCP"):
 
 
 mcp = FastMCP(
-    "claw-site",
+    "local-mcp",
     lifespan=_lifespan,
     host=os.environ.get("MCP_HTTP_HOST", "127.0.0.1"),
     port=int(os.environ.get("MCP_HTTP_PORT", "3002")),
@@ -138,7 +138,7 @@ async def extract_urls(
     )
 
 
-MIN_MARKDOWN_CHARS = int(os.environ.get("CLAW_SITE_MIN_MARKDOWN_CHARS", "200"))
+MIN_MARKDOWN_CHARS = int(os.environ.get("LOCAL_MCP_MIN_MARKDOWN_CHARS", "200"))
 
 
 @mcp.tool()
@@ -215,7 +215,7 @@ async def web_search(
         Field(
             description=(
                 "Optional SearXNG base URL for this request. Empty uses SEARXNG_URLS, "
-                "CLAW_SITE_SEARXNG_URLS, or SEARXNG_BASE_URL."
+                "LOCAL_MCP_SEARXNG_URLS, or SEARXNG_BASE_URL."
             )
         ),
     ] = "",
@@ -223,7 +223,7 @@ async def web_search(
     """Search the web through SearXNG and return citation-ready Markdown results.
 
     Configure a local instance with SEARXNG_BASE_URL, or set SEARXNG_URLS /
-    CLAW_SITE_SEARXNG_URLS to a comma-separated failover list.
+    LOCAL_MCP_SEARXNG_URLS to a comma-separated failover list.
     """
     try:
         instance_url, results, answers, suggestions = await searxng.search(
@@ -382,7 +382,7 @@ with contextlib.suppress(Exception):
 
     @mcp.custom_route("/health", methods=["GET"])
     async def health(_req: "Request") -> "JSONResponse":
-        return JSONResponse({"status": "ok", "server": "claw-site"})
+        return JSONResponse({"status": "ok", "server": "local-mcp"})
 
 
 # Top-level ASGI application for serverless/ASGI hosts (e.g. Vercel, uvicorn).

@@ -1,5 +1,5 @@
 [project]
-name = "claw-site"
+name = "local-mcp"
 version = "1.0.0"
 description = "MCP server for SearXNG web search, URL extraction, content extraction, and OCR"
 readme = "README.md"
@@ -21,11 +21,11 @@ dependencies = [
 [project.optional-dependencies]
 # Browser-render fallback used by extract_urls when static HTML has no links.
 # Heavy (playwright + ML stack); excluded from serverless deploys. Install with:
-#   pip install "claw-site[browser]"
+#   pip install "local-mcp[browser]"
 browser = ["crawl4ai>=0.5.0"]
 
 [project.scripts]
-claw-site = "server:main"
+local-mcp = "server:main"
 
 [build-system]
 requires = ["setuptools>=68"]

@@ -10,8 +10,8 @@ from urllib.parse import urljoin
 import httpx
 
 DEFAULT_BASE_URL = os.environ.get("SEARXNG_BASE_URL", "http://127.0.0.1:8888")
-DEFAULT_URLS = os.environ.get("SEARXNG_URLS") or os.environ.get("CLAW_SITE_SEARXNG_URLS")
-TIMEOUT_MS = int(os.environ.get("SEARXNG_TIMEOUT_MS", os.environ.get("CLAW_SITE_TIMEOUT_MS", "15000")))
+DEFAULT_URLS = os.environ.get("SEARXNG_URLS") or os.environ.get("LOCAL_MCP_SEARXNG_URLS")
+TIMEOUT_MS = int(os.environ.get("SEARXNG_TIMEOUT_MS", os.environ.get("LOCAL_MCP_TIMEOUT_MS", "15000")))
 TIMEOUT_S = TIMEOUT_MS / 1000.0
 
 

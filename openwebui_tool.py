@@ -1,5 +1,5 @@
 """
-OpenWebUI native tool for the claw-site MCP server in server.py.
+OpenWebUI native tool for the local-mcp MCP server in server.py.
 
 Paste the entire contents of this file into OpenWebUI -> Tools -> Create Tool.
 Make sure server.py is running in HTTP mode:
@@ -59,7 +59,7 @@ class Tools:
                 "params": {
                     "protocolVersion": MCP_PROTOCOL_VERSION,
                     "capabilities": {},
-                    "clientInfo": {"name": "openwebui-claw-tool", "version": "1.1.0"},
+                    "clientInfo": {"name": "openwebui-local-mcp-tool", "version": "1.1.0"},
                 },
                 "id": self._next_id(),
             },

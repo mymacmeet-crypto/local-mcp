@@ -17,8 +17,8 @@ import httpx
 from errors import describe_fetch_error, tool_error
 from fetcher import TIMEOUT_S, USER_AGENT
 
-MAX_IMAGE_BYTES = int(os.environ.get("CLAW_SITE_OCR_MAX_IMAGE_BYTES", str(20 * 1024 * 1024)))
-TESSERACT_CONFIG = os.environ.get("CLAW_SITE_TESSERACT_CONFIG", "")
+MAX_IMAGE_BYTES = int(os.environ.get("LOCAL_MCP_OCR_MAX_IMAGE_BYTES", str(20 * 1024 * 1024)))
+TESSERACT_CONFIG = os.environ.get("LOCAL_MCP_TESSERACT_CONFIG", "")
 BASE64_RE = re.compile(r"^[A-Za-z0-9+/=\s]+$")
 LANG_RE = re.compile(r"^[A-Za-z0-9_+-]+$")
 WINDOWS_DRIVE_PATH_RE = re.compile(r"^/[A-Za-z]:([\\/]|$)")
