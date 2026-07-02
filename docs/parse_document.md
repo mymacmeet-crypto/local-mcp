@@ -85,8 +85,13 @@ Install optional parser groups:
 ```powershell
 python -m pip install ".[document-fast]"
 python -m pip install ".[document-structured]"
-python -m pip install ".[document-deep]"
+python -m pip install ".[document-deep-marker]"
+python -m pip install ".[document-deep-mineru]"
 ```
+
+`document-deep-marker` and `document-deep-mineru` cannot be installed together in the
+same environment: `marker-pdf` requires `Pillow<11` while `mineru` requires `Pillow>=11`.
+Pick whichever backend you need.
 
 Individual installs:
 

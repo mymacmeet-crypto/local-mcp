@@ -175,9 +175,11 @@ def _menu(python_path: Path) -> None:
         _menu_item("2", "Run MCP over HTTP", "http://127.0.0.1:3002/mcp")
         _menu_item("3", "Install browser fallback extra", "local-mcp[browser]")
         _menu_item("4", "Install fast document extras", "local-mcp[document-fast]")
-        _menu_item("5", "Install all document extras")
-        _menu_item("6", "Upgrade pip, setuptools, and wheel")
-        _menu_item("7", "Run tests")
+        _menu_item("5", "Install structured document extras", "local-mcp[document-structured]")
+        _menu_item("6", "Install deep document extras (Marker)", "local-mcp[document-deep-marker]")
+        _menu_item("7", "Install deep document extras (MinerU)", "local-mcp[document-deep-mineru]")
+        _menu_item("8", "Upgrade pip, setuptools, and wheel")
+        _menu_item("9", "Run tests")
         _menu_item("0", "Exit")
         print()
         choice = input(_paint("Choose an option: ", Style.BOLD, Style.GREEN)).strip()
@@ -192,10 +194,14 @@ def _menu(python_path: Path) -> None:
         elif choice == "4":
             _install_extra(python_path, "document-fast")
         elif choice == "5":
-            _install_extra(python_path, "document-fast,document-structured,document-deep")
+            _install_extra(python_path, "document-structured")
         elif choice == "6":
-            _upgrade_packaging_tools(python_path)
+            _install_extra(python_path, "document-deep-marker")
         elif choice == "7":
+            _install_extra(python_path, "document-deep-mineru")
+        elif choice == "8":
+            _upgrade_packaging_tools(python_path)
+        elif choice == "9":
             _run([python_path, "-m", "unittest", "discover", "-s", "tests"], cwd=PROJECT_ROOT)
         elif choice == "0":
             _success("Done.")

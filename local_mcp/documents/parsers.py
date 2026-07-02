@@ -26,8 +26,8 @@ INSTALL_HINTS = {
     "pymupdf4llm": "Install PyMuPDF4LLM with `pip install \".[document-fast]\"` or `pip install pymupdf4llm`.",
     "pdfplumber": "Install pdfplumber with `pip install \".[document-fast]\"` or `pip install pdfplumber`.",
     "docling": "Install Docling with `pip install \".[document-structured]\"` or `pip install docling`.",
-    "marker": "Install Marker with `pip install \".[document-deep]\"` or `pip install marker-pdf`.",
-    "mineru": "Install MinerU with `pip install \".[document-deep]\"` or `pip install \"mineru[all]\"`.",
+    "marker": "Install Marker with `pip install \".[document-deep-marker]\"` or `pip install marker-pdf`.",
+    "mineru": "Install MinerU with `pip install \".[document-deep-mineru]\"` or `pip install \"mineru[all]\"`.",
 }
 
 

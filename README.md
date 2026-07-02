@@ -44,8 +44,13 @@ Optional document parser engines can be installed as needed:
 ```bash
 pip install ".[document-fast]"        # PyMuPDF4LLM + pdfplumber
 pip install ".[document-structured]"  # Docling
-pip install ".[document-deep]"        # Marker + MinerU
+pip install ".[document-deep-marker]" # Marker
+pip install ".[document-deep-mineru]" # MinerU
 ```
+
+`document-deep-marker` and `document-deep-mineru` cannot be installed together in the
+same environment: `marker-pdf` requires `Pillow<11` while `mineru` requires `Pillow>=11`.
+Pick whichever backend you need.
 
 ## Run
 

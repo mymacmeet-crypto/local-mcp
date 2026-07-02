@@ -26,7 +26,10 @@ dependencies = [
 browser = ["crawl4ai>=0.5.0"]
 document-fast = ["pymupdf4llm>=1.28.0", "pdfplumber>=0.11.0"]
 document-structured = ["docling>=2.107.0"]
-document-deep = ["marker-pdf>=1.10.2", "mineru>=3.4.0"]
+# marker-pdf and mineru cannot be installed together: marker-pdf pins
+# Pillow<11 while mineru pins Pillow>=11. Install whichever backend you need.
+document-deep-marker = ["marker-pdf>=1.10.2"]
+document-deep-mineru = ["mineru>=3.4.0"]
 
 [project.scripts]
 local-mcp = "local_mcp.cli:main"

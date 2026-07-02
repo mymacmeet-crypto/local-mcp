@@ -109,7 +109,8 @@ MCP client
 - Optional document parser tiers are installed with:
   - `local-mcp[document-fast]`
   - `local-mcp[document-structured]`
-  - `local-mcp[document-deep]`
+  - `local-mcp[document-deep-marker]` (Marker; requires `Pillow<11`)
+  - `local-mcp[document-deep-mineru]` (MinerU; requires `Pillow>=11`, conflicts with Marker's Pillow pin)
 - Native Tesseract is still required outside Python for `extract_image_text`.
 
 ## Run Modes

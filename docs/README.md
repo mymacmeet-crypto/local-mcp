@@ -46,8 +46,13 @@ Install optional document parser engines when you need more than the default lig
 ```powershell
 python -m pip install ".[document-fast]"        # PyMuPDF4LLM + pdfplumber
 python -m pip install ".[document-structured]"  # Docling
-python -m pip install ".[document-deep]"        # Marker + MinerU
+python -m pip install ".[document-deep-marker]" # Marker
+python -m pip install ".[document-deep-mineru]" # MinerU
 ```
+
+`document-deep-marker` and `document-deep-mineru` cannot be installed together in the
+same environment: `marker-pdf` requires `Pillow<11` while `mineru` requires `Pillow>=11`.
+Pick whichever backend you need.
 
 Start the MCP server over stdio for desktop MCP clients:
 
