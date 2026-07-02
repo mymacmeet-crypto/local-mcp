@@ -5,6 +5,7 @@ from __future__ import annotations
 from local_mcp.app import app, mcp
 from local_mcp.cli import main
 from local_mcp.tools.documents import parse_document
+from local_mcp.tools.file_generation import generate_file
 from local_mcp.tools.ocr import extract_image_text
 from local_mcp.tools.search import web_search
 from local_mcp.tools.web import extract_content, extract_urls
@@ -18,6 +19,7 @@ __all__ = [
     "web_search",
     "extract_image_text",
     "parse_document",
+    "generate_file",
 ]
 
 

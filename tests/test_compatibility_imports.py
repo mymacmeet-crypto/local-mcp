@@ -4,13 +4,14 @@ import unittest
 class CompatibilityImportTests(unittest.TestCase):
     def test_server_exports_packaged_entry_points(self):
         import server
-        from local_mcp.tools import documents, ocr, search, web
+        from local_mcp.tools import documents, file_generation, ocr, search, web
 
         self.assertIs(server.extract_urls, web.extract_urls)
         self.assertIs(server.extract_content, web.extract_content)
         self.assertIs(server.web_search, search.web_search)
         self.assertIs(server.extract_image_text, ocr.extract_image_text)
         self.assertIs(server.parse_document, documents.parse_document)
+        self.assertIs(server.generate_file, file_generation.generate_file)
 
     def test_legacy_root_modules_forward_to_package_modules(self):
         import document_parser

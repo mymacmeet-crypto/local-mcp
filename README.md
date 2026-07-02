@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, extracting text from images, and parsing PDFs/documents.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, extracting text from images, parsing PDFs/documents, and generating local Markdown files.
 
 The tool follows this flow:
 
@@ -155,3 +155,22 @@ Parameters:
 - `max_chars`: maximum content characters returned before truncation. Default: `120000`.
 
 The response is parsed document content. `auto` prefers PyMuPDF4LLM when installed for fast digital PDFs, falls back to lightweight `pypdf`, and can use optional engines for structured OCR, deep-learning parsing, CJK/scientific documents, or table coordinates.
+
+### `generate_file`
+
+Parameters:
+
+- `filename`: output Markdown filename or relative path. The `.md` extension is appended when omitted.
+- `content`: Markdown content to write.
+- `file_type`: output type. MVP supports only `md`/`markdown`. Default: `md`.
+- `output_dir`: destination directory. Empty uses `LOCAL_MCP_FILE_OUTPUT_DIR`, `LOCAL_MCP_DOWNLOAD_DIR`, or `generated_files`.
+- `overwrite`: replace an existing file at the target path. Default: `false`.
+- `ensure_trailing_newline`: append a trailing newline to non-empty content. Default: `true`.
+
+The response reports the generated file path, byte count, character count, and whether an existing file was overwritten. Future formats can be added behind the same tool; the current MVP intentionally writes only Markdown.
+
+To choose a default download location without passing `output_dir` every time, set it in `.env`:
+
+```env
+LOCAL_MCP_FILE_OUTPUT_DIR=D:\MCP\local-mcp\generated_files
+```

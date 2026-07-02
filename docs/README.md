@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, discover URLs, extract readable Markdown from web pages, run OCR on images, and parse PDFs/documents. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, discover URLs, extract readable Markdown from web pages, run OCR on images, parse PDFs/documents, and generate local Markdown files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -15,6 +15,7 @@ For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE
 | `extract_content` | [extract_content.md](extract_content.md) | Fetch a page and return readable Markdown, with browser-render fallback for JavaScript-heavy pages. |
 | `extract_image_text` | [extract_image_text.md](extract_image_text.md) | Extract text from local, remote, data URL, or base64 image input using Tesseract OCR. |
 | `parse_document` | [parse_document.md](parse_document.md) | Parse PDFs and documents into Markdown, text, or JSON using local parser backends. |
+| `generate_file` | [generate_file.md](generate_file.md) | Generate local Markdown files from supplied content. |
 
 ## Shared Project Setup
 
@@ -90,6 +91,8 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_MARKER_CMD` | auto-detected | `parse_document` | Optional path to the `marker_single` executable. |
 | `LOCAL_MCP_MINERU_CMD` | auto-detected | `parse_document` | Optional path to the `mineru` executable. |
 | `LOCAL_MCP_MINERU_BACKEND` | `pipeline` | `parse_document` | MinerU backend passed with `-b`; `pipeline` is CPU-friendly. |
+| `LOCAL_MCP_FILE_OUTPUT_DIR` | `generated_files` | `generate_file` | Default destination folder for generated Markdown files. |
+| `LOCAL_MCP_DOWNLOAD_DIR` | unset | `generate_file` | Optional alias for the default generated-file location. Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. |
 
 ## MCP Client Example
 

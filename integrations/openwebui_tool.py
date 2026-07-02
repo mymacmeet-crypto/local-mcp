@@ -382,3 +382,41 @@ class Tools:
         await self._emit_status(__event_emitter__, "Done", True)
         await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
+
+    async def generate_file(
+        self,
+        filename: str,
+        content: str,
+        file_type: str = "md",
+        output_dir: str = "",
+        overwrite: bool = False,
+        ensure_trailing_newline: bool = True,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Generate a local Markdown file from supplied content.
+        :param filename: Output Markdown filename or relative path. The .md extension is appended when omitted.
+        :param content: Markdown content to write into the generated file.
+        :param file_type: Output file type. MVP supports only md/markdown.
+        :param output_dir: Destination directory. Empty uses LOCAL_MCP_FILE_OUTPUT_DIR, LOCAL_MCP_DOWNLOAD_DIR, or generated_files.
+        :param overwrite: Replace an existing file at the target path.
+        :param ensure_trailing_newline: Append a trailing newline to non-empty Markdown content.
+        """
+        _log("generate_file", f"filename={filename} file_type={file_type} output_dir={output_dir}")
+        await self._emit_status(__event_emitter__, "Generating file...", False)
+
+        result = self._call(
+            "generate_file",
+            {
+                "filename": filename,
+                "content": content,
+                "file_type": file_type,
+                "output_dir": output_dir,
+                "overwrite": overwrite,
+                "ensure_trailing_newline": ensure_trailing_newline,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result

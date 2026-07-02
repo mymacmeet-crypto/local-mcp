@@ -1,6 +1,6 @@
 # local-mcp Architecture
 
-`local-mcp` is a Python MCP server that exposes tools for web search, URL discovery, readable content extraction, OCR, and document parsing.
+`local-mcp` is a Python MCP server that exposes tools for web search, URL discovery, readable content extraction, OCR, document parsing, and file generation.
 
 ## Runtime Entry Points
 
@@ -21,6 +21,7 @@ local_mcp/
   search/                SearXNG JSON client and result parsing
   ocr/                   Tesseract image OCR implementation
   documents/             Document loading, parser backends, formatting
+  file_generation/       Local file generation helpers
   shared/                URL, file-source, and tool-error helpers
 
 integrations/
@@ -88,6 +89,17 @@ MCP client
   -> local_mcp.documents.parsers selects or runs parser backend
   -> local_mcp.documents.formatting applies metadata and truncation
   -> Markdown, text, or JSON response
+```
+
+### `generate_file`
+
+```text
+MCP client
+  -> local_mcp.tools.file_generation.generate_file
+  -> local_mcp.file_generation.write_generated_file validates md-only MVP settings
+  -> resolve filename under output_dir / LOCAL_MCP_FILE_OUTPUT_DIR / generated_files
+  -> create parent folders and write UTF-8 Markdown
+  -> Markdown response with path and write stats
 ```
 
 ## Dependency Model

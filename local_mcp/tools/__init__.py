@@ -6,7 +6,7 @@ from mcp.server.fastmcp import FastMCP
 
 
 def register_tools(mcp: FastMCP) -> None:
-    from local_mcp.tools import documents, ocr, search, web
+    from local_mcp.tools import documents, file_generation, ocr, search, web
 
     for tool in (
         web.extract_urls,
@@ -14,5 +14,6 @@ def register_tools(mcp: FastMCP) -> None:
         search.web_search,
         ocr.extract_image_text,
         documents.parse_document,
+        file_generation.generate_file,
     ):
         mcp.tool()(tool)
