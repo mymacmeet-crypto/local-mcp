@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, extracting site URLs, extracting page content, extracting text from images, and parsing PDFs/documents.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting page content, extracting text from images, and parsing PDFs/documents.
 
 The tool follows this flow:
 
@@ -113,6 +113,21 @@ Parameters:
 - `searxng_url`: optional SearXNG base URL for this request.
 
 The response is citation-ready Markdown with linked result titles, source URLs, snippets, engines, answers, and suggestions when SearXNG returns them.
+
+### `web_fetch`
+
+Parameters:
+
+- `url`: page URL to fetch. Scheme-less input like `example.com` is allowed.
+- `render`: fetch mode: `auto`, `static`, or `browser`. Default: `auto`.
+- `output_format`: returned content format: `markdown`, `text`, `html`, or `json`. Default: `markdown`.
+- `selector`: optional CSS selector for scraping a specific page region.
+- `include_links`: include scraped links in non-JSON responses. Default: `false`.
+- `include_images`: include scraped image URLs in non-JSON responses. Default: `false`.
+- `include_metadata`: include fetch metadata before non-JSON content. Default: `true`.
+- `max_chars`: maximum content characters before truncation. Use `0` for no truncation. Default: `120000`.
+
+Fetches pages with `httpx`, can force optional Crawl4AI browser rendering for JavaScript-heavy pages, and supports selector-based scraping. JSON responses include metadata, content, links, and images.
 
 ### `extract_urls`
 

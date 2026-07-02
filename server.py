@@ -7,12 +7,13 @@ from local_mcp.cli import main
 from local_mcp.tools.documents import parse_document
 from local_mcp.tools.ocr import extract_image_text
 from local_mcp.tools.search import web_search
-from local_mcp.tools.web import extract_content, extract_urls
+from local_mcp.tools.web import extract_content, extract_urls, web_fetch
 
 __all__ = [
     "app",
     "mcp",
     "main",
+    "web_fetch",
     "extract_urls",
     "extract_content",
     "web_search",

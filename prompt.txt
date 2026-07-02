@@ -44,6 +44,20 @@ Using local-mcp, extract the page content from example.com without including the
 Using local-mcp, extract the readable Markdown content from https://quotes.toscrape.com.
 ```
 
+## `web_fetch`
+
+```
+Using local-mcp, fetch https://example.com as Markdown.
+```
+
+```
+Using local-mcp, browser-render https://example.com/app and return text.
+```
+
+```
+Using local-mcp, scrape .product-card elements from https://example.com/catalog and return JSON.
+```
+
 ## `extract_image_text`
 
 ```
