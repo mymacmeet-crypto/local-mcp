@@ -154,15 +154,7 @@ def _show_external_notes() -> None:
 
 
 def _has_tesseract() -> bool:
-    if os.environ.get("TESSERACT_CMD"):
-        return True
-    if shutil.which("tesseract"):
-        return True
-    if os.name == "nt":
-        for base_dir in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
-            if base_dir and (Path(base_dir) / "Tesseract-OCR" / "tesseract.exe").is_file():
-                return True
-    return False
+    return bool(_command_location("tesseract", "TESSERACT_CMD"))
 
 
 def _menu(python_path: Path) -> None:
@@ -180,14 +172,15 @@ def _menu(python_path: Path) -> None:
         _menu_item("7", "Install deep document extras (MinerU)", "local-mcp[document-deep-mineru]")
         _menu_item("8", "Upgrade pip, setuptools, and wheel")
         _menu_item("9", "Run tests")
+        _menu_item("10", "Show installed tool status")
         _menu_item("0", "Exit")
         print()
         choice = input(_paint("Choose an option: ", Style.BOLD, Style.GREEN)).strip()
 
         if choice == "1":
-            _run([python_path, "server.py"], cwd=PROJECT_ROOT)
+            _run([python_path, "-m", "local_mcp"], cwd=PROJECT_ROOT)
         elif choice == "2":
-            _run([python_path, "server.py", "--http"], cwd=PROJECT_ROOT)
+            _run([python_path, "-m", "local_mcp", "--http"], cwd=PROJECT_ROOT)
         elif choice == "3":
             _install_extra(python_path, "browser")
             _maybe_run_crawl4ai_setup()
@@ -203,6 +196,8 @@ def _menu(python_path: Path) -> None:
             _upgrade_packaging_tools(python_path)
         elif choice == "9":
             _run([python_path, "-m", "unittest", "discover", "-s", "tests"], cwd=PROJECT_ROOT)
+        elif choice == "10":
+            _show_tool_status(python_path)
         elif choice == "0":
             _success("Done.")
             return
@@ -232,6 +227,98 @@ def _maybe_run_crawl4ai_setup() -> None:
     answer = input(prompt).strip().lower()
     if answer == "y":
         _run([setup_exe], cwd=PROJECT_ROOT)
+
+
+def _show_tool_status(python_path: Path) -> None:
+    _heading("Installed tool status")
+    print(f"{_paint('Python', Style.DIM)}  {_paint(str(python_path), Style.CYAN)}")
+    print()
+
+    rows = [
+        ("Core", "local-mcp package", _python_module_available(python_path, "local_mcp"), "installed by setup"),
+        ("Web", "crawl4ai browser fallback", _python_module_available(python_path, "crawl4ai"), "option 3"),
+        ("Search", "SearXNG URL configured", _has_searxng_config(), "set SEARXNG_BASE_URL or SEARXNG_URLS"),
+        ("OCR", "Pillow", _python_module_available(python_path, "PIL"), "core dependency"),
+        ("OCR", "pytesseract", _python_module_available(python_path, "pytesseract"), "core dependency"),
+        ("OCR", "Tesseract executable", bool(_command_location("tesseract", "TESSERACT_CMD")), "install native Tesseract"),
+        ("Documents", "pypdf", _python_module_available(python_path, "pypdf"), "core dependency"),
+        ("Documents", "pymupdf4llm", _python_module_available(python_path, "pymupdf4llm"), "option 4"),
+        ("Documents", "pdfplumber", _python_module_available(python_path, "pdfplumber"), "option 4"),
+        ("Documents", "docling", _python_module_available(python_path, "docling"), "option 5"),
+        ("Documents", "Marker CLI (marker_single)", bool(_command_location("marker_single", "LOCAL_MCP_MARKER_CMD")), "option 6"),
+        ("Documents", "MinerU CLI (mineru)", bool(_command_location("mineru", "LOCAL_MCP_MINERU_CMD")), "option 7"),
+        ("Files", "Markdown file generation", True, "built in"),
+    ]
+
+    print(f"{'Area':<12} {'Status':<16} {'Name':<32} Hint")
+    print("-" * 78)
+    for area, name, installed, hint in rows:
+        status = _paint("installed", Style.GREEN) if installed else _paint("not installed", Style.YELLOW)
+        print(f"{area:<12} {status:<16} {name:<32} {hint}")
+    print()
+
+
+def _python_module_available(python_path: Path, module_name: str) -> bool:
+    script = (
+        "import importlib.util, sys; "
+        f"sys.exit(0 if importlib.util.find_spec({module_name!r}) else 1)"
+    )
+    try:
+        completed = subprocess.run(
+            [str(python_path), "-c", script],
+            cwd=str(PROJECT_ROOT),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return completed.returncode == 0
+
+
+def _has_searxng_config() -> bool:
+    return bool(os.environ.get("SEARXNG_BASE_URL") or os.environ.get("SEARXNG_URLS") or os.environ.get("LOCAL_MCP_SEARXNG_URLS"))
+
+
+def _command_location(command: str, env_var: str | None = None) -> str:
+    if env_var and os.environ.get(env_var):
+        configured = os.environ[env_var].strip()
+        if _path_or_command_exists(configured):
+            return configured
+        return ""
+
+    for candidate in _venv_command_candidates(command):
+        if candidate.is_file():
+            return str(candidate)
+
+    discovered = shutil.which(command)
+    if discovered:
+        return discovered
+
+    if command == "tesseract" and os.name == "nt":
+        for base_dir in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+            if not base_dir:
+                continue
+            candidate = Path(base_dir) / "Tesseract-OCR" / "tesseract.exe"
+            if candidate.is_file():
+                return str(candidate)
+
+    return ""
+
+
+def _path_or_command_exists(value: str) -> bool:
+    if not value:
+        return False
+    path = Path(value).expanduser()
+    return path.is_file() or shutil.which(value) is not None
+
+
+def _venv_command_candidates(command: str) -> list[Path]:
+    scripts_dir = VENV_DIR / ("Scripts" if os.name == "nt" else "bin")
+    if os.name == "nt":
+        return [scripts_dir / f"{command}{suffix}" for suffix in (".exe", ".cmd", ".bat", "")]
+    return [scripts_dir / command]
 
 
 def _run(command: list[object], *, cwd: Path | None = None) -> None:

@@ -155,13 +155,13 @@ await tools.parse_document(
 Run the MCP server over stdio:
 
 ```powershell
-python server.py
+python -m local_mcp
 ```
 
 Run over HTTP:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 For OpenWebUI, run HTTP mode and add [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.

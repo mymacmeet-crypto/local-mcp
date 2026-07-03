@@ -92,13 +92,13 @@ server:
 5. Start the MCP server:
 
    ```powershell
-   python server.py
+   python -m local_mcp
    ```
 
 For OpenWebUI, start the server in HTTP mode:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Then paste [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) into OpenWebUI under `Tools -> Create Tool`.
@@ -124,7 +124,7 @@ Typical workflow:
 1. Ask an MCP client to search for a topic.
 2. The client invokes `web_search` with a query and optional filters.
 3. The tool calls SearXNG and returns Markdown.
-4. Use the returned URLs as citations or as input to `extract_content`.
+4. Use the returned URLs as citations or as input to `web_fetch`.
 
 Example MCP prompt:
 
@@ -163,13 +163,13 @@ Results:
 Run over stdio for MCP desktop clients:
 
 ```powershell
-python server.py
+python -m local_mcp
 ```
 
 Run over Streamable HTTP:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Verify the server is up:

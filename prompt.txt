@@ -30,20 +30,6 @@ Using local-mcp, extract URLs from https://quotes.toscrape.com with same_domain=
 Using local-mcp, extract URLs from https://www.python.org with same_domain=false, same_path=false, and limit=100.
 ```
 
-## `extract_content`
-
-```
-Using local-mcp, extract the page content from https://example.com.
-```
-
-```
-Using local-mcp, extract the page content from example.com without including the title.
-```
-
-```
-Using local-mcp, extract the readable Markdown content from https://quotes.toscrape.com.
-```
-
 ## `web_fetch`
 
 ```

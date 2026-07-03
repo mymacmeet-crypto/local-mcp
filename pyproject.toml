@@ -1,7 +1,7 @@
 [project]
 name = "local-mcp"
 version = "1.0.0"
-description = "MCP server for SearXNG web search, web fetch/scraping, URL extraction, content extraction, OCR, document parsing, and file generation"
+description = "MCP server for SearXNG web search, web fetch/scraping, URL extraction, OCR, document parsing, and file generation"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "ISC" }

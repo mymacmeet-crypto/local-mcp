@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting page content, extracting text from images, parsing PDFs/documents, and generating local Markdown files.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating local Markdown files.
 
 The tool follows this flow:
 
@@ -25,6 +25,8 @@ For an interactive setup that creates `.venv`, installs the core runtime, and th
 ```bash
 python setup_and_run.py
 ```
+
+In the setup menu, choose option `10` to see which optional tools and parser backends are installed, including Crawl4AI, Tesseract, Marker, MinerU, Docling, PyMuPDF4LLM, and pdfplumber.
 
 The `extract_image_text` tool also requires the native Tesseract OCR executable:
 
@@ -55,8 +57,8 @@ Pick whichever backend you need.
 ## Run
 
 ```bash
-python server.py
-python server.py --http
+python -m local_mcp
+python -m local_mcp --http
 ```
 
 HTTP mode listens on `127.0.0.1:3002` by default.
@@ -95,7 +97,7 @@ export SEARXNG_URLS=http://127.0.0.1:8080,https://your-backup-searxng.example
   "mcpServers": {
     "local-mcp": {
       "command": "D:\\MCP\\local-mcp\\.venv\\Scripts\\python.exe",
-      "args": ["D:\\MCP\\local-mcp\\server.py"]
+      "args": ["-m", "local_mcp"]
     }
   }
 }
@@ -145,15 +147,6 @@ Parameters:
 
 The response includes URL stats by source, then a Markdown bullet list of absolute URLs with the source that found each URL, such as `robots.txt`, `sitemap.xml`, `httpx`, or `Crawl4AI`. If no URLs are found, the tool returns the stats and a short message.
 
-### `extract_content`
-
-Parameters:
-
-- `url`: page URL to extract. Scheme-less input like `example.com` is allowed.
-- `include_title`: prepend the page title as a top-level Markdown heading. Default: `true`.
-
-Fetches the page with httpx and converts the readable HTML to Markdown (scripts, styles, and other non-content tags are stripped; relative links and images are resolved to absolute URLs). When the static HTML yields little content — for example a JavaScript-rendered page — it falls back to `crawl4ai` browser rendering and uses its native Markdown output. The response is the Markdown content.
-
 ### `extract_image_text`
 
 Parameters:
@@ -183,14 +176,13 @@ Parameters:
 - `filename`: output Markdown filename or relative path. The `.md` extension is appended when omitted.
 - `content`: Markdown content to write.
 - `file_type`: output type. MVP supports only `md`/`markdown`. Default: `md`.
-- `output_dir`: destination directory. Empty uses `LOCAL_MCP_FILE_OUTPUT_DIR`, `LOCAL_MCP_DOWNLOAD_DIR`, or `generated_files`.
 - `overwrite`: replace an existing file at the target path. Default: `false`.
 - `ensure_trailing_newline`: append a trailing newline to non-empty content. Default: `true`.
 
 The response reports the generated file path, byte count, character count, and whether an existing file was overwritten. Future formats can be added behind the same tool; the current MVP intentionally writes only Markdown.
 
-To choose a default download location without passing `output_dir` every time, set it in `.env`:
+You must define a download location in `.env`; otherwise `generate_file` returns `Download path not defined`.
 
 ```env
-LOCAL_MCP_FILE_OUTPUT_DIR=D:\MCP\local-mcp\generated_files
+LOCAL_MCP_FILE_OUTPUT_DIR=D:\Downloads\local-mcp
 ```

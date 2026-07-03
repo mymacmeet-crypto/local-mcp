@@ -27,15 +27,6 @@ async def generate_file(
         str,
         Field(description="Output file type. MVP supports only md/markdown."),
     ] = "md",
-    output_dir: Annotated[
-        str,
-        Field(
-            description=(
-                "Destination directory. Relative paths resolve from the server working directory. "
-                "Empty uses LOCAL_MCP_FILE_OUTPUT_DIR, LOCAL_MCP_DOWNLOAD_DIR, or generated_files."
-            ),
-        ),
-    ] = "",
     overwrite: Annotated[
         bool,
         Field(description="Replace an existing file at the target path."),
@@ -51,7 +42,6 @@ async def generate_file(
             filename,
             content,
             file_type=file_type,
-            output_dir=output_dir,
             overwrite=overwrite,
             ensure_trailing_newline=ensure_trailing_newline,
         )

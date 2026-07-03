@@ -2,9 +2,9 @@
 OpenWebUI native tool for the local-mcp MCP server.
 
 Paste the entire contents of this file into OpenWebUI -> Tools -> Create Tool.
-Make sure server.py is running in HTTP mode:
+Make sure local-mcp is running in HTTP mode:
 
-    python server.py --http
+    python -m local_mcp --http
 
 The server listens on http://localhost:3002/mcp by default.
 """
@@ -285,33 +285,6 @@ class Tools:
                 "same_domain": same_domain,
                 "same_path": same_path,
                 "limit": limit,
-            },
-        )
-
-        await self._emit_status(__event_emitter__, "Done", True)
-        await self._emit_message(__event_emitter__, f"\n{result}\n")
-        return result
-
-    async def extract_content(
-        self,
-        url: str,
-        include_title: bool = True,
-        __event_emitter__: EventEmitter = None,
-    ) -> str:
-        """
-        Extract a page's readable content and return it as Markdown.
-        Falls back to Crawl4AI browser rendering when static HTML yields little content.
-        :param url: Page URL to extract. Scheme-less input like 'example.com' is allowed.
-        :param include_title: Prepend the page title as a top-level Markdown heading.
-        """
-        _log("extract_content", f"url={url} include_title={include_title}")
-        await self._emit_status(__event_emitter__, f"Extracting content from {url}...", False)
-
-        result = self._call(
-            "extract_content",
-            {
-                "url": url,
-                "include_title": include_title,
             },
         )
 

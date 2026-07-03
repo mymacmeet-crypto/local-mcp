@@ -13,8 +13,8 @@ flowchart TD
     B -->|other type| X[Return tool error]
     C --> D[Reject absolute paths and .. segments]
     D --> E[Append .md when extension is missing]
-    E --> F[Resolve output_dir or env default]
-    F --> G[Ensure target stays inside output_dir]
+    E --> F[Resolve env download path]
+    F --> G[Ensure target stays inside configured path]
     G --> H{File exists?}
     H -->|yes, overwrite=false| Y[Return tool error]
     H -->|no or overwrite=true| I[Create parent directories]
@@ -29,13 +29,13 @@ flowchart TD
 | `filename` | string | required | Output Markdown filename or relative path. The `.md` extension is appended when omitted. |
 | `content` | string | required | Markdown content to write. |
 | `file_type` | string | `md` | Output file type. MVP supports only `md`/`markdown`. |
-| `output_dir` | string | empty | Destination directory. Relative paths resolve from the server working directory. Empty uses `LOCAL_MCP_FILE_OUTPUT_DIR`, `LOCAL_MCP_DOWNLOAD_DIR`, or `generated_files`. |
 | `overwrite` | boolean | `false` | Replace an existing file at the target path. |
 | `ensure_trailing_newline` | boolean | `true` | Append a trailing newline to non-empty Markdown content. |
 
 ## Path Behavior
 
-- `filename` must be relative; use `output_dir` to choose the destination folder.
+- `filename` must be relative.
+- The destination folder must be configured with `LOCAL_MCP_FILE_OUTPUT_DIR` or `LOCAL_MCP_DOWNLOAD_DIR`.
 - `..` path segments are rejected.
 - Parent directories are created automatically.
 - Existing files are preserved unless `overwrite` is `true`.
@@ -43,17 +43,7 @@ flowchart TD
 
 ## Download Location
 
-Users can choose the download location per call with `output_dir`:
-
-```json
-{
-  "filename": "notes/project-brief",
-  "content": "# Project Brief\n",
-  "output_dir": "D:\\MCP\\local-mcp\\generated_files"
-}
-```
-
-Or set a default location in `.env`:
+Set the download location in `.env`:
 
 ```env
 LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp
@@ -62,7 +52,13 @@ LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp
 `LOCAL_MCP_DOWNLOAD_DIR` is also supported as a friendlier alias. Precedence is:
 
 ```text
-output_dir argument -> LOCAL_MCP_FILE_OUTPUT_DIR -> LOCAL_MCP_DOWNLOAD_DIR -> generated_files
+LOCAL_MCP_FILE_OUTPUT_DIR -> LOCAL_MCP_DOWNLOAD_DIR
+```
+
+If neither environment variable is set, the tool returns:
+
+```text
+Download path not defined. Set LOCAL_MCP_FILE_OUTPUT_DIR or LOCAL_MCP_DOWNLOAD_DIR in .env.
 ```
 
 ## Example
@@ -75,8 +71,8 @@ output_dir argument -> LOCAL_MCP_FILE_OUTPUT_DIR -> LOCAL_MCP_DOWNLOAD_DIR -> ge
 }
 ```
 
-With the default configuration, this creates:
+With `LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp`, this creates:
 
 ```text
-generated_files/notes/project-brief.md
+~/Downloads/local-mcp/notes/project-brief.md
 ```

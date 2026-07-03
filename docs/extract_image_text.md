@@ -125,13 +125,13 @@ sudo apt-get install tesseract-ocr-hin
 6. Start the MCP server:
 
    ```powershell
-   python server.py
+   python -m local_mcp
    ```
 
 For OpenWebUI:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Then add [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
@@ -198,13 +198,13 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
 Run the MCP server over stdio:
 
 ```powershell
-python server.py
+python -m local_mcp
 ```
 
 Run over HTTP:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Check HTTP health:

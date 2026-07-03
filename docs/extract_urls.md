@@ -91,13 +91,13 @@ crawl4ai-setup
 5. Start the MCP server:
 
    ```powershell
-   python server.py
+   python -m local_mcp
    ```
 
 For OpenWebUI:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Then configure [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
@@ -117,7 +117,7 @@ Typical workflow:
 
 1. Call `extract_urls` with a site root or section URL.
 2. Review the URL stats to understand where links were found.
-3. Feed selected URLs into `extract_content`.
+3. Feed selected URLs into `web_fetch`.
 4. Adjust `same_domain`, `same_path`, and `limit` if the first crawl is too narrow or too broad.
 
 Example MCP prompts:
@@ -162,13 +162,13 @@ URLs:
 Run the MCP server over stdio:
 
 ```powershell
-python server.py
+python -m local_mcp
 ```
 
 Run over HTTP:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Check HTTP health:
