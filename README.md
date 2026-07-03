@@ -26,7 +26,7 @@ For an interactive control panel, run:
 python setup_and_run.py
 ```
 
-The menu is shown before any dependency installation. Use option `3` for core dependencies, option `9` for the recommended bundle, or option `10` to see which optional tools and parser backends are installed.
+The menu is shown before any dependency installation. Use option `3` for core dependencies, option `9` for the recommended bundle, option `10` to see which optional tools and parser backends are installed, or option `12` to restart the local SearXNG Docker container on `http://127.0.0.1:8888`.
 
 The `extract_image_text` tool also requires the native Tesseract OCR executable:
 
@@ -79,16 +79,27 @@ search:
 Then point this MCP server at it:
 
 ```bash
-export SEARXNG_BASE_URL=http://127.0.0.1:8080
+export SEARXNG_BASE_URL=http://127.0.0.1:8888
 ```
 
 For failover, set a comma-separated list:
 
 ```bash
-export SEARXNG_URLS=http://127.0.0.1:8080,https://your-backup-searxng.example
+export SEARXNG_URLS=http://127.0.0.1:8888,https://your-backup-searxng.example
 ```
 
 `LOCAL_MCP_SEARXNG_URLS` is also supported as an alias. Individual `web_search` calls can override the base URL with the `searxng_url` parameter.
+
+The setup menu can run the included Docker config for you. Choose option `12`, or run the same commands manually:
+
+```powershell
+docker rm -f local-searxng
+docker run -d `
+  --name local-searxng `
+  -p 8888:8080 `
+  -v "${PWD}\searxng-settings.yml:/etc/searxng/settings.yml:ro" `
+  searxng/searxng:latest
+```
 
 ## Claude Desktop config
 

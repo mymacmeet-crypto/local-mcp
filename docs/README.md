@@ -25,7 +25,7 @@ All tools use the same Python project setup:
 python setup_and_run.py
 ```
 
-The setup script shows its command menu before installing anything. Choose option `3` for core dependencies or option `9` for the recommended bundle.
+The setup script shows its command menu before installing anything. Choose option `3` for core dependencies, option `9` for the recommended bundle, option `10` for installed tool status, or option `12` to restart the local SearXNG Docker container on `http://127.0.0.1:8888`.
 
 Manual setup:
 

@@ -20,6 +20,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 VENV_DIR = PROJECT_ROOT / ".venv"
 REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"
+SEARXNG_SETTINGS_FILE = PROJECT_ROOT / "searxng-settings.yml"
+SEARXNG_CONTAINER_NAME = "local-searxng"
+SEARXNG_IMAGE = "searxng/searxng:latest"
+SEARXNG_HOST_PORT = "8888"
+SEARXNG_CONTAINER_PORT = "8080"
 MIN_PYTHON = (3, 10)
 USE_COLOR = False
 
@@ -154,6 +159,7 @@ def _menu() -> None:
         _menu_item("9", "Install recommended bundle", "core + browser + fast docs + Docling")
         _menu_item("10", "Show installed tool status")
         _menu_item("11", "Run tests")
+        _menu_item("12", "Restart SearXNG Docker", f"http://127.0.0.1:{SEARXNG_HOST_PORT}")
         _menu_item("0", "Exit")
         print()
         choice = input(_paint("Choose an option: ", Style.BOLD, Style.GREEN)).strip()
@@ -184,6 +190,8 @@ def _menu() -> None:
         elif choice == "11":
             if python_path := _require_venv():
                 _run([python_path, "-m", "unittest", "discover", "-s", "tests"], cwd=PROJECT_ROOT)
+        elif choice == "12":
+            _restart_searxng_docker()
         elif choice == "0":
             _success("Done.")
             return
@@ -232,6 +240,36 @@ def _maybe_run_crawl4ai_setup() -> None:
         _run([setup_exe], cwd=PROJECT_ROOT)
 
 
+def _restart_searxng_docker() -> None:
+    _heading("Restarting SearXNG Docker")
+    if not SEARXNG_SETTINGS_FILE.is_file():
+        _warning(f"Missing SearXNG settings file: {SEARXNG_SETTINGS_FILE}")
+        return
+    if not shutil.which("docker"):
+        _warning("Docker CLI was not found. Install and start Docker Desktop, then try again.")
+        return
+
+    volume = f"{SEARXNG_SETTINGS_FILE.resolve().as_posix()}:/etc/searxng/settings.yml:ro"
+    _run(["docker", "rm", "-f", SEARXNG_CONTAINER_NAME], cwd=PROJECT_ROOT, check=False)
+    _run(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            SEARXNG_CONTAINER_NAME,
+            "-p",
+            f"{SEARXNG_HOST_PORT}:{SEARXNG_CONTAINER_PORT}",
+            "-v",
+            volume,
+            SEARXNG_IMAGE,
+        ],
+        cwd=PROJECT_ROOT,
+    )
+    _success(f"SearXNG is running at http://127.0.0.1:{SEARXNG_HOST_PORT}")
+    _info(f"Set SEARXNG_BASE_URL=http://127.0.0.1:{SEARXNG_HOST_PORT} for web_search.")
+
+
 def _show_tool_status(python_path: Path) -> None:
     _heading("Installed tool status")
     print(f"{_paint('Python', Style.DIM)}  {_paint(str(python_path), Style.CYAN)}")
@@ -241,7 +279,9 @@ def _show_tool_status(python_path: Path) -> None:
         ("Core", "Virtual environment", python_path.exists(), "option 3"),
         ("Core", "local-mcp package", _python_module_available(python_path, "local_mcp"), "option 3"),
         ("Web", "crawl4ai browser fallback", _python_module_available(python_path, "crawl4ai"), "option 4"),
-        ("Search", "SearXNG URL configured", _has_searxng_config(), "set SEARXNG_BASE_URL or SEARXNG_URLS"),
+        ("Search", "Docker CLI", bool(shutil.which("docker")), "option 12"),
+        ("Search", "SearXNG settings file", SEARXNG_SETTINGS_FILE.is_file(), "searxng-settings.yml"),
+        ("Search", "SearXNG URL configured", _has_searxng_config(), f"set SEARXNG_BASE_URL=http://127.0.0.1:{SEARXNG_HOST_PORT}"),
         ("OCR", "Pillow", _python_module_available(python_path, "PIL"), "core dependency"),
         ("OCR", "pytesseract", _python_module_available(python_path, "pytesseract"), "core dependency"),
         ("OCR", "Tesseract executable", bool(_command_location("tesseract", "TESSERACT_CMD")), "install native Tesseract"),
@@ -325,15 +365,19 @@ def _venv_command_candidates(command: str) -> list[Path]:
     return [scripts_dir / command]
 
 
-def _run(command: list[object], *, cwd: Path | None = None) -> None:
+def _run(command: list[object], *, cwd: Path | None = None, check: bool = True) -> int:
     printable = " ".join(str(part) for part in command)
     print(_paint("> ", Style.GREEN, Style.BOLD) + _paint(printable, Style.CYAN))
     try:
-        subprocess.check_call([str(part) for part in command], cwd=str(cwd or PROJECT_ROOT))
+        completed = subprocess.run([str(part) for part in command], cwd=str(cwd or PROJECT_ROOT), check=False)
     except KeyboardInterrupt:
         raise SystemExit(_paint("\nCancelled by user.", Style.YELLOW))
-    except subprocess.CalledProcessError as err:
-        raise SystemExit(_error(f"Command failed with exit code {err.returncode}: {printable}")) from err
+    except OSError as err:
+        raise SystemExit(_error(f"Command failed to start: {printable}\n{err}")) from err
+
+    if check and completed.returncode != 0:
+        raise SystemExit(_error(f"Command failed with exit code {completed.returncode}: {printable}"))
+    return completed.returncode
 
 
 if __name__ == "__main__":
