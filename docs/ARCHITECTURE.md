@@ -1,13 +1,13 @@
 # local-mcp Architecture
 
-`local-mcp` is a Python MCP server that exposes tools for web search, web fetch/scraping, URL discovery, readable content extraction, OCR, document parsing, and file generation.
+`local-mcp` is a Python MCP server that exposes tools for web search, web fetch/scraping, URL discovery, OCR, document parsing, and file generation.
 
 ## Runtime Entry Points
 
-- `server.py`: compatibility entry point. Keeps `python server.py` and ASGI `app` imports working.
 - `local_mcp/app.py`: creates the `FastMCP` app, registers tools, adds the health route, and exposes the ASGI `app`.
 - `local_mcp/cli.py`: selects stdio or Streamable HTTP transport.
-- `setup_and_run.py`: bootstraps `.venv`, installs dependencies, and provides a terminal menu to run the MCP server.
+- `local_mcp/__main__.py`: enables `python -m local_mcp`.
+- `setup_and_run.py`: opens a terminal menu for setup, dependency installation, status checks, tests, and server run commands.
 - `integrations/openwebui_tool.py`: OpenWebUI bridge that calls the HTTP MCP endpoint.
 
 ## Package Layout
@@ -16,6 +16,7 @@
 local_mcp/
   app.py                 FastMCP application setup
   cli.py                 CLI transport selection
+  __main__.py            python -m local_mcp entry point
   tools/                 MCP-facing tool handlers and parameter schemas
   web/                   HTTP fetching, browser fallback, HTML parsing/scraping, sitemaps
   search/                SearXNG JSON client and result parsing
@@ -31,7 +32,7 @@ tests/
   test_*.py              Standard-library unittest coverage
 ```
 
-Root files such as `fetcher.py`, `extract.py`, `searxng.py`, `ocr.py`, and `document_parser.py` are compatibility wrappers. New code should import from `local_mcp/...`.
+Implementation code lives under `local_mcp/`. Root files are limited to project metadata, setup helpers, and documentation.
 
 ## Tool Flow
 
@@ -58,17 +59,6 @@ MCP client
   -> local_mcp.web.html extracts links
   -> optional Crawl4AI browser fallback
   -> Markdown response with source stats
-```
-
-### `extract_content`
-
-```text
-MCP client
-  -> local_mcp.tools.web.extract_content
-  -> httpx static fetch
-  -> HTML cleanup and Markdown conversion
-  -> optional Crawl4AI fallback for low-content pages
-  -> Markdown response
 ```
 
 ### `web_search`
@@ -108,10 +98,21 @@ MCP client
 ```text
 MCP client
   -> local_mcp.tools.file_generation.generate_file
-  -> local_mcp.file_generation.write_generated_file validates md-only MVP settings
-  -> resolve filename under output_dir / LOCAL_MCP_FILE_OUTPUT_DIR / generated_files
-  -> create parent folders and write UTF-8 Markdown
+  -> local_mcp.file_generation.write_generated_file / append_generated_file validates md-only MVP settings
+  -> resolve filename under LOCAL_MCP_FILE_OUTPUT_DIR / LOCAL_MCP_DOWNLOAD_DIR
+  -> create parent folders and write or append UTF-8 Markdown
   -> Markdown response with path and write stats
+```
+
+### `web_search_to_file`
+
+```text
+MCP client
+  -> local_mcp.tools.file_generation.web_search_to_file
+  -> local_mcp.search.searxng.search returns results, answers, and suggestions
+  -> local_mcp.tools.search.format_search_response formats citation-ready Markdown
+  -> local_mcp.file_generation.write_generated_file / append_generated_file persists the section
+  -> Markdown response with search count, path, and write stats
 ```
 
 ## Dependency Model
@@ -129,8 +130,8 @@ MCP client
 
 ```powershell
 python setup_and_run.py
-python server.py
-python server.py --http
+python -m local_mcp
+python -m local_mcp --http
 local-mcp
 local-mcp --http
 ```
@@ -153,5 +154,5 @@ Default validation is intentionally local and non-networked:
 
 ```powershell
 .venv\Scripts\python.exe -m unittest discover -s tests
-.venv\Scripts\python.exe -c "import server; import local_mcp.app; import local_mcp.cli; print('ok')"
+.venv\Scripts\python.exe -c "import local_mcp.app; import local_mcp.cli; print('ok')"
 ```

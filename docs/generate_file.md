@@ -1,8 +1,10 @@
 # `generate_file`
 
-Generate a local Markdown file from supplied content.
+Generate or append to a local Markdown file from supplied content.
 
 The MVP intentionally supports only Markdown output. The tool accepts `md` or `markdown` as `file_type`; docx, xlsx, pptx, and pdf can be added later behind the same interface.
+
+Use `write_mode="append"` to build larger files in chunks when a smaller AI model cannot provide the whole document in one tool call.
 
 ## How It Works
 
@@ -13,13 +15,15 @@ flowchart TD
     B -->|other type| X[Return tool error]
     C --> D[Reject absolute paths and .. segments]
     D --> E[Append .md when extension is missing]
-    E --> F[Resolve output_dir or env default]
-    F --> G[Ensure target stays inside output_dir]
-    G --> H{File exists?}
-    H -->|yes, overwrite=false| Y[Return tool error]
-    H -->|no or overwrite=true| I[Create parent directories]
-    I --> J[Write UTF-8 Markdown]
-    J --> K[Return path, byte count, character count, overwrite status]
+    E --> F[Resolve env download path]
+    F --> G[Ensure target stays inside configured path]
+    G --> H{write_mode?}
+    H -->|write| I{File exists?}
+    I -->|yes, overwrite=false| Y[Return tool error]
+    I -->|no or overwrite=true| J[Create parent directories]
+    H -->|append/chunk| J
+    J --> K[Write or append UTF-8 Markdown]
+    K --> L[Return path, byte count, character count, overwrite status]
 ```
 
 ## Parameters
@@ -29,31 +33,23 @@ flowchart TD
 | `filename` | string | required | Output Markdown filename or relative path. The `.md` extension is appended when omitted. |
 | `content` | string | required | Markdown content to write. |
 | `file_type` | string | `md` | Output file type. MVP supports only `md`/`markdown`. |
-| `output_dir` | string | empty | Destination directory. Relative paths resolve from the server working directory. Empty uses `LOCAL_MCP_FILE_OUTPUT_DIR`, `LOCAL_MCP_DOWNLOAD_DIR`, or `generated_files`. |
 | `overwrite` | boolean | `false` | Replace an existing file at the target path. |
+| `write_mode` | string | `write` | `write` creates/replaces content. `append` adds the content as a chunk. `chunk` is accepted as an alias for `append`. |
 | `ensure_trailing_newline` | boolean | `true` | Append a trailing newline to non-empty Markdown content. |
 
 ## Path Behavior
 
-- `filename` must be relative; use `output_dir` to choose the destination folder.
+- `filename` must be relative.
+- The destination folder must be configured with `LOCAL_MCP_FILE_OUTPUT_DIR` or `LOCAL_MCP_DOWNLOAD_DIR`.
 - `..` path segments are rejected.
 - Parent directories are created automatically.
 - Existing files are preserved unless `overwrite` is `true`.
+- `append` mode creates the file if it does not exist and never overwrites existing content.
 - Only `.md` output files are accepted for the MVP.
 
 ## Download Location
 
-Users can choose the download location per call with `output_dir`:
-
-```json
-{
-  "filename": "notes/project-brief",
-  "content": "# Project Brief\n",
-  "output_dir": "D:\\MCP\\local-mcp\\generated_files"
-}
-```
-
-Or set a default location in `.env`:
+Set the download location in `.env`:
 
 ```env
 LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp
@@ -62,7 +58,13 @@ LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp
 `LOCAL_MCP_DOWNLOAD_DIR` is also supported as a friendlier alias. Precedence is:
 
 ```text
-output_dir argument -> LOCAL_MCP_FILE_OUTPUT_DIR -> LOCAL_MCP_DOWNLOAD_DIR -> generated_files
+LOCAL_MCP_FILE_OUTPUT_DIR -> LOCAL_MCP_DOWNLOAD_DIR
+```
+
+If neither environment variable is set, the tool returns:
+
+```text
+Download path not defined. Set LOCAL_MCP_FILE_OUTPUT_DIR or LOCAL_MCP_DOWNLOAD_DIR in .env.
 ```
 
 ## Example
@@ -75,8 +77,31 @@ output_dir argument -> LOCAL_MCP_FILE_OUTPUT_DIR -> LOCAL_MCP_DOWNLOAD_DIR -> ge
 }
 ```
 
-With the default configuration, this creates:
+With `LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp`, this creates:
 
 ```text
-generated_files/notes/project-brief.md
+~/Downloads/local-mcp/notes/project-brief.md
+```
+
+## Chunked Example
+
+First chunk:
+
+```json
+{
+  "filename": "reports/large-report",
+  "content": "# Large Report\n\nFirst section...",
+  "write_mode": "write",
+  "overwrite": true
+}
+```
+
+Later chunks:
+
+```json
+{
+  "filename": "reports/large-report",
+  "content": "Next section...",
+  "write_mode": "append"
+}
 ```

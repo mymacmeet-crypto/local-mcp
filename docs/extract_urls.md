@@ -91,13 +91,13 @@ crawl4ai-setup
 5. Start the MCP server:
 
    ```powershell
-   python server.py
+   python -m local_mcp
    ```
 
 For OpenWebUI:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Then configure [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
@@ -117,7 +117,7 @@ Typical workflow:
 
 1. Call `extract_urls` with a site root or section URL.
 2. Review the URL stats to understand where links were found.
-3. Feed selected URLs into `extract_content`.
+3. Feed selected URLs into `web_fetch`.
 4. Adjust `same_domain`, `same_path`, and `limit` if the first crawl is too narrow or too broad.
 
 Example MCP prompts:
@@ -162,13 +162,13 @@ URLs:
 Run the MCP server over stdio:
 
 ```powershell
-python server.py
+python -m local_mcp
 ```
 
 Run over HTTP:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Check HTTP health:
@@ -256,7 +256,7 @@ The target page may not exist or may block automated requests. Try a different U
 ## References
 
 - Project implementation: [`local_mcp/tools/web.py`](../local_mcp/tools/web.py), [`local_mcp/web/sitemap.py`](../local_mcp/web/sitemap.py), [`local_mcp/web/html.py`](../local_mcp/web/html.py), [`local_mcp/web/fetcher.py`](../local_mcp/web/fetcher.py)
-- Project prompts: [`prompt.txt`](../prompt.txt)
+- Project prompts: [`prompt.md`](../prompt.md)
 - MCP Python SDK: <https://github.com/modelcontextprotocol/python-sdk>
 - Crawl4AI documentation: <https://docs.crawl4ai.com/>
 - Beautiful Soup documentation: <https://beautiful-soup-4.readthedocs.io/en/latest/>

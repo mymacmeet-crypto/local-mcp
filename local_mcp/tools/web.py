@@ -1,4 +1,4 @@
-"""MCP tool handlers for URL, content, and web fetch extraction."""
+"""MCP tool handlers for URL discovery and web fetching."""
 
 from __future__ import annotations
 
@@ -208,51 +208,6 @@ async def extract_urls(
         "URLs:\n"
         + "\n".join(_format_sourced_url(value, source) for value, source in urls)
     )
-
-
-async def extract_content(
-    url: Annotated[str, Field(description="Page URL to extract. Scheme-less input like `example.com` is allowed.")],
-    include_title: Annotated[
-        bool,
-        Field(description="Prepend the page title as a top-level Markdown heading."),
-    ] = True,
-) -> str:
-    """Extract a page's readable content and return it as Markdown."""
-    target = normalize_url(url)
-
-    try:
-        page = await fetcher.fetch_static(target)
-    except Exception as err:
-        raise tool_error(describe_fetch_error(err, target))
-
-    markdown = html.html_to_markdown(page.html, page.final_url)
-    title = html.extract_title(page.html) if include_title else None
-
-    if len(markdown) < MIN_MARKDOWN_CHARS:
-        try:
-            rendered = await fetcher.fetch_browser(page.final_url)
-        except Exception:
-            rendered = None
-        if rendered is not None:
-            rendered_md = rendered.markdown or html.html_to_markdown(rendered.html, rendered.final_url)
-            if len(rendered_md) > len(markdown):
-                markdown = rendered_md
-                if include_title:
-                    title = html.extract_title(rendered.html) or title
-
-    if not markdown:
-        raise tool_error(f"No extractable content found for {target}.")
-
-    if include_title and title and not _starts_with_heading(markdown, title):
-        return f"# {title}\n\n{markdown}"
-    return markdown
-
-
-def _starts_with_heading(markdown: str, title: str) -> bool:
-    """True when the markdown already opens with `# <title>`."""
-    first_line = next((line for line in markdown.splitlines() if line.strip()), "")
-    stripped = first_line.lstrip("#").strip()
-    return first_line.startswith("#") and stripped.casefold() == title.strip().casefold()
 
 
 async def _fetch_for_mode(

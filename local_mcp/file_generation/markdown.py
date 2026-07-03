@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-DEFAULT_OUTPUT_DIR = "generated_files"
 SUPPORTED_FILE_TYPES = {"md", "markdown"}
 OUTPUT_DIR_ENV = "LOCAL_MCP_FILE_OUTPUT_DIR"
 DOWNLOAD_DIR_ENV = "LOCAL_MCP_DOWNLOAD_DIR"
@@ -20,6 +19,7 @@ class GeneratedFile:
     characters_written: int
     bytes_written: int
     overwritten: bool
+    operation: str = "write"
 
 
 def write_generated_file(
@@ -27,20 +27,17 @@ def write_generated_file(
     content: str,
     *,
     file_type: str = "md",
-    output_dir: str = "",
     overwrite: bool = False,
     ensure_trailing_newline: bool = True,
 ) -> GeneratedFile:
     """Write Markdown content to a safe output path."""
     normalized_type = _normalize_file_type(file_type)
-    target = _resolve_output_path(filename, output_dir=output_dir)
+    target = _resolve_output_path(filename)
     existed = target.exists()
     if existed and not overwrite:
         raise ValueError(f"{target} already exists. Set overwrite=true to replace it.")
 
-    final_content = content or ""
-    if ensure_trailing_newline and final_content and not final_content.endswith("\n"):
-        final_content += "\n"
+    final_content = _prepare_content(content, ensure_trailing_newline=ensure_trailing_newline)
 
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(final_content, encoding="utf-8", newline="\n")
@@ -51,6 +48,34 @@ def write_generated_file(
         characters_written=len(final_content),
         bytes_written=len(final_content.encode("utf-8")),
         overwritten=existed,
+        operation="write",
+    )
+
+
+def append_generated_file(
+    filename: str,
+    content: str,
+    *,
+    file_type: str = "md",
+    ensure_trailing_newline: bool = True,
+) -> GeneratedFile:
+    """Append a Markdown content chunk to a safe output path."""
+    normalized_type = _normalize_file_type(file_type)
+    target = _resolve_output_path(filename)
+
+    final_content = _prepare_content(content, ensure_trailing_newline=ensure_trailing_newline)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8", newline="\n") as file:
+        file.write(final_content)
+
+    return GeneratedFile(
+        path=target,
+        file_type=normalized_type,
+        characters_written=len(final_content),
+        bytes_written=len(final_content.encode("utf-8")),
+        overwritten=False,
+        operation="append",
     )
 
 
@@ -61,7 +86,14 @@ def _normalize_file_type(file_type: str) -> str:
     return "md"
 
 
-def _resolve_output_path(filename: str, *, output_dir: str = "") -> Path:
+def _prepare_content(content: str, *, ensure_trailing_newline: bool) -> str:
+    final_content = content or ""
+    if ensure_trailing_newline and final_content and not final_content.endswith("\n"):
+        final_content += "\n"
+    return final_content
+
+
+def _resolve_output_path(filename: str) -> Path:
     clean_filename = (filename or "").strip().strip("\"'")
     if not clean_filename:
         raise ValueError("filename is required.")
@@ -70,7 +102,7 @@ def _resolve_output_path(filename: str, *, output_dir: str = "") -> Path:
 
     requested = Path(clean_filename)
     if requested.is_absolute() or requested.drive:
-        raise ValueError("filename must be relative. Use output_dir to choose the destination folder.")
+        raise ValueError(f"filename must be relative. Set {OUTPUT_DIR_ENV} or {DOWNLOAD_DIR_ENV} to choose the destination folder.")
     if any(part == ".." for part in requested.parts):
         raise ValueError("filename cannot contain '..' path segments.")
 
@@ -80,16 +112,19 @@ def _resolve_output_path(filename: str, *, output_dir: str = "") -> Path:
     else:
         requested = requested.with_suffix(".md")
 
-    root = Path(output_dir or _default_output_dir()).expanduser()
+    root = Path(_configured_output_dir()).expanduser()
     if not root.is_absolute():
         root = Path.cwd() / root
 
     root = root.resolve()
     target = (root / requested).resolve()
     if target != root and root not in target.parents:
-        raise ValueError("Resolved output path must stay inside output_dir.")
+        raise ValueError("Resolved output path must stay inside the configured download path.")
     return target
 
 
-def _default_output_dir() -> str:
-    return os.environ.get(OUTPUT_DIR_ENV) or os.environ.get(DOWNLOAD_DIR_ENV) or DEFAULT_OUTPUT_DIR
+def _configured_output_dir() -> str:
+    configured = (os.environ.get(OUTPUT_DIR_ENV) or os.environ.get(DOWNLOAD_DIR_ENV) or "").strip()
+    if not configured:
+        raise ValueError(f"Download path not defined. Set {OUTPUT_DIR_ENV} or {DOWNLOAD_DIR_ENV} in .env.")
+    return configured

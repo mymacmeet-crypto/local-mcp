@@ -65,6 +65,15 @@ server:
   image_proxy: true
 ```
 
+With Docker Desktop running, the interactive setup script can restart SearXNG for you:
+
+```powershell
+python setup_and_run.py
+# choose option 12
+```
+
+The menu removes any existing `local-searxng` container, then starts `searxng/searxng:latest` on `http://127.0.0.1:8888`.
+
 ## Setup
 
 1. Start or deploy a SearXNG instance.
@@ -80,25 +89,25 @@ server:
 3. Configure the MCP server to use that instance:
 
    ```powershell
-   $env:SEARXNG_BASE_URL = "http://127.0.0.1:8080"
+   $env:SEARXNG_BASE_URL = "http://127.0.0.1:8888"
    ```
 
 4. Optionally configure failover instances:
 
    ```powershell
-   $env:SEARXNG_URLS = "http://127.0.0.1:8080,https://search.example.com"
+   $env:SEARXNG_URLS = "http://127.0.0.1:8888,https://search.example.com"
    ```
 
 5. Start the MCP server:
 
    ```powershell
-   python server.py
+   python -m local_mcp
    ```
 
 For OpenWebUI, start the server in HTTP mode:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Then paste [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) into OpenWebUI under `Tools -> Create Tool`.
@@ -124,7 +133,7 @@ Typical workflow:
 1. Ask an MCP client to search for a topic.
 2. The client invokes `web_search` with a query and optional filters.
 3. The tool calls SearXNG and returns Markdown.
-4. Use the returned URLs as citations or as input to `extract_content`.
+4. Use the returned URLs as citations or as input to `web_fetch`.
 
 Example MCP prompt:
 
@@ -148,7 +157,7 @@ Example returned shape:
 
 ```markdown
 Search query: "OpenAI Model Context Protocol"
-SearXNG instance: http://127.0.0.1:8080/
+SearXNG instance: http://127.0.0.1:8888/
 Results returned: 5
 
 Results:
@@ -163,13 +172,13 @@ Results:
 Run over stdio for MCP desktop clients:
 
 ```powershell
-python server.py
+python -m local_mcp
 ```
 
 Run over Streamable HTTP:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Verify the server is up:
@@ -200,7 +209,7 @@ Supported environment variables:
 Example `.env`:
 
 ```env
-SEARXNG_BASE_URL=http://127.0.0.1:8080
+SEARXNG_BASE_URL=http://127.0.0.1:8888
 SEARXNG_TIMEOUT_MS=20000
 MCP_HTTP_HOST=127.0.0.1
 MCP_HTTP_PORT=3002
@@ -242,7 +251,7 @@ Restart SearXNG after changing the setting.
 The configured URL may point to a non-SearXNG service, a login page, or a SearXNG instance that does not expose JSON search. Confirm that this works in a browser:
 
 ```text
-http://127.0.0.1:8080/search?q=test&format=json
+http://127.0.0.1:8888/search?q=test&format=json
 ```
 
 ### `Could not connect` or timeout errors

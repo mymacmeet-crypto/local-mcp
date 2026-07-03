@@ -125,13 +125,13 @@ sudo apt-get install tesseract-ocr-hin
 6. Start the MCP server:
 
    ```powershell
-   python server.py
+   python -m local_mcp
    ```
 
 For OpenWebUI:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Then add [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) in OpenWebUI.
@@ -198,13 +198,13 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
 Run the MCP server over stdio:
 
 ```powershell
-python server.py
+python -m local_mcp
 ```
 
 Run over HTTP:
 
 ```powershell
-python server.py --http
+python -m local_mcp --http
 ```
 
 Check HTTP health:
@@ -315,7 +315,7 @@ Try these improvements:
 ## References
 
 - Project implementation: [`local_mcp/tools/ocr.py`](../local_mcp/tools/ocr.py), [`local_mcp/ocr/tesseract.py`](../local_mcp/ocr/tesseract.py), [`local_mcp/web/fetcher.py`](../local_mcp/web/fetcher.py)
-- Project prompts: [`prompt.txt`](../prompt.txt)
+- Project prompts: [`prompt.md`](../prompt.md)
 - Tesseract command-line usage: <https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html>
 - Tesseract documentation: <https://tesseract-ocr.github.io/tessdoc/>
 - pytesseract package: <https://github.com/madmaze/pytesseract>

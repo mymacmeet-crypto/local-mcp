@@ -11,10 +11,10 @@ def register_tools(mcp: FastMCP) -> None:
     for tool in (
         web.web_fetch,
         web.extract_urls,
-        web.extract_content,
         search.web_search,
         ocr.extract_image_text,
         documents.parse_document,
         file_generation.generate_file,
+        file_generation.web_search_to_file,
     ):
         mcp.tool()(tool)
