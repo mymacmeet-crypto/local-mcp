@@ -20,13 +20,13 @@ robots.txt
 
 Requires Python 3.10+.
 
-For an interactive setup that creates `.venv`, installs the core runtime, and then offers run options:
+For an interactive control panel, run:
 
 ```bash
 python setup_and_run.py
 ```
 
-In the setup menu, choose option `10` to see which optional tools and parser backends are installed, including Crawl4AI, Tesseract, Marker, MinerU, Docling, PyMuPDF4LLM, and pdfplumber.
+The menu is shown before any dependency installation. Use option `3` for core dependencies, option `9` for the recommended bundle, or option `10` to see which optional tools and parser backends are installed.
 
 The `extract_image_text` tool also requires the native Tesseract OCR executable:
 

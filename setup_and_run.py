@@ -1,11 +1,11 @@
-"""Bootstrap local-mcp dependencies and offer run options.
+"""Offer local-mcp setup, dependency, and run commands.
 
 Run from the repository root:
 
     python setup_and_run.py
 
-The script creates or reuses `.venv`, installs the core runtime requirements
-and this package, then shows a terminal menu for running the MCP server.
+The script opens a terminal menu first. Dependency installation only happens
+after the user chooses an install command.
 """
 
 from __future__ import annotations
@@ -40,10 +40,7 @@ def main() -> None:
     try:
         _configure_terminal()
         _ensure_supported_python()
-        venv_python = _ensure_venv()
-        _install_core(venv_python)
-        _show_external_notes()
-        _menu(venv_python)
+        _menu()
     except KeyboardInterrupt:
         raise SystemExit(_paint("\nCancelled by user.", Style.YELLOW))
 
@@ -139,70 +136,72 @@ def _install_core(python_path: Path) -> None:
     _success("Core install complete.")
 
 
-def _show_external_notes() -> None:
-    notes: list[str] = []
-    if not _has_tesseract():
-        notes.append("Tesseract was not found. Install it or set TESSERACT_CMD before using extract_image_text.")
-    if not (os.environ.get("SEARXNG_BASE_URL") or os.environ.get("SEARXNG_URLS") or os.environ.get("LOCAL_MCP_SEARXNG_URLS")):
-        notes.append("No SearXNG URL environment variable is set. web_search needs a reachable SearXNG instance.")
-
-    if notes:
-        _heading("External requirement notes")
-        for note in notes:
-            _warning(f"- {note}")
-        print()
-
-
-def _has_tesseract() -> bool:
-    return bool(_command_location("tesseract", "TESSERACT_CMD"))
-
-
-def _menu(python_path: Path) -> None:
+def _menu() -> None:
     while True:
+        python_path = _venv_python()
         _heading("local-mcp control panel")
         print(f"{_paint('Project', Style.DIM)}  {_paint(str(PROJECT_ROOT), Style.CYAN)}")
-        print(f"{_paint('Python ', Style.DIM)}  {_paint(str(python_path), Style.CYAN)}")
+        print(f"{_paint('Python ', Style.DIM)}  {_paint(_venv_label(python_path), Style.CYAN)}")
         print()
         _menu_item("1", "Run MCP over stdio")
         _menu_item("2", "Run MCP over HTTP", "http://127.0.0.1:3002/mcp")
-        _menu_item("3", "Install browser fallback extra", "local-mcp[browser]")
-        _menu_item("4", "Install fast document extras", "local-mcp[document-fast]")
-        _menu_item("5", "Install structured document extras", "local-mcp[document-structured]")
-        _menu_item("6", "Install deep document extras (Marker)", "local-mcp[document-deep-marker]")
-        _menu_item("7", "Install deep document extras (MinerU)", "local-mcp[document-deep-mineru]")
-        _menu_item("8", "Upgrade pip, setuptools, and wheel")
-        _menu_item("9", "Run tests")
+        _menu_item("3", "Install core dependencies", "required")
+        _menu_item("4", "Install browser dependency", "Crawl4AI")
+        _menu_item("5", "Install fast document parsers", "PyMuPDF4LLM + pdfplumber")
+        _menu_item("6", "Install structured document parser", "Docling")
+        _menu_item("7", "Install Marker parser", "conflicts with MinerU")
+        _menu_item("8", "Install MinerU parser", "conflicts with Marker")
+        _menu_item("9", "Install recommended bundle", "core + browser + fast docs + Docling")
         _menu_item("10", "Show installed tool status")
+        _menu_item("11", "Run tests")
         _menu_item("0", "Exit")
         print()
         choice = input(_paint("Choose an option: ", Style.BOLD, Style.GREEN)).strip()
 
         if choice == "1":
-            _run([python_path, "-m", "local_mcp"], cwd=PROJECT_ROOT)
+            if python_path := _require_venv():
+                _run([python_path, "-m", "local_mcp"], cwd=PROJECT_ROOT)
         elif choice == "2":
-            _run([python_path, "-m", "local_mcp", "--http"], cwd=PROJECT_ROOT)
+            if python_path := _require_venv():
+                _run([python_path, "-m", "local_mcp", "--http"], cwd=PROJECT_ROOT)
         elif choice == "3":
-            _install_extra(python_path, "browser")
-            _maybe_run_crawl4ai_setup()
+            _install_core(_ensure_venv())
         elif choice == "4":
-            _install_extra(python_path, "document-fast")
+            _install_extra(_ensure_venv(), "browser")
+            _maybe_run_crawl4ai_setup()
         elif choice == "5":
-            _install_extra(python_path, "document-structured")
+            _install_extra(_ensure_venv(), "document-fast")
         elif choice == "6":
-            _install_extra(python_path, "document-deep-marker")
+            _install_extra(_ensure_venv(), "document-structured")
         elif choice == "7":
-            _install_extra(python_path, "document-deep-mineru")
+            _install_extra(_ensure_venv(), "document-deep-marker")
         elif choice == "8":
-            _upgrade_packaging_tools(python_path)
+            _install_extra(_ensure_venv(), "document-deep-mineru")
         elif choice == "9":
-            _run([python_path, "-m", "unittest", "discover", "-s", "tests"], cwd=PROJECT_ROOT)
+            _install_recommended_bundle()
         elif choice == "10":
-            _show_tool_status(python_path)
+            _show_tool_status(_venv_python())
+        elif choice == "11":
+            if python_path := _require_venv():
+                _run([python_path, "-m", "unittest", "discover", "-s", "tests"], cwd=PROJECT_ROOT)
         elif choice == "0":
             _success("Done.")
             return
         else:
             _warning("Unknown option. Try again.\n")
+
+
+def _venv_label(python_path: Path) -> str:
+    suffix = "ready" if python_path.exists() else "not created"
+    return f"{python_path} ({suffix})"
+
+
+def _require_venv() -> Path | None:
+    python_path = _venv_python()
+    if python_path.exists():
+        return python_path
+    _warning("Virtual environment not found. Choose option 3 to install core dependencies first.\n")
+    return None
 
 
 def _install_extra(python_path: Path, extra: str) -> None:
@@ -212,10 +211,14 @@ def _install_extra(python_path: Path, extra: str) -> None:
     _success(f"Optional extra installed: {extra}")
 
 
-def _upgrade_packaging_tools(python_path: Path) -> None:
-    _heading("Upgrading pip, setuptools, and wheel")
-    _run([python_path, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
-    _success("Packaging tools upgraded.")
+def _install_recommended_bundle() -> None:
+    python_path = _ensure_venv()
+    _install_core(python_path)
+    _install_extra(python_path, "browser")
+    _maybe_run_crawl4ai_setup()
+    _install_extra(python_path, "document-fast")
+    _install_extra(python_path, "document-structured")
+    _success("Recommended dependency bundle installed.")
 
 
 def _maybe_run_crawl4ai_setup() -> None:
@@ -235,18 +238,19 @@ def _show_tool_status(python_path: Path) -> None:
     print()
 
     rows = [
-        ("Core", "local-mcp package", _python_module_available(python_path, "local_mcp"), "installed by setup"),
-        ("Web", "crawl4ai browser fallback", _python_module_available(python_path, "crawl4ai"), "option 3"),
+        ("Core", "Virtual environment", python_path.exists(), "option 3"),
+        ("Core", "local-mcp package", _python_module_available(python_path, "local_mcp"), "option 3"),
+        ("Web", "crawl4ai browser fallback", _python_module_available(python_path, "crawl4ai"), "option 4"),
         ("Search", "SearXNG URL configured", _has_searxng_config(), "set SEARXNG_BASE_URL or SEARXNG_URLS"),
         ("OCR", "Pillow", _python_module_available(python_path, "PIL"), "core dependency"),
         ("OCR", "pytesseract", _python_module_available(python_path, "pytesseract"), "core dependency"),
         ("OCR", "Tesseract executable", bool(_command_location("tesseract", "TESSERACT_CMD")), "install native Tesseract"),
         ("Documents", "pypdf", _python_module_available(python_path, "pypdf"), "core dependency"),
-        ("Documents", "pymupdf4llm", _python_module_available(python_path, "pymupdf4llm"), "option 4"),
-        ("Documents", "pdfplumber", _python_module_available(python_path, "pdfplumber"), "option 4"),
-        ("Documents", "docling", _python_module_available(python_path, "docling"), "option 5"),
-        ("Documents", "Marker CLI (marker_single)", bool(_command_location("marker_single", "LOCAL_MCP_MARKER_CMD")), "option 6"),
-        ("Documents", "MinerU CLI (mineru)", bool(_command_location("mineru", "LOCAL_MCP_MINERU_CMD")), "option 7"),
+        ("Documents", "pymupdf4llm", _python_module_available(python_path, "pymupdf4llm"), "option 5"),
+        ("Documents", "pdfplumber", _python_module_available(python_path, "pdfplumber"), "option 5"),
+        ("Documents", "docling", _python_module_available(python_path, "docling"), "option 6"),
+        ("Documents", "Marker CLI (marker_single)", bool(_command_location("marker_single", "LOCAL_MCP_MARKER_CMD")), "option 7"),
+        ("Documents", "MinerU CLI (mineru)", bool(_command_location("mineru", "LOCAL_MCP_MINERU_CMD")), "option 8"),
         ("Files", "Markdown file generation", True, "built in"),
     ]
 

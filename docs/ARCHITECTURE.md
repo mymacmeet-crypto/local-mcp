@@ -7,7 +7,7 @@
 - `local_mcp/app.py`: creates the `FastMCP` app, registers tools, adds the health route, and exposes the ASGI `app`.
 - `local_mcp/cli.py`: selects stdio or Streamable HTTP transport.
 - `local_mcp/__main__.py`: enables `python -m local_mcp`.
-- `setup_and_run.py`: bootstraps `.venv`, installs dependencies, and provides a terminal menu to run the MCP server.
+- `setup_and_run.py`: opens a terminal menu for setup, dependency installation, status checks, tests, and server run commands.
 - `integrations/openwebui_tool.py`: OpenWebUI bridge that calls the HTTP MCP endpoint.
 
 ## Package Layout

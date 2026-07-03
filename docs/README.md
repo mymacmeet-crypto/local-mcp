@@ -25,6 +25,8 @@ All tools use the same Python project setup:
 python setup_and_run.py
 ```
 
+The setup script shows its command menu before installing anything. Choose option `3` for core dependencies or option `9` for the recommended bundle.
+
 Manual setup:
 
 ```powershell
