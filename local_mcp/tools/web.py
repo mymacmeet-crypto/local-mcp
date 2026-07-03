@@ -1,7 +1,8 @@
-"""MCP tool handlers for URL and content extraction."""
+"""MCP tool handlers for URL, content, and web fetch extraction."""
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Annotated
 
@@ -19,6 +20,119 @@ from local_mcp.web import fetcher, html, sitemap
 
 DEFAULT_LIMIT = int(os.environ.get("LOCAL_MCP_URL_LIMIT", "500"))
 MIN_MARKDOWN_CHARS = int(os.environ.get("LOCAL_MCP_MIN_MARKDOWN_CHARS", "200"))
+WEB_FETCH_LINK_LIMIT = int(os.environ.get("LOCAL_MCP_WEB_FETCH_LINK_LIMIT", "100"))
+WEB_FETCH_IMAGE_LIMIT = int(os.environ.get("LOCAL_MCP_WEB_FETCH_IMAGE_LIMIT", "100"))
+
+RENDER_MODES = {"auto", "static", "browser"}
+WEB_FETCH_OUTPUT_FORMATS = {"markdown", "text", "html", "json"}
+
+
+async def web_fetch(
+    url: Annotated[str, Field(description="Page URL to fetch. Scheme-less input like `example.com` is allowed.")],
+    render: Annotated[
+        str,
+        Field(description="Fetch mode: `auto` uses httpx first and browser fallback when content is thin; `static` uses only httpx; `browser` forces browser rendering."),
+    ] = "auto",
+    output_format: Annotated[
+        str,
+        Field(description="Returned content format: `markdown`, `text`, `html`, or `json`."),
+    ] = "markdown",
+    selector: Annotated[
+        str,
+        Field(description="Optional CSS selector for scraping a specific page region. Empty extracts the main/article/body content."),
+    ] = "",
+    include_links: Annotated[
+        bool,
+        Field(description="Include scraped links from the page or selected region."),
+    ] = False,
+    include_images: Annotated[
+        bool,
+        Field(description="Include scraped image URLs from the page or selected region."),
+    ] = False,
+    include_metadata: Annotated[
+        bool,
+        Field(description="Include fetch metadata before non-JSON content. JSON responses always include metadata."),
+    ] = True,
+    max_chars: Annotated[
+        int,
+        Field(description="Maximum content characters to return before truncation. Use 0 for no truncation.", ge=0, le=500000),
+    ] = 120000,
+) -> str:
+    """Fetch, browser-render, or scrape a web page into Markdown, text, HTML, or JSON."""
+    target = normalize_url(url)
+    render_mode = _validate_choice(render, RENDER_MODES, "render mode")
+    output = _validate_choice(output_format, WEB_FETCH_OUTPUT_FORMATS, "output format")
+    selector = (selector or "").strip()
+    warnings: list[str] = []
+
+    try:
+        page, render_method = await _fetch_for_mode(target, render_mode, output, selector, warnings)
+    except Exception as err:
+        raise tool_error(describe_fetch_error(err, target))
+
+    try:
+        metadata = html.extract_metadata(page.html, page.final_url)
+        content = _content_for_page(page, output, selector)
+        links = (
+            html.extract_link_details(page.html, page.final_url, selector=selector, limit=WEB_FETCH_LINK_LIMIT)
+            if include_links or output == "json"
+            else []
+        )
+        images = (
+            html.extract_images(page.html, page.final_url, selector=selector, limit=WEB_FETCH_IMAGE_LIMIT)
+            if include_images or output == "json"
+            else []
+        )
+    except Exception as err:
+        raise tool_error(f"Could not scrape {page.final_url}: {err}")
+
+    if selector and not content:
+        raise tool_error(f"No content found for selector {selector!r} at {page.final_url}.")
+
+    content, truncated = _truncate(content, max_chars)
+    if truncated:
+        warnings.append(f"Content truncated to {max_chars} characters.")
+
+    if output == "json":
+        payload = {
+            "url": target,
+            "final_url": page.final_url,
+            "status": page.status,
+            "render_method": render_method,
+            "output_format": output,
+            "selector": selector,
+            "metadata": metadata,
+            "warnings": warnings,
+            "content": content,
+            "links": links,
+            "images": images,
+        }
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+
+    sections: list[str] = []
+    if include_metadata:
+        sections.append(
+            _format_fetch_metadata(
+                url=target,
+                final_url=page.final_url,
+                status=page.status,
+                render_method=render_method,
+                output_format=output,
+                selector=selector,
+                metadata=metadata,
+                warnings=warnings,
+            )
+        )
+    if content:
+        sections.append(content)
+    if include_links:
+        sections.append(_format_links(links))
+    if include_images:
+        sections.append(_format_images(images))
+
+    if not sections:
+        raise tool_error(f"No extractable content found for {target}.")
+    return "\n\n".join(section for section in sections if section).strip()
 
 
 async def extract_urls(
@@ -139,6 +253,116 @@ def _starts_with_heading(markdown: str, title: str) -> bool:
     first_line = next((line for line in markdown.splitlines() if line.strip()), "")
     stripped = first_line.lstrip("#").strip()
     return first_line.startswith("#") and stripped.casefold() == title.strip().casefold()
+
+
+async def _fetch_for_mode(
+    target: str,
+    render_mode: str,
+    output_format: str,
+    selector: str,
+    warnings: list[str],
+) -> tuple[fetcher.FetchResult, str]:
+    if render_mode == "browser":
+        return await fetcher.fetch_browser(target), "Crawl4AI"
+
+    page = await fetcher.fetch_static(target)
+    if render_mode == "static":
+        return page, "httpx"
+
+    content = _content_for_page(page, output_format, selector)
+    if output_format in {"markdown", "text", "json"} and len(content) < MIN_MARKDOWN_CHARS:
+        try:
+            rendered = await fetcher.fetch_browser(page.final_url)
+        except Exception as err:
+            warnings.append(f"Browser fallback unavailable: {err}")
+        else:
+            rendered_content = _content_for_page(rendered, output_format, selector)
+            if len(rendered_content) > len(content):
+                return rendered, "httpx + Crawl4AI"
+
+    return page, "httpx"
+
+
+def _content_for_page(page: fetcher.FetchResult, output_format: str, selector: str) -> str:
+    if output_format == "markdown" and page.markdown and not selector:
+        return page.markdown
+    return _content_for_format(page.html, page.final_url, output_format, selector)
+
+
+def _content_for_format(html_source: str, base_url: str, output_format: str, selector: str) -> str:
+    if output_format == "markdown":
+        return html.html_to_markdown(html_source, base_url, selector=selector)
+    if output_format == "text":
+        return html.html_to_text(html_source, selector=selector)
+    if output_format == "html":
+        return html.html_fragment(html_source, selector=selector)
+    if output_format == "json":
+        return html.html_to_markdown(html_source, base_url, selector=selector)
+    raise tool_error(f"Unsupported output format: {output_format}.")
+
+
+def _validate_choice(value: str, allowed: set[str], label: str) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized not in allowed:
+        choices = ", ".join(sorted(allowed))
+        raise tool_error(f"Unsupported {label}: {value}. Choose one of: {choices}.")
+    return normalized
+
+
+def _truncate(content: str, max_chars: int) -> tuple[str, bool]:
+    if max_chars <= 0 or len(content) <= max_chars:
+        return content, False
+    return content[:max_chars].rstrip(), True
+
+
+def _format_fetch_metadata(
+    *,
+    url: str,
+    final_url: str,
+    status: int,
+    render_method: str,
+    output_format: str,
+    selector: str,
+    metadata: dict[str, str],
+    warnings: list[str],
+) -> str:
+    lines = [
+        "Fetch metadata:",
+        f"- URL: {url}",
+        f"- Final URL: {final_url}",
+        f"- Status: {status}",
+        f"- Render method: {render_method}",
+        f"- Output format: {output_format}",
+    ]
+    if selector:
+        lines.append(f"- Selector: {selector}")
+    for key, value in metadata.items():
+        label = key.replace("_", " ").title()
+        lines.append(f"- {label}: {value}")
+    if warnings:
+        lines.append("Warnings:")
+        lines.extend(f"- {warning}" for warning in warnings)
+    return "\n".join(lines)
+
+
+def _format_links(links: list[dict[str, str]]) -> str:
+    if not links:
+        return "Links: none"
+    lines = ["Links:"]
+    for link in links:
+        text = link.get("text") or link["url"]
+        lines.append(f"- [{text}]({markdown_link_target(link['url'])})")
+    return "\n".join(lines)
+
+
+def _format_images(images: list[dict[str, str]]) -> str:
+    if not images:
+        return "Images: none"
+    lines = ["Images:"]
+    for image in images:
+        label = image.get("alt") or image.get("title") or image["url"]
+        lines.append(f"- [{label}]({markdown_link_target(image['url'])})")
+    return "\n".join(lines)
 
 
 def _format_url_stats(urls: list[tuple[str, str]]) -> str:

@@ -319,6 +319,53 @@ class Tools:
         await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
 
+    async def web_fetch(
+        self,
+        url: str,
+        render: str = "auto",
+        output_format: str = "markdown",
+        selector: str = "",
+        include_links: bool = False,
+        include_images: bool = False,
+        include_metadata: bool = True,
+        max_chars: int = 120000,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Fetch, browser-render, or scrape a web page into Markdown, text, HTML, or JSON.
+        :param url: Page URL to fetch. Scheme-less input like 'example.com' is allowed.
+        :param render: Fetch mode: auto, static, or browser.
+        :param output_format: Returned content format: markdown, text, html, or json.
+        :param selector: Optional CSS selector for scraping a specific page region.
+        :param include_links: Include scraped links from the page or selected region.
+        :param include_images: Include scraped image URLs from the page or selected region.
+        :param include_metadata: Include fetch metadata before non-JSON content.
+        :param max_chars: Maximum content characters to return before truncation. Use 0 for no truncation.
+        """
+        _log(
+            "web_fetch",
+            f"url={url} render={render} output_format={output_format} selector={selector}",
+        )
+        await self._emit_status(__event_emitter__, f"Fetching {url}...", False)
+
+        result = self._call(
+            "web_fetch",
+            {
+                "url": url,
+                "render": render,
+                "output_format": output_format,
+                "selector": selector,
+                "include_links": include_links,
+                "include_images": include_images,
+                "include_metadata": include_metadata,
+                "max_chars": max_chars,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
     async def extract_image_text(
         self,
         image: str,

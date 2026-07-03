@@ -6,6 +6,7 @@ class CompatibilityImportTests(unittest.TestCase):
         import server
         from local_mcp.tools import documents, file_generation, ocr, search, web
 
+        self.assertIs(server.web_fetch, web.web_fetch)
         self.assertIs(server.extract_urls, web.extract_urls)
         self.assertIs(server.extract_content, web.extract_content)
         self.assertIs(server.web_search, search.web_search)

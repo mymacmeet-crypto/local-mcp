@@ -9,6 +9,7 @@ def register_tools(mcp: FastMCP) -> None:
     from local_mcp.tools import documents, file_generation, ocr, search, web
 
     for tool in (
+        web.web_fetch,
         web.extract_urls,
         web.extract_content,
         search.web_search,

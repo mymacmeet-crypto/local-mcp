@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, discover URLs, extract readable Markdown from web pages, run OCR on images, parse PDFs/documents, and generate local Markdown files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, fetch/browser-render/scrape pages, discover URLs, extract readable Markdown from web pages, run OCR on images, parse PDFs/documents, and generate local Markdown files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -11,6 +11,7 @@ For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE
 | Tool | Documentation | Main purpose |
 | --- | --- | --- |
 | `web_search` | [web_search.md](web_search.md) | Search through a SearXNG instance and return citation-ready Markdown results. |
+| `web_fetch` | [web_fetch.md](web_fetch.md) | Fetch, browser-render, or scrape pages into Markdown, text, HTML, or JSON. |
 | `extract_urls` | [extract_urls.md](extract_urls.md) | Discover URLs from `robots.txt`, XML sitemaps, static HTML links, and optional browser-rendered pages. |
 | `extract_content` | [extract_content.md](extract_content.md) | Fetch a page and return readable Markdown, with browser-render fallback for JavaScript-heavy pages. |
 | `extract_image_text` | [extract_image_text.md](extract_image_text.md) | Extract text from local, remote, data URL, or base64 image input using Tesseract OCR. |
@@ -82,7 +83,9 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_TIMEOUT_MS` | `15000` | Fetching, OCR URL fetches, browser render | Request and browser-render timeout in milliseconds. |
 | `LOCAL_MCP_USER_AGENT` | `local-mcp/1.0 (+https://github.com/your-org/local-mcp)` | Fetching | User-Agent sent to websites and image URLs. |
 | `LOCAL_MCP_URL_LIMIT` | `500` | `extract_urls` | Default maximum number of URLs returned. |
-| `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `extract_content` | Minimum static Markdown length before browser-render fallback is attempted. |
+| `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `extract_content`, `web_fetch` | Minimum static Markdown/text length before browser-render fallback is attempted. |
+| `LOCAL_MCP_WEB_FETCH_LINK_LIMIT` | `100` | `web_fetch` | Maximum links included in `web_fetch` responses. |
+| `LOCAL_MCP_WEB_FETCH_IMAGE_LIMIT` | `100` | `web_fetch` | Maximum images included in `web_fetch` responses. |
 | `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search` | Default SearXNG base URL. |
 | `SEARXNG_URLS` | unset | `web_search` | Comma-separated SearXNG failover list. |
 | `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search` | Alias for `SEARXNG_URLS`. |
