@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating local Markdown files.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating or appending local Markdown files.
 
 The tool follows this flow:
 
@@ -132,6 +132,26 @@ Parameters:
 
 The response is citation-ready Markdown with linked result titles, source URLs, snippets, engines, answers, and suggestions when SearXNG returns them.
 
+### `web_search_to_file`
+
+Parameters:
+
+- `query`: search query to send to SearXNG.
+- `filename`: output Markdown filename or relative path. The `.md` extension is appended when omitted.
+- `limit`: maximum number of search results to write. Default: `8`.
+- `categories`: SearXNG categories, for example `general`, `news`, `images`, or `general,news`. Default: `general`.
+- `language`: SearXNG language code. Default: `auto`.
+- `pageno`: SearXNG result page number. Default: `1`.
+- `safesearch`: safe-search level, where `0` is off, `1` is moderate, and `2` is strict. Default: `0`.
+- `time_range`: optional SearXNG time range: `day`, `month`, or `year`.
+- `engines`: optional comma-separated SearXNG engines override.
+- `searxng_url`: optional SearXNG base URL for this request.
+- `write_mode`: `append` adds a search section to the target file, `write` creates/replaces content. Default: `append`.
+- `overwrite`: replace an existing file when `write_mode` is `write`. Default: `false`.
+- `ensure_trailing_newline`: append a trailing newline to the generated Markdown section. Default: `true`.
+
+This runs the search server-side and writes the formatted Markdown directly into the generated file, so smaller models do not need to pass large search output through a `content` argument.
+
 ### `web_fetch`
 
 Parameters:
@@ -188,11 +208,14 @@ Parameters:
 - `content`: Markdown content to write.
 - `file_type`: output type. MVP supports only `md`/`markdown`. Default: `md`.
 - `overwrite`: replace an existing file at the target path. Default: `false`.
+- `write_mode`: `write` creates/replaces content, `append` adds the content as a chunk. Default: `write`.
 - `ensure_trailing_newline`: append a trailing newline to non-empty content. Default: `true`.
 
-The response reports the generated file path, byte count, character count, and whether an existing file was overwritten. Future formats can be added behind the same tool; the current MVP intentionally writes only Markdown.
+The response reports the generated file path, write mode, byte count, character count, and whether an existing file was overwritten. Future formats can be added behind the same tool; the current MVP intentionally writes only Markdown.
 
-You must define a download location in `.env`; otherwise `generate_file` returns `Download path not defined`.
+For large files, call `generate_file` once with `write_mode="write"` for the first chunk, then call it again with `write_mode="append"` for later chunks.
+
+You must define a download location in `.env`; otherwise file-writing tools return `Download path not defined`.
 
 ```env
 LOCAL_MCP_FILE_OUTPUT_DIR=D:\Downloads\local-mcp

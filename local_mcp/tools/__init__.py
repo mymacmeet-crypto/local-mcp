@@ -15,5 +15,6 @@ def register_tools(mcp: FastMCP) -> None:
         ocr.extract_image_text,
         documents.parse_document,
         file_generation.generate_file,
+        file_generation.web_search_to_file,
     ):
         mcp.tool()(tool)

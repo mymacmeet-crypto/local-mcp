@@ -232,7 +232,7 @@ Use a frontier model client that accepts PDFs directly. This local tool does not
 ## References
 
 - Project implementation: [`local_mcp/tools/documents.py`](../local_mcp/tools/documents.py), [`local_mcp/documents/`](../local_mcp/documents/)
-- Project prompts: [`prompt.txt`](../prompt.txt)
+- Project prompts: [`prompt.md`](../prompt.md)
 - PyMuPDF4LLM documentation: <https://pymupdf.readthedocs.io/>
 - Docling documentation: <https://docling-project.github.io/docling/>
 - Marker package: <https://pypi.org/project/marker-pdf/>

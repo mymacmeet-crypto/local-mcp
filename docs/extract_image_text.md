@@ -315,7 +315,7 @@ Try these improvements:
 ## References
 
 - Project implementation: [`local_mcp/tools/ocr.py`](../local_mcp/tools/ocr.py), [`local_mcp/ocr/tesseract.py`](../local_mcp/ocr/tesseract.py), [`local_mcp/web/fetcher.py`](../local_mcp/web/fetcher.py)
-- Project prompts: [`prompt.txt`](../prompt.txt)
+- Project prompts: [`prompt.md`](../prompt.md)
 - Tesseract command-line usage: <https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html>
 - Tesseract documentation: <https://tesseract-ocr.github.io/tessdoc/>
 - pytesseract package: <https://github.com/madmaze/pytesseract>

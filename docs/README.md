@@ -11,6 +11,7 @@ For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE
 | Tool | Documentation | Main purpose |
 | --- | --- | --- |
 | `web_search` | [web_search.md](web_search.md) | Search through a SearXNG instance and return citation-ready Markdown results. |
+| `web_search_to_file` | [web_search_to_file.md](web_search_to_file.md) | Search through SearXNG and write citation-ready Markdown results directly to a generated Markdown file. |
 | `web_fetch` | [web_fetch.md](web_fetch.md) | Fetch, browser-render, or scrape pages into Markdown, text, HTML, or JSON. |
 | `extract_urls` | [extract_urls.md](extract_urls.md) | Discover URLs from `robots.txt`, XML sitemaps, static HTML links, and optional browser-rendered pages. |
 | `extract_image_text` | [extract_image_text.md](extract_image_text.md) | Extract text from local, remote, data URL, or base64 image input using Tesseract OCR. |
@@ -87,10 +88,10 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `web_fetch` | Minimum static Markdown/text length before browser-render fallback is attempted. |
 | `LOCAL_MCP_WEB_FETCH_LINK_LIMIT` | `100` | `web_fetch` | Maximum links included in `web_fetch` responses. |
 | `LOCAL_MCP_WEB_FETCH_IMAGE_LIMIT` | `100` | `web_fetch` | Maximum images included in `web_fetch` responses. |
-| `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search` | Default SearXNG base URL. |
-| `SEARXNG_URLS` | unset | `web_search` | Comma-separated SearXNG failover list. |
-| `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search` | Alias for `SEARXNG_URLS`. |
-| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search` | SearXNG request timeout in milliseconds. |
+| `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search`, `web_search_to_file` | Default SearXNG base URL. |
+| `SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Comma-separated SearXNG failover list. |
+| `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Alias for `SEARXNG_URLS`. |
+| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `web_search_to_file` | SearXNG request timeout in milliseconds. |
 | `TESSERACT_CMD` | auto-detected | `extract_image_text` | Path to the native Tesseract executable. |
 | `LOCAL_MCP_OCR_MAX_IMAGE_BYTES` | `20971520` | `extract_image_text` | Maximum accepted image size in bytes. |
 | `LOCAL_MCP_TESSERACT_CONFIG` | empty | `extract_image_text` | Extra config string passed to Tesseract. |
@@ -100,8 +101,8 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_MARKER_CMD` | auto-detected | `parse_document` | Optional path to the `marker_single` executable. |
 | `LOCAL_MCP_MINERU_CMD` | auto-detected | `parse_document` | Optional path to the `mineru` executable. |
 | `LOCAL_MCP_MINERU_BACKEND` | `pipeline` | `parse_document` | MinerU backend passed with `-b`; `pipeline` is CPU-friendly. |
-| `LOCAL_MCP_FILE_OUTPUT_DIR` | required | `generate_file` | Destination folder for generated Markdown files. |
-| `LOCAL_MCP_DOWNLOAD_DIR` | optional alias | `generate_file` | Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. If neither is set, `generate_file` returns an error. |
+| `LOCAL_MCP_FILE_OUTPUT_DIR` | required | `generate_file`, `web_search_to_file` | Destination folder for generated Markdown files. |
+| `LOCAL_MCP_DOWNLOAD_DIR` | optional alias | `generate_file`, `web_search_to_file` | Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. If neither is set, file-writing tools return an error. |
 
 ## MCP Client Example
 

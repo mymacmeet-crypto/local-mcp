@@ -256,7 +256,7 @@ The target page may not exist or may block automated requests. Try a different U
 ## References
 
 - Project implementation: [`local_mcp/tools/web.py`](../local_mcp/tools/web.py), [`local_mcp/web/sitemap.py`](../local_mcp/web/sitemap.py), [`local_mcp/web/html.py`](../local_mcp/web/html.py), [`local_mcp/web/fetcher.py`](../local_mcp/web/fetcher.py)
-- Project prompts: [`prompt.txt`](../prompt.txt)
+- Project prompts: [`prompt.md`](../prompt.md)
 - MCP Python SDK: <https://github.com/modelcontextprotocol/python-sdk>
 - Crawl4AI documentation: <https://docs.crawl4ai.com/>
 - Beautiful Soup documentation: <https://beautiful-soup-4.readthedocs.io/en/latest/>

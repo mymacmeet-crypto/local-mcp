@@ -16,5 +16,6 @@ dist/
 *.egg-info/
 
 captures/
+downloads/
 .tmp/
 .python-version

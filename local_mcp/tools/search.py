@@ -61,7 +61,7 @@ async def web_search(
     except Exception as err:
         raise tool_error(f"SearXNG search failed: {err}")
 
-    return _format_search_response(
+    return format_search_response(
         query=query,
         instance_url=instance_url,
         results=results,
@@ -70,7 +70,7 @@ async def web_search(
     )
 
 
-def _format_search_response(
+def format_search_response(
     *,
     query: str,
     instance_url: str,

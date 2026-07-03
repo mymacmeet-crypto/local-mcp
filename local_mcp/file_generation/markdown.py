@@ -19,6 +19,7 @@ class GeneratedFile:
     characters_written: int
     bytes_written: int
     overwritten: bool
+    operation: str = "write"
 
 
 def write_generated_file(
@@ -36,9 +37,7 @@ def write_generated_file(
     if existed and not overwrite:
         raise ValueError(f"{target} already exists. Set overwrite=true to replace it.")
 
-    final_content = content or ""
-    if ensure_trailing_newline and final_content and not final_content.endswith("\n"):
-        final_content += "\n"
+    final_content = _prepare_content(content, ensure_trailing_newline=ensure_trailing_newline)
 
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(final_content, encoding="utf-8", newline="\n")
@@ -49,6 +48,34 @@ def write_generated_file(
         characters_written=len(final_content),
         bytes_written=len(final_content.encode("utf-8")),
         overwritten=existed,
+        operation="write",
+    )
+
+
+def append_generated_file(
+    filename: str,
+    content: str,
+    *,
+    file_type: str = "md",
+    ensure_trailing_newline: bool = True,
+) -> GeneratedFile:
+    """Append a Markdown content chunk to a safe output path."""
+    normalized_type = _normalize_file_type(file_type)
+    target = _resolve_output_path(filename)
+
+    final_content = _prepare_content(content, ensure_trailing_newline=ensure_trailing_newline)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8", newline="\n") as file:
+        file.write(final_content)
+
+    return GeneratedFile(
+        path=target,
+        file_type=normalized_type,
+        characters_written=len(final_content),
+        bytes_written=len(final_content.encode("utf-8")),
+        overwritten=False,
+        operation="append",
     )
 
 
@@ -57,6 +84,13 @@ def _normalize_file_type(file_type: str) -> str:
     if normalized not in SUPPORTED_FILE_TYPES:
         raise ValueError("MVP file generation supports only Markdown files: file_type must be 'md'.")
     return "md"
+
+
+def _prepare_content(content: str, *, ensure_trailing_newline: bool) -> str:
+    final_content = content or ""
+    if ensure_trailing_newline and final_content and not final_content.endswith("\n"):
+        final_content += "\n"
+    return final_content
 
 
 def _resolve_output_path(filename: str) -> Path:
