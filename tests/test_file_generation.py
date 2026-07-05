@@ -3,6 +3,8 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+from pypdf import PdfReader
+
 from local_mcp.file_generation import append_generated_file, write_generated_file
 from local_mcp.search.searxng import SearchResult
 from local_mcp.tools.file_generation import generate_file, web_search_to_file
@@ -54,7 +56,32 @@ class FileGenerationTests(unittest.TestCase):
         tmp = self.tempdir()
         with patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True):
             with self.assertRaises(ValueError):
-                write_generated_file("notes", "content", file_type="pdf")
+                write_generated_file("notes", "content", file_type="docx")
+
+    def test_write_generated_file_creates_pdf_under_env_output_dir(self):
+        tmp = self.tempdir()
+        with patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True):
+            result = write_generated_file(
+                "reports/summary",
+                "# Summary\n\n- First point\n- Second point",
+                file_type="pdf",
+            )
+
+        expected = Path(tmp).resolve() / "reports" / "summary.pdf"
+        self.assertEqual(result.path, expected)
+        self.assertEqual(result.file_type, "pdf")
+        self.assertGreater(result.bytes_written, 0)
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(str(expected)).pages)
+        self.assertIn("Summary", text)
+        self.assertIn("First point", text)
+
+    def test_write_generated_file_infers_pdf_from_filename_extension(self):
+        tmp = self.tempdir()
+        with patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True):
+            result = write_generated_file("reports/inferred.pdf", "PDF body")
+
+        self.assertEqual(result.path, Path(tmp).resolve() / "reports" / "inferred.pdf")
+        self.assertEqual(result.file_type, "pdf")
 
     def test_write_generated_file_requires_env_download_path(self):
         with patch.dict("os.environ", {}, clear=True):
@@ -101,6 +128,12 @@ class FileGenerationTests(unittest.TestCase):
         self.assertEqual(result.path, expected)
         self.assertEqual(result.operation, "append")
 
+    def test_append_generated_file_rejects_pdf_output(self):
+        tmp = self.tempdir()
+        with patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True):
+            with self.assertRaisesRegex(ValueError, "Appending to PDF output is not supported"):
+                append_generated_file("chunks.pdf", "second")
+
 
 class FileGenerationToolTests(unittest.IsolatedAsyncioTestCase):
     def tempdir(self):
@@ -117,6 +150,16 @@ class FileGenerationToolTests(unittest.IsolatedAsyncioTestCase):
         expected = Path(tmp).resolve() / "report.md"
         self.assertEqual(expected.read_text(encoding="utf-8"), "# Report\nSecond chunk\n")
         self.assertIn("Write mode: append", response)
+
+    async def test_generate_file_supports_pdf_output(self):
+        tmp = self.tempdir()
+        with patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True):
+            response = await generate_file("brief.pdf", "# Brief\n\nGenerated body")
+
+        expected = Path(tmp).resolve() / "brief.pdf"
+        self.assertTrue(expected.is_file())
+        self.assertIn("PDF file generated.", response)
+        self.assertIn("File type: pdf", response)
 
     async def test_web_search_to_file_writes_search_results_without_content_input(self):
         tmp = self.tempdir()
@@ -155,6 +198,66 @@ class FileGenerationToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Short answer", content)
         self.assertIn("Web search results written to file.", response)
         self.assertIn("Results returned: 1", response)
+        self.assertIn("File type: md", response)
+
+    async def test_web_search_to_file_supports_pdf_filename(self):
+        tmp = self.tempdir()
+
+        async def fake_search(*args, **kwargs):
+            return (
+                "http://searx.local/",
+                [
+                    SearchResult(
+                        title="PDF Result",
+                        url="https://example.com/pdf",
+                        content="A result written into a PDF.",
+                        engines=["example"],
+                        score=2.0,
+                    )
+                ],
+                [],
+                [],
+            )
+
+        with (
+            patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True),
+            patch("local_mcp.tools.file_generation.searxng.search", new=fake_search),
+        ):
+            response = await web_search_to_file(
+                query="pdf topic",
+                filename="research/results.pdf",
+                limit=1,
+                write_mode="write",
+            )
+
+        expected = Path(tmp).resolve() / "research" / "results.pdf"
+        self.assertTrue(expected.is_file())
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(str(expected)).pages)
+        self.assertIn("Web Search: pdf topic", text)
+        self.assertIn("PDF Result", text)
+        self.assertIn("File type: pdf", response)
+
+    async def test_web_search_to_file_supports_pdf_file_type(self):
+        tmp = self.tempdir()
+
+        async def fake_search(*args, **kwargs):
+            return ("http://searx.local/", [], ["A direct answer"], [])
+
+        with (
+            patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True),
+            patch("local_mcp.tools.file_generation.searxng.search", new=fake_search),
+        ):
+            response = await web_search_to_file(
+                query="answer topic",
+                filename="research/answers",
+                file_type="pdf",
+                write_mode="write",
+            )
+
+        expected = Path(tmp).resolve() / "research" / "answers.pdf"
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(str(expected)).pages)
+        self.assertIn("A direct answer", text)
+        self.assertIn("File type: pdf", response)
 
 
 if __name__ == "__main__":

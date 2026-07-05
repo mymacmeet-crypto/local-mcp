@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating or appending local Markdown files.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating local Markdown or PDF files.
 
 The tool follows this flow:
 
@@ -137,7 +137,7 @@ The response is citation-ready Markdown with linked result titles, source URLs, 
 Parameters:
 
 - `query`: search query to send to SearXNG.
-- `filename`: output Markdown filename or relative path. The `.md` extension is appended when omitted.
+- `filename`: output Markdown or PDF filename or relative path. The matching extension is appended when omitted.
 - `limit`: maximum number of search results to write. Default: `8`.
 - `categories`: SearXNG categories, for example `general`, `news`, `images`, or `general,news`. Default: `general`.
 - `language`: SearXNG language code. Default: `auto`.
@@ -148,9 +148,10 @@ Parameters:
 - `searxng_url`: optional SearXNG base URL for this request.
 - `write_mode`: `append` adds a search section to the target file, `write` creates/replaces content. Default: `append`.
 - `overwrite`: replace an existing file when `write_mode` is `write`. Default: `false`.
-- `ensure_trailing_newline`: append a trailing newline to the generated Markdown section. Default: `true`.
+- `ensure_trailing_newline`: append a trailing newline to the generated Markdown section. Ignored for PDF output. Default: `true`.
+- `file_type`: output type. Supports `md`/`markdown` and `pdf`. A `.pdf` filename also selects PDF output. Default: `md`.
 
-This runs the search server-side and writes the formatted Markdown directly into the generated file, so smaller models do not need to pass large search output through a `content` argument.
+This runs the search server-side and writes the formatted results directly into the generated Markdown or PDF file, so smaller models do not need to pass large search output through a `content` argument. PDF output requires `write_mode="write"` because append/chunk mode is Markdown-only.
 
 ### `web_fetch`
 
@@ -204,14 +205,14 @@ The response is parsed document content. `auto` prefers PyMuPDF4LLM when install
 
 Parameters:
 
-- `filename`: output Markdown filename or relative path. The `.md` extension is appended when omitted.
-- `content`: Markdown content to write.
-- `file_type`: output type. MVP supports only `md`/`markdown`. Default: `md`.
+- `filename`: output Markdown or PDF filename or relative path. The matching extension is appended when omitted.
+- `content`: Markdown-like content to write.
+- `file_type`: output type. Supports `md`/`markdown` and `pdf`. A `.pdf` filename also selects PDF output. Default: `md`.
 - `overwrite`: replace an existing file at the target path. Default: `false`.
 - `write_mode`: `write` creates/replaces content, `append` adds the content as a chunk. Default: `write`.
-- `ensure_trailing_newline`: append a trailing newline to non-empty content. Default: `true`.
+- `ensure_trailing_newline`: append a trailing newline to non-empty Markdown content. Ignored for PDF output. Default: `true`.
 
-The response reports the generated file path, write mode, byte count, character count, and whether an existing file was overwritten. Future formats can be added behind the same tool; the current MVP intentionally writes only Markdown.
+The response reports the generated file path, write mode, byte count, character count, and whether an existing file was overwritten. PDF output is generated from Markdown-like text. `append`/chunk mode is supported for Markdown only; generate PDFs with `write_mode="write"` and the complete content.
 
 For large files, call `generate_file` once with `write_mode="write"` for the first chunk, then call it again with `write_mode="append"` for later chunks.
 

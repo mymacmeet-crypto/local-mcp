@@ -98,9 +98,9 @@ MCP client
 ```text
 MCP client
   -> local_mcp.tools.file_generation.generate_file
-  -> local_mcp.file_generation.write_generated_file / append_generated_file validates md-only MVP settings
+  -> local_mcp.file_generation.write_generated_file / append_generated_file validates md/pdf settings
   -> resolve filename under LOCAL_MCP_FILE_OUTPUT_DIR / LOCAL_MCP_DOWNLOAD_DIR
-  -> create parent folders and write or append UTF-8 Markdown
+  -> create parent folders and write UTF-8 Markdown, append Markdown chunks, or write PDF bytes
   -> Markdown response with path and write stats
 ```
 
@@ -111,7 +111,7 @@ MCP client
   -> local_mcp.tools.file_generation.web_search_to_file
   -> local_mcp.search.searxng.search returns results, answers, and suggestions
   -> local_mcp.tools.search.format_search_response formats citation-ready Markdown
-  -> local_mcp.file_generation.write_generated_file / append_generated_file persists the section
+  -> local_mcp.file_generation.write_generated_file / append_generated_file persists Markdown or PDF output
   -> Markdown response with search count, path, and write stats
 ```
 

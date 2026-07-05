@@ -1,8 +1,8 @@
 # `web_search_to_file`
 
-Search the web through SearXNG and write citation-ready Markdown results directly to a generated Markdown file.
+Search the web through SearXNG and write citation-ready results directly to a generated Markdown or PDF file.
 
-This tool is useful for smaller AI models because the model only supplies the search request and target filename. The server performs the search, formats the result Markdown, and writes it to disk without requiring the model to pass the search output back through a large `content` argument.
+This tool is useful for smaller AI models because the model only supplies the search request and target filename. The server performs the search, formats the result Markdown, and writes it to disk without requiring the model to pass the search output back through a large `content` argument. PDF output renders the same citation-ready content into a PDF file.
 
 ## How It Works
 
@@ -12,8 +12,9 @@ flowchart TD
     B --> C[Format citation-ready Markdown]
     C --> D[Resolve safe generated-file path]
     D --> E{write_mode?}
-    E -->|append| F[Append search section]
-    E -->|write| G[Write new search file]
+    E -->|append and md| F[Append search section]
+    E -->|write| G[Write new Markdown or PDF file]
+    E -->|append and pdf| X[Return tool error]
     F --> H[Return path and write stats]
     G --> H
 ```
@@ -23,7 +24,7 @@ flowchart TD
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `query` | string | required | Search query sent to SearXNG. |
-| `filename` | string | required | Output Markdown filename or relative path. The `.md` extension is appended when omitted. |
+| `filename` | string | required | Output Markdown or PDF filename or relative path. The matching extension is appended when omitted. |
 | `limit` | integer | `8` | Maximum number of results. Allowed range: `1` to `20`. |
 | `categories` | string | `general` | SearXNG category or comma-separated categories. |
 | `language` | string | `auto` | SearXNG language code or `auto`. |
@@ -34,7 +35,8 @@ flowchart TD
 | `searxng_url` | string | empty | Optional SearXNG base URL for this call only. |
 | `write_mode` | string | `append` | `append` adds a search section to the target file. `write` creates/replaces content using normal overwrite rules. |
 | `overwrite` | boolean | `false` | Replace an existing file when `write_mode` is `write`. |
-| `ensure_trailing_newline` | boolean | `true` | Append a trailing newline to the generated Markdown section. |
+| `ensure_trailing_newline` | boolean | `true` | Append a trailing newline to the generated Markdown section. Ignored for PDF output. |
+| `file_type` | string | `md` | Output file type. Supports `md`/`markdown` and `pdf`. A `.pdf` filename also selects PDF output. |
 
 ## Output File Format
 
@@ -71,6 +73,25 @@ With `LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp`, this appends the search 
 ~/Downloads/local-mcp/research/mcp-notes.md
 ```
 
+## PDF Example
+
+```json
+{
+  "query": "Model Context Protocol examples",
+  "filename": "research/mcp-notes.pdf",
+  "limit": 5,
+  "write_mode": "write"
+}
+```
+
+With `LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp`, this writes:
+
+```text
+~/Downloads/local-mcp/research/mcp-notes.pdf
+```
+
+PDF output does not support `append`/chunk mode. Use `write_mode="write"` and pass `overwrite=true` when replacing an existing PDF.
+
 ## Configuration
 
 This tool uses both the SearXNG configuration from `web_search` and the generated-file output configuration from `generate_file`.
@@ -78,7 +99,7 @@ This tool uses both the SearXNG configuration from `web_search` and the generate
 Required:
 
 - A reachable SearXNG instance with JSON output enabled.
-- `LOCAL_MCP_FILE_OUTPUT_DIR` or `LOCAL_MCP_DOWNLOAD_DIR` for the generated Markdown destination.
+- `LOCAL_MCP_FILE_OUTPUT_DIR` or `LOCAL_MCP_DOWNLOAD_DIR` for the generated file destination.
 
 ## References
 

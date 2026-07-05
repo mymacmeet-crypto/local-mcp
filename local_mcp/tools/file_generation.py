@@ -17,17 +17,17 @@ async def generate_file(
         str,
         Field(
             description=(
-                "Output Markdown filename or relative path. The .md extension is appended when omitted."
+                "Output Markdown or PDF filename or relative path. The extension is appended when omitted."
             ),
         ),
     ],
     content: Annotated[
         str,
-        Field(description="Markdown content to write into the generated file."),
+        Field(description="Markdown-like content to write into the generated Markdown or PDF file."),
     ],
     file_type: Annotated[
         str,
-        Field(description="Output file type. MVP supports only md/markdown."),
+        Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
     ] = "md",
     overwrite: Annotated[
         bool,
@@ -39,10 +39,10 @@ async def generate_file(
     ] = "write",
     ensure_trailing_newline: Annotated[
         bool,
-        Field(description="Append a trailing newline to non-empty Markdown content."),
+        Field(description="Append a trailing newline to non-empty Markdown content. Ignored for PDF output."),
     ] = True,
 ) -> str:
-    """Generate a local Markdown file from supplied content."""
+    """Generate a local Markdown or PDF file from supplied content."""
     try:
         result = _write_content_to_file(
             filename,
@@ -64,7 +64,7 @@ async def web_search_to_file(
         str,
         Field(
             description=(
-                "Output Markdown filename or relative path. The .md extension is appended when omitted."
+                "Output Markdown or PDF filename or relative path. The matching extension is appended when omitted."
             ),
         ),
     ],
@@ -109,10 +109,14 @@ async def web_search_to_file(
     ] = False,
     ensure_trailing_newline: Annotated[
         bool,
-        Field(description="Append a trailing newline to the generated Markdown section."),
+        Field(description="Append a trailing newline to the generated Markdown section. Ignored for PDF output."),
     ] = True,
+    file_type: Annotated[
+        str,
+        Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
+    ] = "md",
 ) -> str:
-    """Search the web and write citation-ready Markdown results directly to a local file."""
+    """Search the web and write citation-ready results directly to a local Markdown or PDF file."""
     try:
         instance_url, results, answers, suggestions = await searxng.search(
             query,
@@ -140,7 +144,7 @@ async def web_search_to_file(
         result = _write_content_to_file(
             filename,
             markdown,
-            file_type="md",
+            file_type=file_type,
             overwrite=overwrite,
             write_mode=write_mode,
             ensure_trailing_newline=ensure_trailing_newline,
@@ -155,6 +159,7 @@ async def web_search_to_file(
             f"- SearXNG instance: {instance_url}",
             f"- Results returned: {len(results)}",
             f"- Path: {result.path}",
+            f"- File type: {result.file_type}",
             f"- Write mode: {result.operation}",
             f"- Characters written: {result.characters_written}",
             f"- Bytes written: {result.bytes_written}",
@@ -171,6 +176,7 @@ def _write_content_to_file(
     overwrite: bool,
     write_mode: str,
     ensure_trailing_newline: bool,
+    infer_file_type_from_filename: bool = True,
 ) -> GeneratedFile:
     normalized_mode = _normalize_write_mode(write_mode)
     if normalized_mode == "append":
@@ -181,6 +187,7 @@ def _write_content_to_file(
             content,
             file_type=file_type,
             ensure_trailing_newline=ensure_trailing_newline,
+            infer_file_type_from_filename=infer_file_type_from_filename,
         )
 
     return write_generated_file(
@@ -189,6 +196,7 @@ def _write_content_to_file(
         file_type=file_type,
         overwrite=overwrite,
         ensure_trailing_newline=ensure_trailing_newline,
+        infer_file_type_from_filename=infer_file_type_from_filename,
     )
 
 
@@ -202,7 +210,8 @@ def _normalize_write_mode(write_mode: str) -> str:
 
 
 def _format_generated_file_result(result: GeneratedFile) -> str:
-    message = "Markdown file appended." if result.operation == "append" else "Markdown file generated."
+    label = "PDF" if result.file_type == "pdf" else "Markdown"
+    message = f"{label} file appended." if result.operation == "append" else f"{label} file generated."
     return "\n".join(
         [
             message,

@@ -248,6 +248,13 @@ def _restart_searxng_docker() -> None:
     if not shutil.which("docker"):
         _warning("Docker CLI was not found. Install and start Docker Desktop, then try again.")
         return
+    docker_ready, docker_message = _docker_daemon_available()
+    if not docker_ready:
+        _warning("Docker CLI was found, but the Docker daemon is not reachable.")
+        _warning("Start Docker Desktop, wait for the Linux engine to finish starting, then try option 12 again.")
+        if docker_message:
+            _info(f"Docker reported: {docker_message.splitlines()[0]}")
+        return
 
     volume = f"{SEARXNG_SETTINGS_FILE.resolve().as_posix()}:/etc/searxng/settings.yml:ro"
     _run(["docker", "rm", "-f", SEARXNG_CONTAINER_NAME], cwd=PROJECT_ROOT, check=False)
@@ -268,6 +275,27 @@ def _restart_searxng_docker() -> None:
     )
     _success(f"SearXNG is running at http://127.0.0.1:{SEARXNG_HOST_PORT}")
     _info(f"Set SEARXNG_BASE_URL=http://127.0.0.1:{SEARXNG_HOST_PORT} for web_search.")
+
+
+def _docker_daemon_available() -> tuple[bool, str]:
+    try:
+        completed = subprocess.run(
+            ["docker", "info", "--format", "{{.ServerVersion}}"],
+            cwd=str(PROJECT_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "docker info timed out"
+    except OSError as err:
+        return False, str(err)
+
+    if completed.returncode == 0:
+        return True, completed.stdout.strip()
+    return False, (completed.stderr or completed.stdout).strip()
 
 
 def _show_tool_status(python_path: Path) -> None:

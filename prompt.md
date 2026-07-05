@@ -30,6 +30,14 @@ Using local-mcp, search recent SearXNG news with categories=news, time_range=mon
 Using local-mcp, search the web for local AI tool calling with engines=duckduckgo,brave and save the results to research/local-ai-tools with write_mode=write and overwrite=true.
 ```
 
+```
+Using local-mcp, search the web for OpenAI MCP protocol and write 5 results to research/mcp-search-notes.pdf with write_mode=write.
+```
+
+```
+Using local-mcp, search recent SearXNG news with categories=news, time_range=month, limit=5, file_type=pdf, write_mode=write, overwrite=true, and save the results to research/search-news-pdf.
+```
+
 ## `extract_urls`
 
 ```
@@ -96,6 +104,21 @@ Using local-mcp, create notes/project-brief with this Markdown content: # Projec
 ```
 
 ```
+Using local-mcp, create reports/project-brief.pdf with this content: # Project Brief
+
+- Owner: Local MCP
+- Status: PDF-ready
+```
+
+```
+Using local-mcp, create reports/monthly-summary with file_type=pdf, write_mode=write, and overwrite=true. Content: # Monthly Summary
+
+Highlights:
+- Generated as a PDF
+- Uses the configured LOCAL_MCP_FILE_OUTPUT_DIR destination
+```
+
+```
 Using local-mcp, start a large report at reports/large-report with write_mode=write and overwrite=true. Content: # Large Report
 
 First section content.
@@ -103,5 +126,9 @@ First section content.
 
 ```
 Using local-mcp, append this next chunk to reports/large-report with write_mode=append. Content: Second section content.
+```
+
+```
+Using local-mcp, try to append to reports/monthly-summary.pdf with write_mode=append. Confirm that PDF append is rejected and explain that PDFs must be generated with write_mode=write and complete content.
 ```
 

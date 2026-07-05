@@ -271,12 +271,13 @@ class Tools:
         write_mode: str = "append",
         overwrite: bool = False,
         ensure_trailing_newline: bool = True,
+        file_type: str = "md",
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
-        Search the web through SearXNG and write citation-ready Markdown results to a local file.
+        Search the web through SearXNG and write citation-ready results to a local Markdown or PDF file.
         :param query: Search query to send to SearXNG.
-        :param filename: Output Markdown filename or relative path. The .md extension is appended when omitted.
+        :param filename: Output Markdown or PDF filename or relative path. The matching extension is appended when omitted.
         :param limit: Maximum number of search results to write. Allowed range is 1 to 20.
         :param categories: SearXNG categories, for example 'general', 'news', 'images', or 'general,news'.
         :param language: SearXNG language code. Use 'auto' for automatic language detection.
@@ -287,9 +288,10 @@ class Tools:
         :param searxng_url: Optional SearXNG base URL for this request.
         :param write_mode: File write mode. Use 'append' to add a search section or 'write' to create/replace.
         :param overwrite: Replace an existing file when write_mode is 'write'.
-        :param ensure_trailing_newline: Append a trailing newline to the generated Markdown section.
+        :param ensure_trailing_newline: Append a trailing newline to the generated Markdown section. Ignored for PDF output.
+        :param file_type: Output file type: md/markdown or pdf. A .pdf filename also selects PDF output.
         """
-        _log("web_search_to_file", f"query={query} filename={filename} mode={write_mode}")
+        _log("web_search_to_file", f"query={query} filename={filename} file_type={file_type} mode={write_mode}")
         await self._emit_status(__event_emitter__, f"Searching and writing {query}...", False)
 
         result = self._call(
@@ -308,6 +310,7 @@ class Tools:
                 "write_mode": write_mode,
                 "overwrite": overwrite,
                 "ensure_trailing_newline": ensure_trailing_newline,
+                "file_type": file_type,
             },
         )
 
@@ -474,14 +477,14 @@ class Tools:
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
-        Generate a local Markdown file from supplied content.
-        :param filename: Output Markdown filename or relative path. The .md extension is appended when omitted.
-        :param content: Markdown content to write into the generated file.
-        :param file_type: Output file type. MVP supports only md/markdown.
+        Generate a local Markdown or PDF file from supplied content.
+        :param filename: Output Markdown or PDF filename or relative path. The extension is appended when omitted.
+        :param content: Markdown-like content to write into the generated Markdown or PDF file.
+        :param file_type: Output file type: md/markdown or pdf. A .pdf filename also selects PDF output.
         :param output_dir: Reserved for compatibility. The server uses LOCAL_MCP_FILE_OUTPUT_DIR or LOCAL_MCP_DOWNLOAD_DIR.
         :param write_mode: Write mode. Use 'write' for normal generation or 'append' to add this content as a chunk.
         :param overwrite: Replace an existing file at the target path.
-        :param ensure_trailing_newline: Append a trailing newline to non-empty Markdown content.
+        :param ensure_trailing_newline: Append a trailing newline to non-empty Markdown content. Ignored for PDF output.
         """
         _log("generate_file", f"filename={filename} file_type={file_type} mode={write_mode} output_dir={output_dir}")
         await self._emit_status(__event_emitter__, "Generating file...", False)

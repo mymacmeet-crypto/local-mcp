@@ -1,28 +1,29 @@
 # `generate_file`
 
-Generate or append to a local Markdown file from supplied content.
+Generate a local Markdown or PDF file from supplied content.
 
-The MVP intentionally supports only Markdown output. The tool accepts `md` or `markdown` as `file_type`; docx, xlsx, pptx, and pdf can be added later behind the same interface.
+The tool accepts `md`/`markdown` and `pdf` as `file_type`. A `.pdf` filename also selects PDF output.
 
-Use `write_mode="append"` to build larger files in chunks when a smaller AI model cannot provide the whole document in one tool call.
+Use `write_mode="append"` to build larger Markdown files in chunks when a smaller AI model cannot provide the whole document in one tool call. PDF output must be generated with `write_mode="write"` and the complete content.
 
 ## How It Works
 
 ```mermaid
 flowchart TD
     A[MCP client calls generate_file] --> B[Validate file_type]
-    B -->|md or markdown| C[Normalize filename]
+    B -->|md, markdown, or pdf| C[Normalize filename]
     B -->|other type| X[Return tool error]
     C --> D[Reject absolute paths and .. segments]
-    D --> E[Append .md when extension is missing]
+    D --> E[Append .md or .pdf when extension is missing]
     E --> F[Resolve env download path]
     F --> G[Ensure target stays inside configured path]
     G --> H{write_mode?}
     H -->|write| I{File exists?}
     I -->|yes, overwrite=false| Y[Return tool error]
     I -->|no or overwrite=true| J[Create parent directories]
-    H -->|append/chunk| J
-    J --> K[Write or append UTF-8 Markdown]
+    H -->|append/chunk and md| J
+    H -->|append/chunk and pdf| Z[Return tool error]
+    J --> K[Write or append UTF-8 Markdown, or write PDF bytes]
     K --> L[Return path, byte count, character count, overwrite status]
 ```
 
@@ -30,12 +31,12 @@ flowchart TD
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
-| `filename` | string | required | Output Markdown filename or relative path. The `.md` extension is appended when omitted. |
-| `content` | string | required | Markdown content to write. |
-| `file_type` | string | `md` | Output file type. MVP supports only `md`/`markdown`. |
+| `filename` | string | required | Output Markdown or PDF filename or relative path. The matching extension is appended when omitted. |
+| `content` | string | required | Markdown-like content to write. |
+| `file_type` | string | `md` | Output file type. Supports `md`/`markdown` and `pdf`. A `.pdf` filename also selects PDF output. |
 | `overwrite` | boolean | `false` | Replace an existing file at the target path. |
-| `write_mode` | string | `write` | `write` creates/replaces content. `append` adds the content as a chunk. `chunk` is accepted as an alias for `append`. |
-| `ensure_trailing_newline` | boolean | `true` | Append a trailing newline to non-empty Markdown content. |
+| `write_mode` | string | `write` | `write` creates/replaces content. `append` adds Markdown content as a chunk. `chunk` is accepted as an alias for `append`. |
+| `ensure_trailing_newline` | boolean | `true` | Append a trailing newline to non-empty Markdown content. Ignored for PDF output. |
 
 ## Path Behavior
 
@@ -44,8 +45,9 @@ flowchart TD
 - `..` path segments are rejected.
 - Parent directories are created automatically.
 - Existing files are preserved unless `overwrite` is `true`.
-- `append` mode creates the file if it does not exist and never overwrites existing content.
-- Only `.md` output files are accepted for the MVP.
+- `append` mode creates Markdown files if they do not exist and never overwrites existing content.
+- PDF output supports `write` mode only.
+- Only `.md` and `.pdf` output files are accepted.
 
 ## Download Location
 
@@ -81,6 +83,21 @@ With `LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp`, this creates:
 
 ```text
 ~/Downloads/local-mcp/notes/project-brief.md
+```
+
+## PDF Example
+
+```json
+{
+  "filename": "reports/project-brief.pdf",
+  "content": "# Project Brief\n\n- Owner: Local MCP\n- Status: PDF-ready\n"
+}
+```
+
+With `LOCAL_MCP_FILE_OUTPUT_DIR=~/Downloads/local-mcp`, this creates:
+
+```text
+~/Downloads/local-mcp/reports/project-brief.pdf
 ```
 
 ## Chunked Example
