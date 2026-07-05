@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating local Markdown or PDF files.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, summarizing multiple web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating local Markdown or PDF files.
 
 The tool follows this flow:
 
@@ -167,6 +167,22 @@ Parameters:
 - `max_chars`: maximum content characters before truncation. Use `0` for no truncation. Default: `120000`.
 
 Fetches pages with `httpx`, can force optional Crawl4AI browser rendering for JavaScript-heavy pages, and supports selector-based scraping. JSON responses include metadata, content, links, and images.
+
+### `web_summarize`
+
+Parameters:
+
+- `query`: optional search query. When provided, SearXNG result URLs are fetched and summarized.
+- `urls`: optional URLs to summarize. Accepts comma/newline-separated URLs, raw `web_search` Markdown, or Markdown links.
+- `limit`: maximum number of URLs to fetch and summarize. Default: `5`.
+- `categories`, `language`, `pageno`, `safesearch`, `time_range`, `engines`, `searxng_url`: search options used when `query` is provided.
+- `render`: fetch mode for each URL: `auto`, `static`, or `browser`. Default: `auto`.
+- `selector`: optional CSS selector to summarize a specific page region.
+- `summary_sentences`: maximum sentences per page summary. Default: `3`.
+- `max_chars_per_page`: maximum extracted page characters to consider before summarizing. Default: `30000`.
+- `include_failures`: include URLs that failed to fetch in the response. Default: `true`.
+
+This tool crawls multiple URLs and returns an overall summary plus per-source summaries with citations, final URLs, fetch status, render method, and optional search snippets. It does not return the full crawled page content.
 
 ### `extract_urls`
 

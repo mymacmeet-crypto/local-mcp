@@ -48,6 +48,19 @@ MCP client
   -> Markdown, text, HTML, or JSON response
 ```
 
+### `web_summarize`
+
+```text
+MCP client
+  -> local_mcp.tools.web.web_summarize
+  -> query path calls local_mcp.search.searxng for result URLs
+  -> URL path parses explicit URLs or pasted web_search Markdown
+  -> local_mcp.web.fetcher fetches each page with httpx or Crawl4AI
+  -> local_mcp.web.html extracts readable Markdown and metadata
+  -> local extractive summarizer returns concise source summaries
+  -> Markdown response with overall summary, citations, and failures
+```
+
 ### `extract_urls`
 
 ```text

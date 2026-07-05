@@ -16,6 +16,7 @@ class PackageImportTests(unittest.TestCase):
 
         for handler in (
             web.web_fetch,
+            web.web_summarize,
             web.extract_urls,
             search.web_search,
             ocr.extract_image_text,

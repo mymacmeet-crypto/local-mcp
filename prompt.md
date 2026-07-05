@@ -16,6 +16,20 @@ Using local-mcp, search recent news for SearXNG with categories=news, time_range
 Using local-mcp, search the web for local AI tool calling with engines=duckduckgo,brave and limit=8.
 ```
 
+## `web_summarize`
+
+```
+Using local-mcp, search the web for OpenAI MCP protocol, crawl the top 5 result URLs, and return concise summaries.
+```
+
+```
+Using local-mcp, summarize these URLs without returning the full page content: https://example.com and https://www.python.org.
+```
+
+```
+Using local-mcp, search recent news for SearXNG with categories=news, time_range=month, limit=5, crawl the result URLs, and return 2 summary sentences per source.
+```
+
 ## `web_search_to_file`
 
 ```
