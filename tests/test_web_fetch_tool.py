@@ -152,11 +152,8 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertIn("Web summary:", result)
-        self.assertIn("- Input URLs parsed: 2", result)
-        self.assertIn("- Pages summarized: 2", result)
         self.assertIn("[Alpha Article](https://example.com/alpha)", result)
         self.assertIn("[Beta Article](https://example.com/beta)", result)
-        self.assertIn("Summary:", result)
         self.assertNotIn("<main>", result)
 
     async def test_web_summarize_searches_then_summarizes_results(self):
@@ -203,9 +200,7 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
             limit=1,
         )
 
-        self.assertIn("- Query: summary generation", result)
-        self.assertIn("- SearXNG instance: http://searx.local/", result)
-        self.assertIn("Search snippet: Search result snippet about summary generation.", result)
+        self.assertIn("[Search Summary Result](https://example.com/search-result)", result)
         self.assertIn("Summary generation fetches the search result URL", result)
 
 

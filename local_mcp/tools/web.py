@@ -237,11 +237,10 @@ async def web_summarize(
     render_mode = _validate_choice(render, RENDER_MODES, "render mode")
     selector = (selector or "").strip()
     targets = _targets_from_urls(urls)
-    instance_url = ""
 
     if cleaned_query:
         try:
-            instance_url, results, _answers, _suggestions = await searxng.search(
+            _instance_url, results, _answers, _suggestions = await searxng.search(
                 cleaned_query,
                 limit=limit,
                 categories=categories,
@@ -282,10 +281,6 @@ async def web_summarize(
 
     return _format_web_summary_response(
         query=cleaned_query,
-        input_url_count=len(_targets_from_urls(urls)),
-        instance_url=instance_url,
-        render_mode=render_mode,
-        selector=selector,
         summaries=summaries,
         failures=failures if include_failures else [],
     )
@@ -639,30 +634,10 @@ def _limit_text(text: str, limit: int) -> str:
 def _format_web_summary_response(
     *,
     query: str,
-    input_url_count: int,
-    instance_url: str,
-    render_mode: str,
-    selector: str,
     summaries: list[PageSummary],
     failures: list[tuple[str, str]],
 ) -> str:
     lines = ["Web summary:"]
-    if query:
-        lines.append(f"- Query: {query}")
-    if instance_url:
-        lines.append(f"- SearXNG instance: {instance_url}")
-    if input_url_count:
-        lines.append(f"- Input URLs parsed: {input_url_count}")
-    lines.extend(
-        [
-            f"- Pages summarized: {len(summaries)}",
-            f"- Fetch mode: {render_mode}",
-        ]
-    )
-    if selector:
-        lines.append(f"- Selector: {selector}")
-    if failures:
-        lines.append(f"- Failed URLs: {len(failures)}")
 
     overall = _summarize_text("\n".join(summary.summary for summary in summaries), focus=query, sentence_limit=4)
     if overall:
@@ -672,17 +647,7 @@ def _format_web_summary_response(
     lines.append("Sources:")
     for index, summary in enumerate(summaries, start=1):
         lines.append(f"{index}. [{summary.title}]({markdown_link_target(summary.final_url)})")
-        lines.append(f"   Summary: {summary.summary}")
-        if summary.description:
-            lines.append(f"   Description: {_limit_text(summary.description, 220)}")
-        if summary.target.snippet:
-            lines.append(f"   Search snippet: {_limit_text(summary.target.snippet, 220)}")
-        lines.append(f"   URL: {summary.final_url}")
-        lines.append(
-            f"   Status: {summary.status} | Render: {summary.render_method} | Extracted characters: {summary.content_characters}"
-        )
-        if summary.warnings:
-            lines.append(f"   Warnings: {'; '.join(summary.warnings)}")
+        lines.append(f"   {summary.summary}")
 
     if failures:
         lines.extend(["", "Failures:"])

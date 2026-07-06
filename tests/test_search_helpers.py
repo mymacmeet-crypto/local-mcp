@@ -87,9 +87,8 @@ class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict("os.environ", {"LOCAL_MCP_WEB_SEARCH_FOLLOW_UP": "summarize"}, clear=False):
             result = await search_tool.web_search("follow up test", limit=1)
 
-        self.assertIn("Results returned: 1", result)
+        self.assertIn("Results:", result)
         self.assertIn("Follow-up web_summarize result:", result)
-        self.assertIn("Pages summarized: 1", result)
         self.assertIn("Fetched article content explains", result)
 
     async def test_simple_search_web_searches_and_summarizes(self):
@@ -132,7 +131,6 @@ class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
         result = await simple.search_web("simple follow up", limit=1)
 
         self.assertIn("Web summary:", result)
-        self.assertIn("- Query: simple follow up", result)
         self.assertIn("Simple search now fetches pages", result)
 
 
