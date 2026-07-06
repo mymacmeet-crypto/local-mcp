@@ -8,7 +8,7 @@ import os
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field
 
@@ -31,6 +31,9 @@ WEB_SUMMARY_CONCURRENCY = int(os.environ.get("LOCAL_MCP_WEB_SUMMARY_CONCURRENCY"
 
 RENDER_MODES = {"auto", "static", "browser"}
 WEB_FETCH_OUTPUT_FORMATS = {"markdown", "text", "html", "json"}
+RenderMode = Literal["auto", "static", "browser"]
+WebFetchOutputFormat = Literal["markdown", "text", "html", "json"]
+SearchTimeRange = Literal["", "day", "month", "year"]
 
 
 @dataclass(frozen=True)
@@ -57,11 +60,11 @@ class PageSummary:
 async def web_fetch(
     url: Annotated[str, Field(description="Page URL to fetch. Scheme-less input like `example.com` is allowed.")],
     render: Annotated[
-        str,
+        RenderMode,
         Field(description="Fetch mode: `auto` uses httpx first and browser fallback when content is thin; `static` uses only httpx; `browser` forces browser rendering."),
     ] = "auto",
     output_format: Annotated[
-        str,
+        WebFetchOutputFormat,
         Field(description="Returned content format: `markdown`, `text`, `html`, or `json`."),
     ] = "markdown",
     selector: Annotated[
@@ -197,7 +200,7 @@ async def web_summarize(
         Field(description="SearXNG safe-search level when query is provided: 0 off, 1 moderate, 2 strict.", ge=0, le=2),
     ] = 0,
     time_range: Annotated[
-        str,
+        SearchTimeRange,
         Field(description="Optional SearXNG time range when query is provided: `day`, `month`, or `year`."),
     ] = "",
     engines: Annotated[
@@ -209,7 +212,7 @@ async def web_summarize(
         Field(description="Optional SearXNG base URL when query is provided."),
     ] = "",
     render: Annotated[
-        str,
+        RenderMode,
         Field(description="Fetch mode for each URL: `auto`, `static`, or `browser`."),
     ] = "auto",
     selector: Annotated[

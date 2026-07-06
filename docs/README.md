@@ -6,6 +6,8 @@ This folder documents every tool exposed by the `local-mcp` MCP server.
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
+For Qwen and other smaller local models, see [`low_model_compatibility.md`](low_model_compatibility.md).
+
 ## Tool Index
 
 | Tool | Documentation | Main purpose |
@@ -90,6 +92,12 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_WEB_FETCH_LINK_LIMIT` | `100` | `web_fetch` | Maximum links included in `web_fetch` responses. |
 | `LOCAL_MCP_WEB_FETCH_IMAGE_LIMIT` | `100` | `web_fetch` | Maximum images included in `web_fetch` responses. |
 | `LOCAL_MCP_WEB_SUMMARY_CONCURRENCY` | `4` | `web_summarize` | Maximum pages fetched concurrently by `web_summarize`. |
+| `LOCAL_MCP_TOOL_PROFILE` | `full` | Tool registration | Set to `simple` for smaller models, `full` for the original tools, or `both` to expose both sets. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP` | `none` | `web_search` | Set to `summarize` to fetch/summarize top search results, `fetch_first` to fetch only the top result, or `none` for search-only behavior. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` | `3` | `web_search` | Maximum number of search results summarized when follow-up mode is enabled. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER` | `auto` | `web_search` follow-up | Fetch mode used by automatic follow-up: `auto`, `static`, or `browser`. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS` | `20000` or `50000` | `web_search` follow-up | Maximum page characters used by automatic summarize/fetch follow-up. |
+| `LOCAL_MCP_WEB_SEARCH_SUMMARY_SENTENCES` | `3` | `web_search` follow-up | Sentences per source summary when follow-up mode is `summarize`. |
 | `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search`, `web_search_to_file` | Default SearXNG base URL. |
 | `SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Comma-separated SearXNG failover list. |
 | `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Alias for `SEARXNG_URLS`. |

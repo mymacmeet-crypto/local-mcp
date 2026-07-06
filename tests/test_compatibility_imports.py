@@ -12,7 +12,7 @@ class PackageImportTests(unittest.TestCase):
         self.assertIsNotNone(mcp)
 
     def test_tool_handlers_import_from_package(self):
-        from local_mcp.tools import documents, file_generation, ocr, search, web
+        from local_mcp.tools import documents, file_generation, ocr, search, simple, web
 
         for handler in (
             web.web_fetch,
@@ -23,8 +23,43 @@ class PackageImportTests(unittest.TestCase):
             documents.parse_document,
             file_generation.generate_file,
             file_generation.web_search_to_file,
+            simple.search_web,
+            simple.summarize_web,
+            simple.fetch_web_page,
+            simple.list_page_urls,
+            simple.read_document,
+            simple.read_image_text,
+            simple.write_markdown_file,
+            simple.write_report_file,
+            simple.search_web_to_file,
         ):
             self.assertTrue(callable(handler))
+
+    def test_tool_profile_selection(self):
+        from local_mcp.tools import _tools_for_profile
+
+        full_names = [tool.__name__ for tool in _tools_for_profile("full")]
+        simple_names = [tool.__name__ for tool in _tools_for_profile("qwen")]
+        both_names = [tool.__name__ for tool in _tools_for_profile("both")]
+
+        self.assertIn("web_search", full_names)
+        self.assertNotIn("search_web", full_names)
+        self.assertEqual(
+            simple_names,
+            [
+                "search_web",
+                "summarize_web",
+                "fetch_web_page",
+                "list_page_urls",
+                "read_document",
+                "read_image_text",
+                "write_markdown_file",
+                "write_report_file",
+                "search_web_to_file",
+            ],
+        )
+        self.assertIn("search_web", both_names)
+        self.assertIn("web_search", both_names)
 
 
 if __name__ == "__main__":

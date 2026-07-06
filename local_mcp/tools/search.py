@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+import os
+from typing import Annotated, Literal
 
 from pydantic import Field
 
 from local_mcp.search import searxng
 from local_mcp.shared.errors import tool_error
 from local_mcp.shared.urls import markdown_link_target
+
+SearchTimeRange = Literal["", "day", "month", "year"]
+FOLLOW_UP_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP"
+FOLLOW_UP_LIMIT_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT"
+FOLLOW_UP_RENDER_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER"
+FOLLOW_UP_MAX_CHARS_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS"
+FOLLOW_UP_SUMMARY_SENTENCES_ENV = "LOCAL_MCP_WEB_SEARCH_SUMMARY_SENTENCES"
 
 
 async def web_search(
@@ -28,7 +36,7 @@ async def web_search(
         Field(description="SearXNG safe-search level: 0 off, 1 moderate, 2 strict.", ge=0, le=2),
     ] = 0,
     time_range: Annotated[
-        str,
+        SearchTimeRange,
         Field(description="Optional SearXNG time range: `day`, `month`, or `year`. Empty means any time."),
     ] = "",
     engines: Annotated[
@@ -61,13 +69,17 @@ async def web_search(
     except Exception as err:
         raise tool_error(f"SearXNG search failed: {err}")
 
-    return format_search_response(
+    response = format_search_response(
         query=query,
         instance_url=instance_url,
         results=results,
         answers=answers,
         suggestions=suggestions,
     )
+    follow_up = await _web_search_follow_up(results)
+    if follow_up:
+        return f"{response}\n\n{follow_up}"
+    return response
 
 
 def format_search_response(
@@ -117,3 +129,64 @@ def _format_search_metadata(result: searxng.SearchResult) -> str:
     if result.score is not None:
         metadata.append(f"Score: {result.score:g}")
     return " | ".join(metadata)
+
+
+async def _web_search_follow_up(results: list[searxng.SearchResult]) -> str:
+    mode = _follow_up_mode()
+    if mode == "none" or not results:
+        return ""
+
+    try:
+        if mode == "summarize":
+            return await _summarize_search_results(results)
+        if mode == "fetch_first":
+            return await _fetch_first_search_result(results[0])
+    except Exception as err:
+        return f"Follow-up {mode} failed: {err}"
+
+    return ""
+
+
+async def _summarize_search_results(results: list[searxng.SearchResult]) -> str:
+    from local_mcp.tools import web as web_tools
+
+    limit = min(len(results), _env_int(FOLLOW_UP_LIMIT_ENV, default=3, minimum=1, maximum=10))
+    urls = "\n".join(f"- [{result.title}]({result.url})" for result in results[:limit])
+    summary = await web_tools.web_summarize(
+        urls=urls,
+        limit=limit,
+        render=os.environ.get(FOLLOW_UP_RENDER_ENV, "auto"),
+        summary_sentences=_env_int(FOLLOW_UP_SUMMARY_SENTENCES_ENV, default=3, minimum=1, maximum=8),
+        max_chars_per_page=_env_int(FOLLOW_UP_MAX_CHARS_ENV, default=20_000, minimum=1000, maximum=100_000),
+    )
+    return f"Follow-up web_summarize result:\n{summary}"
+
+
+async def _fetch_first_search_result(result: searxng.SearchResult) -> str:
+    from local_mcp.tools import web as web_tools
+
+    content = await web_tools.web_fetch(
+        url=result.url,
+        render=os.environ.get(FOLLOW_UP_RENDER_ENV, "auto"),
+        max_chars=_env_int(FOLLOW_UP_MAX_CHARS_ENV, default=50_000, minimum=1000, maximum=500_000),
+    )
+    return f"Follow-up web_fetch result for top result ({result.url}):\n{content}"
+
+
+def _follow_up_mode() -> str:
+    raw = (os.environ.get(FOLLOW_UP_ENV) or "none").strip().lower()
+    if raw in {"", "0", "false", "no", "none", "off"}:
+        return "none"
+    if raw in {"summary", "summarize", "web_summarize", "web-summarize"}:
+        return "summarize"
+    if raw in {"fetch", "fetch_first", "fetch-first", "web_fetch", "web-fetch"}:
+        return "fetch_first"
+    return "none"
+
+
+def _env_int(name: str, *, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int((os.environ.get(name) or "").strip() or default)
+    except ValueError:
+        value = default
+    return max(minimum, min(maximum, value))

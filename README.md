@@ -114,6 +114,63 @@ docker run -d `
 }
 ```
 
+## Smaller model compatibility
+
+Smaller local models often fail MCP calls because they see too many tools, too many optional arguments, or free-form string options where they should choose from a small set. Use the simple profile for models such as Qwen-class local models:
+
+For the full explanation of these compatibility changes, see [`docs/low_model_compatibility.md`](docs/low_model_compatibility.md).
+
+```env
+LOCAL_MCP_TOOL_PROFILE=simple
+```
+
+The `simple` profile registers simpler wrapper tools only:
+
+- `search_web`
+- `summarize_web`
+- `fetch_web_page`
+- `list_page_urls`
+- `read_document`
+- `read_image_text`
+- `write_markdown_file`
+- `write_report_file`
+- `search_web_to_file`
+
+For PDF or Markdown reports, prefer `write_report_file`. It rejects content below its `min_words` threshold, so smaller models are forced to expand the report before a half-page PDF is written. The default is `min_words=900`, which is usually closer to a 2-3 page PDF than a short answer.
+
+In the `simple` profile, `search_web` searches and then fetches/summarizes the top result pages automatically. This gives smaller models more content than raw search snippets.
+
+The default profile is `full`, which keeps the original tool surface. Use `both` only for clients and models that handle larger tool lists well.
+
+You can also set the profile directly in a desktop MCP config:
+
+```json
+{
+  "mcpServers": {
+    "local-mcp": {
+      "command": "D:\\MCP\\local-mcp\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "local_mcp"],
+      "env": {
+        "LOCAL_MCP_TOOL_PROFILE": "simple"
+      }
+    }
+  }
+}
+```
+
+If you keep the full profile and want every `web_search` call to fetch after searching, set:
+
+```env
+LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=summarize
+LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT=3
+```
+
+Supported follow-up modes are:
+
+- `summarize`: run a search, then fetch/summarize the top results with `web_summarize`.
+- `fetch_first`: run a search, then fetch the top result with `web_fetch`.
+- `none`: search results only.
+
 ## Tools
 
 ### `web_search`
@@ -227,6 +284,7 @@ Parameters:
 - `overwrite`: replace an existing file at the target path. Default: `false`.
 - `write_mode`: `write` creates/replaces content, `append` adds the content as a chunk. Default: `write`.
 - `ensure_trailing_newline`: append a trailing newline to non-empty Markdown content. Ignored for PDF output. Default: `true`.
+- `min_words`: minimum word count required before writing. Use `700`-`1200` for 2-3 page reports, or `0` for short notes. Default: `0`.
 
 The response reports the generated file path, write mode, byte count, character count, and whether an existing file was overwritten. PDF output is generated from Markdown-like text. `append`/chunk mode is supported for Markdown only; generate PDFs with `write_mode="write"` and the complete content.
 

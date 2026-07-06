@@ -8,6 +8,7 @@ from pypdf import PdfReader
 from local_mcp.file_generation import append_generated_file, write_generated_file
 from local_mcp.search.searxng import SearchResult
 from local_mcp.tools.file_generation import generate_file, web_search_to_file
+from local_mcp.tools.simple import write_report_file
 
 
 class FileGenerationTests(unittest.TestCase):
@@ -157,6 +158,26 @@ class FileGenerationToolTests(unittest.IsolatedAsyncioTestCase):
             response = await generate_file("brief.pdf", "# Brief\n\nGenerated body")
 
         expected = Path(tmp).resolve() / "brief.pdf"
+        self.assertTrue(expected.is_file())
+        self.assertIn("PDF file generated.", response)
+        self.assertIn("File type: pdf", response)
+
+    async def test_generate_file_rejects_short_content_when_min_words_is_set(self):
+        tmp = self.tempdir()
+        with patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True):
+            with self.assertRaisesRegex(Exception, "Content is too short"):
+                await generate_file("brief.pdf", "# Brief\n\nToo short.", min_words=50)
+
+        self.assertFalse((Path(tmp).resolve() / "brief.pdf").exists())
+
+    async def test_write_report_file_enforces_report_length_and_writes_pdf(self):
+        tmp = self.tempdir()
+        content = "# Report\n\n" + " ".join(f"word{index}" for index in range(120))
+
+        with patch.dict("os.environ", {"LOCAL_MCP_FILE_OUTPUT_DIR": tmp, "LOCAL_MCP_DOWNLOAD_DIR": ""}, clear=True):
+            response = await write_report_file("reports/long-report", content, min_words=100)
+
+        expected = Path(tmp).resolve() / "reports" / "long-report.pdf"
         self.assertTrue(expected.is_file())
         self.assertIn("PDF file generated.", response)
         self.assertIn("File type: pdf", response)

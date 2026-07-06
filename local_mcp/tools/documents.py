@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field
 
 from local_mcp.documents import parse_document as parse_document_impl
 from local_mcp.shared.errors import tool_error
+
+DocumentOutputFormat = Literal["markdown", "text", "json"]
+DocumentParser = Literal["auto", "pypdf", "pymupdf4llm", "pdfplumber", "docling", "marker", "mineru", "text"]
 
 
 async def parse_document(
@@ -16,7 +19,7 @@ async def parse_document(
         Field(description="Document file path, file:// URI, HTTP(S) URL, data URL, or base64 document content."),
     ],
     parser: Annotated[
-        str,
+        DocumentParser,
         Field(
             description=(
                 "Parser backend: auto, pypdf, pymupdf4llm, pdfplumber, docling, marker, mineru, or text."
@@ -24,7 +27,7 @@ async def parse_document(
         ),
     ] = "auto",
     output_format: Annotated[
-        str,
+        DocumentOutputFormat,
         Field(description="Output format: markdown, text, or json."),
     ] = "markdown",
     pages: Annotated[

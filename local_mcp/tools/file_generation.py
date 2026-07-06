@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+import re
+from typing import Annotated, Literal
 
 from pydantic import Field
 
@@ -10,6 +11,10 @@ from local_mcp.file_generation import GeneratedFile, append_generated_file, writ
 from local_mcp.search import searxng
 from local_mcp.shared.errors import tool_error
 from local_mcp.tools.search import format_search_response
+
+FileType = Literal["md", "markdown", "pdf"]
+SearchTimeRange = Literal["", "day", "month", "year"]
+WriteMode = Literal["write", "append"]
 
 
 async def generate_file(
@@ -26,7 +31,7 @@ async def generate_file(
         Field(description="Markdown-like content to write into the generated Markdown or PDF file."),
     ],
     file_type: Annotated[
-        str,
+        FileType,
         Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
     ] = "md",
     overwrite: Annotated[
@@ -34,16 +39,28 @@ async def generate_file(
         Field(description="Replace an existing file at the target path."),
     ] = False,
     write_mode: Annotated[
-        str,
+        WriteMode,
         Field(description="Write mode: `write` creates/replaces content, `append` adds this content as a chunk."),
     ] = "write",
     ensure_trailing_newline: Annotated[
         bool,
         Field(description="Append a trailing newline to non-empty Markdown content. Ignored for PDF output."),
     ] = True,
+    min_words: Annotated[
+        int,
+        Field(
+            description=(
+                "Minimum word count required before writing. Use 700-1200 for a 2-3 page report. "
+                "Use 0 to allow short notes."
+            ),
+            ge=0,
+            le=20000,
+        ),
+    ] = 0,
 ) -> str:
     """Generate a local Markdown or PDF file from supplied content."""
     try:
+        _validate_min_words(content, min_words)
         result = _write_content_to_file(
             filename,
             content,
@@ -83,7 +100,7 @@ async def web_search_to_file(
         Field(description="SearXNG safe-search level: 0 off, 1 moderate, 2 strict.", ge=0, le=2),
     ] = 0,
     time_range: Annotated[
-        str,
+        SearchTimeRange,
         Field(description="Optional SearXNG time range: `day`, `month`, or `year`. Empty means any time."),
     ] = "",
     engines: Annotated[
@@ -100,7 +117,7 @@ async def web_search_to_file(
         ),
     ] = "",
     write_mode: Annotated[
-        str,
+        WriteMode,
         Field(description="File write mode: `append` adds the search section, `write` creates/replaces content."),
     ] = "append",
     overwrite: Annotated[
@@ -112,7 +129,7 @@ async def web_search_to_file(
         Field(description="Append a trailing newline to the generated Markdown section. Ignored for PDF output."),
     ] = True,
     file_type: Annotated[
-        str,
+        FileType,
         Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
     ] = "md",
 ) -> str:
@@ -207,6 +224,22 @@ def _normalize_write_mode(write_mode: str) -> str:
     if normalized not in {"write", "append"}:
         raise ValueError("write_mode must be 'write' or 'append'.")
     return normalized
+
+
+def _validate_min_words(content: str, min_words: int) -> None:
+    if min_words <= 0:
+        return
+    words = _word_count(content)
+    if words >= min_words:
+        return
+    raise ValueError(
+        f"Content is too short for this file: {words} words provided, but at least {min_words} words are required. "
+        "Expand the content with fuller sections, examples, details, and a conclusion, then call the file tool again."
+    )
+
+
+def _word_count(content: str) -> int:
+    return len(re.findall(r"\b[\w'-]+\b", content or ""))
 
 
 def _format_generated_file_result(result: GeneratedFile) -> str:
