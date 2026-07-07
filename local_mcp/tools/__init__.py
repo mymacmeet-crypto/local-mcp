@@ -32,7 +32,7 @@ def _tools_for_profile(profile: str) -> tuple[ToolHandler, ...]:
 
 
 def _full_tools() -> tuple[ToolHandler, ...]:
-    from local_mcp.tools import documents, file_generation, ocr, search, web
+    from local_mcp.tools import automation, documents, file_generation, ocr, search, web
 
     return (
         web.web_fetch,
@@ -43,6 +43,7 @@ def _full_tools() -> tuple[ToolHandler, ...]:
         documents.parse_document,
         file_generation.generate_file,
         file_generation.web_search_to_file,
+        automation.schedule_task,
     )
 
 
@@ -59,4 +60,5 @@ def _simple_tools() -> tuple[ToolHandler, ...]:
         simple.write_markdown_file,
         simple.write_report_file,
         simple.search_web_to_file,
+        simple.create_scheduled_command,
     )

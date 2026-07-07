@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from local_mcp.tools import documents, file_generation, ocr, web
+from local_mcp.tools import automation, documents, file_generation, ocr, web
 
 ReportFileType = Literal["md", "markdown", "pdf"]
 
@@ -128,6 +128,24 @@ async def search_web_to_file(
         limit=limit,
         write_mode="write",
         overwrite=overwrite,
+    )
+
+
+async def create_scheduled_command(
+    name: Annotated[str, Field(description="Short name for the recurring local command.")],
+    command: Annotated[str, Field(description="Shell command to run on the schedule.")],
+    schedule: Annotated[
+        str,
+        Field(description="Five-field cron expression or alias: hourly, daily, weekdays, weekly, monthly."),
+    ],
+) -> str:
+    """Create cron artifacts for a recurring command without installing them."""
+    return await automation.schedule_task(
+        name=name,
+        command=command,
+        schedule=schedule,
+        scheduler="cron",
+        install=False,
     )
 
 

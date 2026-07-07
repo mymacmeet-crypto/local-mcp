@@ -1,6 +1,6 @@
 # local-mcp
 
-`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, summarizing multiple web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, and generating local Markdown or PDF files.
+`local-mcp` is a small Python MCP server with tools for SearXNG web search, fetching/browsing/scraping web pages, summarizing multiple web pages, extracting site URLs, extracting text from images, parsing PDFs/documents, generating local Markdown or PDF files, and creating scheduled automation bundles.
 
 The tool follows this flow:
 
@@ -135,6 +135,7 @@ The `simple` profile registers simpler wrapper tools only:
 - `write_markdown_file`
 - `write_report_file`
 - `search_web_to_file`
+- `create_scheduled_command`
 
 For PDF or Markdown reports, prefer `write_report_file`. It rejects content below its `min_words` threshold, so smaller models are forced to expand the report before a half-page PDF is written. The default is `min_words=900`, which is usually closer to a 2-3 page PDF than a short answer.
 
@@ -294,4 +295,26 @@ You must define a download location in `.env`; otherwise file-writing tools retu
 
 ```env
 LOCAL_MCP_FILE_OUTPUT_DIR=D:\Downloads\local-mcp
+```
+
+### `schedule_task`
+
+Parameters:
+
+- `name`: human-readable task name. Used to create a safe bundle slug.
+- `command`: shell command or script body to run on the schedule.
+- `schedule`: five-field cron expression, or alias: `hourly`, `daily`, `weekdays`, `weekly`, `monthly`.
+- `scheduler`: scheduler artifact to generate: `cron`, `launchd`, or `n8n`. Default: `cron`.
+- `description`: optional task description written into the generated README.
+- `working_directory`: optional working directory for the generated runner script.
+- `environment`: optional `KEY=VALUE` assignments, newline or comma separated.
+- `overwrite`: replace existing generated files for this task. Default: `false`.
+- `install`: attempt cron/launchd installation after file generation. Requires `LOCAL_MCP_ENABLE_SCHEDULER_INSTALL=1`. Default: `false`.
+
+The tool writes a reviewable automation bundle with `run.sh`, scheduler-specific artifacts, logs directory, and README. It uses `LOCAL_MCP_AUTOMATION_DIR` when set, otherwise falls back to the configured file output directory and then `.tmp/automations`.
+
+Example:
+
+```text
+Using local-mcp, create a cron scheduled task named Morning report that runs "python scripts/morning_report.py" daily in /home/nayan/Documents/local-mcp.
 ```

@@ -36,6 +36,7 @@ The simple profile exposes fewer, clearer tools:
 | `write_markdown_file` | Write normal Markdown notes. |
 | `write_report_file` | Write a longer report and reject short content. |
 | `search_web_to_file` | Search and write results directly to a file. |
+| `create_scheduled_command` | Create cron files for a recurring command without installing them. |
 
 This reduces the number of choices the model must make.
 
@@ -71,6 +72,7 @@ Examples:
 - `parser`: `auto`, `pypdf`, `pymupdf4llm`, `pdfplumber`, `docling`, `marker`, `mineru`, `text`
 - `file_type`: `md`, `markdown`, `pdf`
 - `write_mode`: `write`, `append`
+- `scheduler`: `cron`, `launchd`, `n8n`
 
 Smaller models usually do better when valid choices are explicit.
 

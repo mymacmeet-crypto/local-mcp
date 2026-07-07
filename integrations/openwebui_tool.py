@@ -466,6 +466,53 @@ class Tools:
         await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
 
+    async def schedule_task(
+        self,
+        name: str,
+        command: str,
+        schedule: str,
+        scheduler: str = "cron",
+        description: str = "",
+        working_directory: str = "",
+        environment: str = "",
+        overwrite: bool = False,
+        install: bool = False,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Create a cron, launchd, or n8n automation bundle for a recurring local command.
+        :param name: Human-readable task name.
+        :param command: Shell command or script body to run on the schedule.
+        :param schedule: Five-field cron expression, or alias: hourly, daily, weekdays, weekly, monthly.
+        :param scheduler: Scheduler artifact to generate: cron, launchd, or n8n.
+        :param description: Optional task description written into the generated README.
+        :param working_directory: Optional working directory for the generated runner script.
+        :param environment: Optional environment variables as KEY=VALUE lines or comma-separated assignments.
+        :param overwrite: Replace existing generated files for this task.
+        :param install: Attempt to install cron/launchd. Requires LOCAL_MCP_ENABLE_SCHEDULER_INSTALL=1.
+        """
+        _log("schedule_task", f"name={name} schedule={schedule} scheduler={scheduler} install={install}")
+        await self._emit_status(__event_emitter__, f"Generating scheduled task {name}...", False)
+
+        result = self._call(
+            "schedule_task",
+            {
+                "name": name,
+                "command": command,
+                "schedule": schedule,
+                "scheduler": scheduler,
+                "description": description,
+                "working_directory": working_directory,
+                "environment": environment,
+                "overwrite": overwrite,
+                "install": install,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
     async def extract_image_text(
         self,
         image: str,

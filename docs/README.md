@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, fetch/browser-render/scrape pages, summarize multiple web pages, discover URLs, run OCR on images, parse PDFs/documents, and generate local Markdown or PDF files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, fetch/browser-render/scrape pages, summarize multiple web pages, discover URLs, run OCR on images, parse PDFs/documents, generate local Markdown or PDF files, and create scheduled automation bundles. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -20,6 +20,7 @@ For Qwen and other smaller local models, see [`low_model_compatibility.md`](low_
 | `extract_image_text` | [extract_image_text.md](extract_image_text.md) | Extract text from local, remote, data URL, or base64 image input using Tesseract OCR. |
 | `parse_document` | [parse_document.md](parse_document.md) | Parse PDFs and documents into Markdown, text, or JSON using local parser backends. |
 | `generate_file` | [generate_file.md](generate_file.md) | Generate local Markdown or PDF files from supplied content. |
+| `schedule_task` | [schedule_task.md](schedule_task.md) | Create cron, launchd, or n8n automation bundles for recurring local commands. |
 
 ## Shared Project Setup
 
@@ -113,6 +114,8 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_MINERU_BACKEND` | `pipeline` | `parse_document` | MinerU backend passed with `-b`; `pipeline` is CPU-friendly. |
 | `LOCAL_MCP_FILE_OUTPUT_DIR` | required | `generate_file`, `web_search_to_file` | Destination folder for generated files. |
 | `LOCAL_MCP_DOWNLOAD_DIR` | optional alias | `generate_file`, `web_search_to_file` | Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. If neither is set, file-writing tools return an error. |
+| `LOCAL_MCP_AUTOMATION_DIR` | `.tmp/automations` or file output dir | `schedule_task` | Destination folder for generated automation bundles. |
+| `LOCAL_MCP_ENABLE_SCHEDULER_INSTALL` | unset | `schedule_task` | Set to `1` to let `install=true` modify cron or launchd. |
 
 ## MCP Client Example
 

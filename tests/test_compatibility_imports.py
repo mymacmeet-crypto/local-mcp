@@ -12,7 +12,7 @@ class PackageImportTests(unittest.TestCase):
         self.assertIsNotNone(mcp)
 
     def test_tool_handlers_import_from_package(self):
-        from local_mcp.tools import documents, file_generation, ocr, search, simple, web
+        from local_mcp.tools import automation, documents, file_generation, ocr, search, simple, web
 
         for handler in (
             web.web_fetch,
@@ -23,6 +23,7 @@ class PackageImportTests(unittest.TestCase):
             documents.parse_document,
             file_generation.generate_file,
             file_generation.web_search_to_file,
+            automation.schedule_task,
             simple.search_web,
             simple.summarize_web,
             simple.fetch_web_page,
@@ -32,6 +33,7 @@ class PackageImportTests(unittest.TestCase):
             simple.write_markdown_file,
             simple.write_report_file,
             simple.search_web_to_file,
+            simple.create_scheduled_command,
         ):
             self.assertTrue(callable(handler))
 
@@ -56,6 +58,7 @@ class PackageImportTests(unittest.TestCase):
                 "write_markdown_file",
                 "write_report_file",
                 "search_web_to_file",
+                "create_scheduled_command",
             ],
         )
         self.assertIn("search_web", both_names)

@@ -146,3 +146,16 @@ Using local-mcp, append this next chunk to reports/large-report with write_mode=
 Using local-mcp, try to append to reports/monthly-summary.pdf with write_mode=append. Confirm that PDF append is rejected and explain that PDFs must be generated with write_mode=write and complete content.
 ```
 
+## `schedule_task`
+
+```
+Using local-mcp, create a cron scheduled task named Morning report that runs "python scripts/morning_report.py" daily in /home/nayan/Documents/local-mcp.
+```
+
+```
+Using local-mcp, create a launchd scheduled task named Weekday digest that runs "python scripts/digest.py" on weekdays.
+```
+
+```
+Using local-mcp, create an n8n automation bundle named Weekly research workflow that runs "python scripts/research_digest.py" at 8 AM every Monday.
+```
