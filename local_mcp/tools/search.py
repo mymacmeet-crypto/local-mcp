@@ -73,10 +73,11 @@ async def web_search(
         results=results,
         answers=answers,
         suggestions=suggestions,
+        include_metadata=False,
     )
     follow_up = await _web_search_follow_up(results)
     if follow_up:
-        return f"{response}\n\n{follow_up}"
+        return f"{follow_up}\n\n{response}"
     return response
 
 
@@ -87,31 +88,36 @@ def format_search_response(
     results: list[searxng.SearchResult],
     answers: list[str],
     suggestions: list[str],
+    include_metadata: bool = True,
 ) -> str:
-    lines = [
-        f'Search query: "{query.strip()}"',
-        f"SearXNG instance: {instance_url}",
-        f"Results returned: {len(results)}",
-    ]
+    lines: list[str] = []
+    if include_metadata:
+        lines = [
+            f'Search query: "{query.strip()}"',
+            f"SearXNG instance: {instance_url}",
+            f"Results returned: {len(results)}",
+        ]
 
     if answers:
-        lines.extend(["", "Answers:"])
+        lines.extend(["", "Answers:"] if lines else ["Answers:"])
         lines.extend(f"- {answer}" for answer in answers[:5])
 
     if not results:
-        lines.extend(["", "No search results found."])
+        lines.extend(["", "No search results found."] if lines else ["No search results found."])
     else:
-        lines.extend(["", "Results:"])
+        lines.extend([""] if lines else [])
+        lines.append("Results:")
         for index, result in enumerate(results, start=1):
             lines.append(f"{index}. [{result.title}]({markdown_link_target(result.url)})")
             if result.content:
                 lines.append(f"   {result.content}")
-            lines.append(f"   URL: {result.url}")
-            metadata = _format_search_metadata(result)
-            if metadata:
-                lines.append(f"   {metadata}")
+            if include_metadata:
+                lines.append(f"   URL: {result.url}")
+                metadata = _format_search_metadata(result)
+                if metadata:
+                    lines.append(f"   {metadata}")
 
-    if suggestions:
+    if include_metadata and suggestions:
         lines.extend(["", "Suggestions:"])
         lines.extend(f"- {suggestion}" for suggestion in suggestions[:5])
 
@@ -167,3 +173,27 @@ def _env_int(name: str, *, default: int, minimum: int, maximum: int) -> int:
     except ValueError:
         value = default
     return max(minimum, min(maximum, value))
+
+
+def _describe_follow_up(mode: str) -> str:
+    if mode == "summarize":
+        return (
+            " The top results are already fetched and summarized above the raw "
+            "results list in this response — treat that summary as the primary "
+            "answer. Do not call web_summarize again on these URLs unless you "
+            "need a different set of pages."
+        )
+    if mode == "fetch_first":
+        return (
+            " The top result's page is already fetched in full above the raw "
+            "results list in this response — treat that content as the primary "
+            "answer. Do not call web_fetch again on that URL unless you need a "
+            "different page."
+        )
+    return ""
+
+
+web_search.__doc__ = (
+    "Search the web through SearXNG and return citation-ready Markdown results."
+    + _describe_follow_up(_follow_up_mode())
+)

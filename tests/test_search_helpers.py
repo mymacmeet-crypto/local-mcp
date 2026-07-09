@@ -85,7 +85,7 @@ class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict("os.environ", {"LOCAL_MCP_WEB_SEARCH_FOLLOW_UP": "fetch_first"}, clear=False):
             result = await search_tool.web_search("follow up test", limit=1)
 
-        self.assertIn("Results returned: 1", result)
+        self.assertIn("Results:", result)
         self.assertIn("Follow-up web_fetch result for top result", result)
         self.assertIn("Fetched article content explains", result)
 
