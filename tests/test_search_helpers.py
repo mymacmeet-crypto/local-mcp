@@ -85,9 +85,50 @@ class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict("os.environ", {"LOCAL_MCP_WEB_SEARCH_FOLLOW_UP": "fetch_first"}, clear=False):
             result = await search_tool.web_search("follow up test", limit=1)
 
-        self.assertIn("Results:", result)
+        self.assertIn("Overall Summary:", result)
+        self.assertIn("Sources:", result)
+        self.assertIn("Follow Up Result\nhttps://example.com/follow-up", result)
         self.assertIn("Follow-up web_fetch result for top result", result)
         self.assertIn("Fetched article content explains", result)
+
+    async def test_web_search_returns_overall_summary_and_plain_sources(self):
+        async def fake_search(*args, **kwargs):
+            return (
+                "http://searx.local/",
+                [
+                    SearchResult(
+                        title="Alpha Result",
+                        url="https://example.com/alpha",
+                        content="Alpha explains the quarterfinal schedule and kickoff times for the tournament.",
+                        engines=["example"],
+                        score=1.0,
+                    ),
+                    SearchResult(
+                        title="Beta Result",
+                        url="https://example.com/beta",
+                        content="Beta covers live-streaming and broadcast details for the same matches.",
+                        engines=["example"],
+                        score=0.5,
+                    ),
+                ],
+                [],
+                [],
+            )
+
+        search_tool.searxng.search = fake_search
+
+        with patch.dict("os.environ", {"LOCAL_MCP_WEB_SEARCH_FOLLOW_UP": "none"}, clear=False):
+            result = await search_tool.web_search("quarterfinal schedule", limit=2)
+
+        self.assertTrue(result.startswith("Overall Summary:"))
+        self.assertIn("Sources:", result)
+        self.assertIn("Alpha Result\nhttps://example.com/alpha", result)
+        self.assertIn("Beta Result\nhttps://example.com/beta", result)
+        self.assertIn("quarterfinal schedule and kickoff times", result)
+        self.assertNotIn("Search query:", result)
+        self.assertNotIn("Results:", result)
+        self.assertNotIn("Engines:", result)
+        self.assertNotIn("URL:", result)
 
 
 if __name__ == "__main__":

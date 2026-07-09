@@ -2,7 +2,7 @@
 
 ## Overview
 
-`web_search` searches the web through a SearXNG instance and returns citation-ready Markdown. It is useful when an MCP client needs current web results without calling a commercial search API directly.
+`web_search` searches the web through a SearXNG instance and returns a short overall summary plus a plain source list. It is useful when an MCP client needs current web results without calling a commercial search API directly.
 
 Key capabilities:
 
@@ -10,7 +10,7 @@ Key capabilities:
 - Supports categories such as `general`, `news`, `images`, or comma-separated combinations.
 - Supports language, page number, safe-search, time range, and engine overrides.
 - Supports per-call SearXNG URL overrides and environment-based failover.
-- Returns linked result titles, URLs, snippets, result metadata, answers, and suggestions when available.
+- Synthesizes an overall summary from the result snippets and lists each source as a plain title and URL, plus answers and suggestions when available.
 
 ```mermaid
 flowchart TD
@@ -18,7 +18,8 @@ flowchart TD
     B --> C[Choose SearXNG URL]
     C --> D[GET /search?format=json]
     D --> E[Parse answers, suggestions, and results]
-    E --> F[Return citation-ready Markdown]
+    E --> F[Synthesize an overall summary from result snippets]
+    F --> G[Return overall summary plus plain source list]
 ```
 
 ## Prerequisites
@@ -132,7 +133,7 @@ Typical workflow:
 
 1. Ask an MCP client to search for a topic.
 2. The client invokes `web_search` with a query and optional filters.
-3. The tool calls SearXNG and returns Markdown.
+3. The tool calls SearXNG, synthesizes an overall summary from the result snippets, and returns it with a plain source list.
 4. Use the returned URLs as citations or as input to `web_fetch`.
 
 Example MCP prompt:
@@ -155,17 +156,20 @@ await tools.web_search(
 
 Example returned shape:
 
-```markdown
-Search query: "OpenAI Model Context Protocol"
-SearXNG instance: http://127.0.0.1:8888/
-Results returned: 5
+```text
+Overall Summary:
 
-Results:
-1. [Example title](https://example.com/page)
-   Example snippet text.
-   URL: https://example.com/page
-   Engines: duckduckgo, brave | Score: 1
+A short synthesized paragraph built from the result snippets, biased toward terms that also appear in the search query.
+
+Sources:
+
+Example title
+https://example.com/page
+Second example title
+https://example.com/other-page
 ```
+
+Instant answers appear above the summary as an `Answers:` block, and SearXNG's suggested alternate queries appear below the sources as a `Suggestions:` block, when present. Set `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first` to prepend the fully fetched top result above this response (see [Configuration](#configuration)).
 
 ## Running the Tool
 
@@ -203,6 +207,9 @@ Supported environment variables:
 | `SEARXNG_URLS` | unset | Comma-separated failover list. Takes priority over `SEARXNG_BASE_URL`. |
 | `LOCAL_MCP_SEARXNG_URLS` | unset | Alias for `SEARXNG_URLS`. |
 | `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | Search request timeout in milliseconds. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP` | `none` | Set to `fetch_first` to fetch the top result with `web_fetch` and prepend it above the summary, or `none` for summary-only behavior. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER` | `auto` | Fetch mode used by the `fetch_first` follow-up: `auto`, `static`, or `browser`. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS` | `50000` | Maximum page characters used by the `fetch_first` follow-up. |
 | `MCP_HTTP_HOST` | `127.0.0.1` | HTTP server host. |
 | `MCP_HTTP_PORT` | `3002` | HTTP server port. |
 

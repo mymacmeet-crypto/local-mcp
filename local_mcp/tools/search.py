@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+from collections import Counter
 from typing import Annotated, Literal
 
 from pydantic import Field
@@ -15,6 +17,7 @@ SearchTimeRange = Literal["", "day", "month", "year"]
 FOLLOW_UP_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP"
 FOLLOW_UP_RENDER_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER"
 FOLLOW_UP_MAX_CHARS_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS"
+OVERVIEW_SENTENCE_LIMIT = 4
 
 
 async def web_search(
@@ -51,7 +54,7 @@ async def web_search(
         ),
     ] = "",
 ) -> str:
-    """Search the web through SearXNG and return citation-ready Markdown results."""
+    """Search the web through SearXNG and return an overall summary plus a source list."""
     try:
         instance_url, results, answers, suggestions = await searxng.search(
             query,
@@ -67,13 +70,11 @@ async def web_search(
     except Exception as err:
         raise tool_error(f"SearXNG search failed: {err}")
 
-    response = format_search_response(
+    response = _format_overview_response(
         query=query,
-        instance_url=instance_url,
         results=results,
         answers=answers,
         suggestions=suggestions,
-        include_metadata=False,
     )
     follow_up = await _web_search_follow_up(results)
     if follow_up:
@@ -88,36 +89,31 @@ def format_search_response(
     results: list[searxng.SearchResult],
     answers: list[str],
     suggestions: list[str],
-    include_metadata: bool = True,
 ) -> str:
-    lines: list[str] = []
-    if include_metadata:
-        lines = [
-            f'Search query: "{query.strip()}"',
-            f"SearXNG instance: {instance_url}",
-            f"Results returned: {len(results)}",
-        ]
+    lines = [
+        f'Search query: "{query.strip()}"',
+        f"SearXNG instance: {instance_url}",
+        f"Results returned: {len(results)}",
+    ]
 
     if answers:
-        lines.extend(["", "Answers:"] if lines else ["Answers:"])
+        lines.extend(["", "Answers:"])
         lines.extend(f"- {answer}" for answer in answers[:5])
 
     if not results:
-        lines.extend(["", "No search results found."] if lines else ["No search results found."])
+        lines.extend(["", "No search results found."])
     else:
-        lines.extend([""] if lines else [])
-        lines.append("Results:")
+        lines.extend(["", "Results:"])
         for index, result in enumerate(results, start=1):
             lines.append(f"{index}. [{result.title}]({markdown_link_target(result.url)})")
             if result.content:
                 lines.append(f"   {result.content}")
-            if include_metadata:
-                lines.append(f"   URL: {result.url}")
-                metadata = _format_search_metadata(result)
-                if metadata:
-                    lines.append(f"   {metadata}")
+            lines.append(f"   URL: {result.url}")
+            metadata = _format_search_metadata(result)
+            if metadata:
+                lines.append(f"   {metadata}")
 
-    if include_metadata and suggestions:
+    if suggestions:
         lines.extend(["", "Suggestions:"])
         lines.extend(f"- {suggestion}" for suggestion in suggestions[:5])
 
@@ -133,6 +129,117 @@ def _format_search_metadata(result: searxng.SearchResult) -> str:
     if result.score is not None:
         metadata.append(f"Score: {result.score:g}")
     return " | ".join(metadata)
+
+
+def _format_overview_response(
+    *,
+    query: str,
+    results: list[searxng.SearchResult],
+    answers: list[str],
+    suggestions: list[str],
+) -> str:
+    if not results:
+        return "No search results found."
+
+    lines: list[str] = []
+    if answers:
+        lines.extend(["Answers:"])
+        lines.extend(f"- {answer}" for answer in answers[:5])
+        lines.append("")
+
+    overview = _synthesize_overview(query, results)
+    lines.extend(["Overall Summary:", "", overview or "No summary could be generated.", "", "Sources:", ""])
+    for result in results:
+        lines.append(result.title)
+        lines.append(result.url)
+
+    if suggestions:
+        lines.extend(["", "Suggestions:"])
+        lines.extend(f"- {suggestion}" for suggestion in suggestions[:5])
+
+    return "\n".join(lines)
+
+
+def _synthesize_overview(query: str, results: list[searxng.SearchResult]) -> str:
+    candidates: list[str] = []
+    for result in results:
+        candidates.extend(_sentence_candidates(result.content))
+    if not candidates:
+        return ""
+
+    focus_terms = set(_keywords(query))
+    word_counts = Counter(word for candidate in candidates for word in _keywords(candidate))
+    scored: list[tuple[float, int, str]] = []
+    for index, candidate in enumerate(candidates):
+        words = _keywords(candidate)
+        if not words:
+            continue
+        unique_words = set(words)
+        score = sum(word_counts[word] for word in unique_words) / max(len(unique_words), 1)
+        score += len(unique_words & focus_terms) * 4
+        scored.append((score, index, candidate))
+
+    if not scored:
+        return _limit_text(" ".join(candidates), 900)
+
+    selected = sorted(sorted(scored, reverse=True)[:OVERVIEW_SENTENCE_LIMIT], key=lambda item: item[1])
+    return _limit_text(" ".join(candidate for _score, _index, candidate in selected), 900)
+
+
+def _sentence_candidates(text: str) -> list[str]:
+    candidates = []
+    for chunk in re.split(r"(?<=[.!?])\s+|\n+", text or ""):
+        cleaned = " ".join(chunk.split())
+        if len(cleaned) < 20:
+            continue
+        candidates.append(cleaned)
+    return candidates
+
+
+_STOPWORDS = {
+    "about",
+    "after",
+    "again",
+    "also",
+    "because",
+    "before",
+    "being",
+    "between",
+    "could",
+    "from",
+    "have",
+    "into",
+    "more",
+    "other",
+    "over",
+    "than",
+    "that",
+    "their",
+    "there",
+    "these",
+    "they",
+    "this",
+    "through",
+    "were",
+    "when",
+    "where",
+    "which",
+    "with",
+    "would",
+    "your",
+}
+
+
+def _keywords(text: str) -> list[str]:
+    words = re.findall(r"[a-zA-Z][a-zA-Z0-9_-]{2,}", (text or "").lower())
+    return [word for word in words if word not in _STOPWORDS]
+
+
+def _limit_text(text: str, limit: int) -> str:
+    cleaned = " ".join((text or "").split())
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[:limit].rsplit(" ", 1)[0].rstrip(".,;:") + "..."
 
 
 async def _web_search_follow_up(results: list[searxng.SearchResult]) -> str:
@@ -176,17 +283,10 @@ def _env_int(name: str, *, default: int, minimum: int, maximum: int) -> int:
 
 
 def _describe_follow_up(mode: str) -> str:
-    if mode == "summarize":
-        return (
-            " The top results are already fetched and summarized above the raw "
-            "results list in this response — treat that summary as the primary "
-            "answer. Do not call web_summarize again on these URLs unless you "
-            "need a different set of pages."
-        )
     if mode == "fetch_first":
         return (
-            " The top result's page is already fetched in full above the raw "
-            "results list in this response — treat that content as the primary "
+            " The top result's page is already fetched in full above the search "
+            "summary in this response — treat that content as the primary "
             "answer. Do not call web_fetch again on that URL unless you need a "
             "different page."
         )
@@ -194,6 +294,6 @@ def _describe_follow_up(mode: str) -> str:
 
 
 web_search.__doc__ = (
-    "Search the web through SearXNG and return citation-ready Markdown results."
+    "Search the web through SearXNG and return an overall summary plus a source list."
     + _describe_follow_up(_follow_up_mode())
 )

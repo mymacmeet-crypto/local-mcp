@@ -181,7 +181,7 @@ Parameters:
 - `engines`: optional comma-separated SearXNG engines override.
 - `searxng_url`: optional SearXNG base URL for this request.
 
-The response is citation-ready Markdown with linked result titles, source URLs, snippets, engines, answers, and suggestions when SearXNG returns them.
+The response is an `Overall Summary` synthesized from the result snippets, followed by a plain `Sources` list (title and URL only, no snippets or metadata), plus `Answers`/`Suggestions` blocks when SearXNG returns them.
 
 ### `web_search_to_file`
 

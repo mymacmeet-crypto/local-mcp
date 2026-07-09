@@ -220,7 +220,7 @@ class Tools:
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
-        Search the web through SearXNG and return citation-ready Markdown results.
+        Search the web through SearXNG and return an overall summary plus a plain source list.
         :param query: Search query to send to SearXNG.
         :param limit: Maximum number of search results to return. Allowed range is 1 to 20.
         :param categories: SearXNG categories, for example 'general', 'news', 'images', or 'general,news'.

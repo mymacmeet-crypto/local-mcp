@@ -68,7 +68,8 @@ MCP client
   -> local_mcp.tools.search.web_search
   -> local_mcp.search.searxng calls /search?format=json
   -> result cleanup, de-duplication, limit handling
-  -> citation-ready Markdown response
+  -> local extractive summarizer synthesizes an overall summary from result snippets
+  -> Markdown response with overall summary and a plain title/URL source list
 ```
 
 ### `extract_image_text`
