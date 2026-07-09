@@ -36,7 +36,6 @@ def _full_tools() -> tuple[ToolHandler, ...]:
 
     return (
         web.web_fetch,
-        web.web_summarize,
         web.extract_urls,
         search.web_search,
         ocr.extract_image_text,
@@ -50,8 +49,6 @@ def _simple_tools() -> tuple[ToolHandler, ...]:
     from local_mcp.tools import simple
 
     return (
-        simple.search_web,
-        simple.summarize_web,
         simple.fetch_web_page,
         simple.list_page_urls,
         simple.read_document,

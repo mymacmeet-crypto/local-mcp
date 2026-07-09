@@ -16,15 +16,12 @@ class PackageImportTests(unittest.TestCase):
 
         for handler in (
             web.web_fetch,
-            web.web_summarize,
             web.extract_urls,
             search.web_search,
             ocr.extract_image_text,
             documents.parse_document,
             file_generation.generate_file,
             file_generation.web_search_to_file,
-            simple.search_web,
-            simple.summarize_web,
             simple.fetch_web_page,
             simple.list_page_urls,
             simple.read_document,
@@ -43,12 +40,10 @@ class PackageImportTests(unittest.TestCase):
         both_names = [tool.__name__ for tool in _tools_for_profile("both")]
 
         self.assertIn("web_search", full_names)
-        self.assertNotIn("search_web", full_names)
+        self.assertNotIn("fetch_web_page", full_names)
         self.assertEqual(
             simple_names,
             [
-                "search_web",
-                "summarize_web",
                 "fetch_web_page",
                 "list_page_urls",
                 "read_document",
@@ -58,7 +53,7 @@ class PackageImportTests(unittest.TestCase):
                 "search_web_to_file",
             ],
         )
-        self.assertIn("search_web", both_names)
+        self.assertIn("fetch_web_page", both_names)
         self.assertIn("web_search", both_names)
 
 

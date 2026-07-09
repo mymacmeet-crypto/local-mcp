@@ -8,7 +8,7 @@ The same MCP tools worked well with Claude but produced weaker results with Qwen
 
 - Qwen called file-writing tools with very short content.
 - Markdown or PDF outputs were often only half a page.
-- Qwen sometimes stopped after `web_search` and did not call `web_fetch` or `web_summarize`.
+- Qwen sometimes stopped after `web_search` and did not call `web_fetch`.
 - The full tool list exposed many optional arguments, which made tool selection harder for smaller models.
 
 This was not mainly a PDF rendering problem. The file generator writes the content it receives. Claude usually creates a fuller draft before calling the file tool; Qwen often sends a shorter draft.
@@ -27,8 +27,6 @@ The simple profile exposes fewer, clearer tools:
 
 | Tool | Purpose |
 | --- | --- |
-| `search_web` | Search and automatically summarize fetched result pages. |
-| `summarize_web` | Summarize a query or list of URLs. |
 | `fetch_web_page` | Fetch one page as Markdown. |
 | `list_page_urls` | Extract links from a page or site. |
 | `read_document` | Parse a document with safe defaults. |
@@ -44,17 +42,15 @@ This reduces the number of choices the model must make.
 `web_search` can now automatically fetch after search. Enable it with:
 
 ```env
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=summarize
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT=3
+LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
 ```
 
-With this setting, a `web_search` call returns normal search results and then appends summaries from the top fetched pages.
+With this setting, a `web_search` call returns normal search results and then appends the fetched content of the top result.
 
 Supported modes:
 
 | Value | Behavior |
 | --- | --- |
-| `summarize` | Search, then fetch and summarize the top results with `web_summarize`. |
 | `fetch_first` | Search, then fetch only the first result with `web_fetch`. |
 | `none` | Search results only. |
 
@@ -99,8 +95,7 @@ For Qwen or another smaller local model, use:
 ```env
 LOCAL_MCP_FILE_OUTPUT_DIR=generated_files
 LOCAL_MCP_TOOL_PROFILE=simple
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=summarize
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT=3
+LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
 ```
 
 Restart the MCP server after changing `.env`.
@@ -110,19 +105,19 @@ Restart the MCP server after changing `.env`.
 For normal answer generation:
 
 ```text
-Using local-mcp, search the web for "local LLM MCP tool calling" and return a detailed answer using the fetched summaries.
+Using local-mcp, search the web for "local LLM MCP tool calling" and return a detailed answer using the fetched page content.
 ```
 
 For Markdown notes:
 
 ```text
-Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched summaries, and write detailed Markdown notes with write_markdown_file named reports/mcp-tool-calling-notes.md.
+Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched page content, and write detailed Markdown notes with write_markdown_file named reports/mcp-tool-calling-notes.md.
 ```
 
 For a long report:
 
 ```text
-Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched summaries, and write a detailed report with write_report_file named reports/mcp-tool-calling-report.md with file_type=md and min_words=900.
+Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched page content, and write a detailed report with write_report_file named reports/mcp-tool-calling-report.md with file_type=md and min_words=900.
 ```
 
 ## How The Improved Flow Works
@@ -131,9 +126,9 @@ With the recommended settings, the flow becomes:
 
 ```text
 User asks question
-  -> model calls search_web or web_search
+  -> model calls web_search
   -> server searches SearXNG
-  -> server fetches/summarizes top result pages
+  -> server fetches the top result page
   -> model receives richer source-backed context
   -> model answers or writes a file
   -> file tool rejects too-short report content when min_words is set
@@ -158,10 +153,10 @@ OK
 Useful manual test:
 
 ```text
-Using local-mcp, search the web for "MCP server tool calling best practices" and return a detailed answer using the fetched summaries.
+Using local-mcp, search the web for "MCP server tool calling best practices" and return a detailed answer using the fetched page content.
 ```
 
-The response should include fetched or summarized source content, not only short search snippets.
+The response should include fetched source content, not only short search snippets.
 
 ## Troubleshooting
 
@@ -170,7 +165,7 @@ The response should include fetched or summarized source content, not only short
 Check `.env`:
 
 ```env
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=summarize
+LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
 ```
 
 Then restart the MCP server.

@@ -11,32 +11,6 @@ from local_mcp.tools import documents, file_generation, ocr, web
 ReportFileType = Literal["md", "markdown", "pdf"]
 
 
-async def search_web(
-    query: Annotated[str, Field(description="Plain web search query.")],
-    limit: Annotated[int, Field(description="Number of results to return.", ge=1, le=10)] = 5,
-) -> str:
-    """Search the web, fetch the top result pages, and return source summaries."""
-    return await web.web_summarize(query=query, limit=limit, summary_sentences=3, max_chars_per_page=20_000)
-
-
-async def summarize_web(
-    input_text: Annotated[
-        str,
-        Field(
-            description=(
-                "Search query or URL list. URLs may be comma/newline separated. "
-                "If URLs are present, pages are summarized directly; otherwise a web search is summarized."
-            ),
-        ),
-    ],
-    limit: Annotated[int, Field(description="Number of pages to summarize.", ge=1, le=8)] = 3,
-) -> str:
-    """Summarize web search results or supplied URLs with citations."""
-    if _contains_url(input_text):
-        return await web.web_summarize(urls=input_text, limit=limit, summary_sentences=3, max_chars_per_page=20_000)
-    return await web.web_summarize(query=input_text, limit=limit, summary_sentences=3, max_chars_per_page=20_000)
-
-
 async def fetch_web_page(
     url: Annotated[str, Field(description="Page URL to fetch. Scheme-less input like example.com is allowed.")],
     max_chars: Annotated[int, Field(description="Maximum characters to return.", ge=1000, le=120000)] = 50_000,
@@ -129,10 +103,3 @@ async def search_web_to_file(
         write_mode="write",
         overwrite=overwrite,
     )
-
-
-def _contains_url(value: str) -> bool:
-    cleaned = (value or "").lower()
-    if "http://" in cleaned or "https://" in cleaned:
-        return True
-    return any(token.startswith(("www.", "localhost", "127.0.0.1")) for token in cleaned.replace(",", " ").split())

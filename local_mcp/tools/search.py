@@ -13,10 +13,8 @@ from local_mcp.shared.urls import markdown_link_target
 
 SearchTimeRange = Literal["", "day", "month", "year"]
 FOLLOW_UP_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP"
-FOLLOW_UP_LIMIT_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT"
 FOLLOW_UP_RENDER_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER"
 FOLLOW_UP_MAX_CHARS_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS"
-FOLLOW_UP_SUMMARY_SENTENCES_ENV = "LOCAL_MCP_WEB_SEARCH_SUMMARY_SENTENCES"
 
 
 async def web_search(
@@ -137,29 +135,12 @@ async def _web_search_follow_up(results: list[searxng.SearchResult]) -> str:
         return ""
 
     try:
-        if mode == "summarize":
-            return await _summarize_search_results(results)
         if mode == "fetch_first":
             return await _fetch_first_search_result(results[0])
     except Exception as err:
         return f"Follow-up {mode} failed: {err}"
 
     return ""
-
-
-async def _summarize_search_results(results: list[searxng.SearchResult]) -> str:
-    from local_mcp.tools import web as web_tools
-
-    limit = min(len(results), _env_int(FOLLOW_UP_LIMIT_ENV, default=3, minimum=1, maximum=10))
-    urls = "\n".join(f"- [{result.title}]({result.url})" for result in results[:limit])
-    summary = await web_tools.web_summarize(
-        urls=urls,
-        limit=limit,
-        render=os.environ.get(FOLLOW_UP_RENDER_ENV, "auto"),
-        summary_sentences=_env_int(FOLLOW_UP_SUMMARY_SENTENCES_ENV, default=3, minimum=1, maximum=8),
-        max_chars_per_page=_env_int(FOLLOW_UP_MAX_CHARS_ENV, default=20_000, minimum=1000, maximum=100_000),
-    )
-    return f"Follow-up web_summarize result:\n{summary}"
 
 
 async def _fetch_first_search_result(result: searxng.SearchResult) -> str:
@@ -175,10 +156,6 @@ async def _fetch_first_search_result(result: searxng.SearchResult) -> str:
 
 def _follow_up_mode() -> str:
     raw = (os.environ.get(FOLLOW_UP_ENV) or "none").strip().lower()
-    if raw in {"", "0", "false", "no", "none", "off"}:
-        return "none"
-    if raw in {"summary", "summarize", "web_summarize", "web-summarize"}:
-        return "summarize"
     if raw in {"fetch", "fetch_first", "fetch-first", "web_fetch", "web-fetch"}:
         return "fetch_first"
     return "none"

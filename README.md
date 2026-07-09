@@ -126,8 +126,6 @@ LOCAL_MCP_TOOL_PROFILE=simple
 
 The `simple` profile registers simpler wrapper tools only:
 
-- `search_web`
-- `summarize_web`
 - `fetch_web_page`
 - `list_page_urls`
 - `read_document`
@@ -137,8 +135,6 @@ The `simple` profile registers simpler wrapper tools only:
 - `search_web_to_file`
 
 For PDF or Markdown reports, prefer `write_report_file`. It rejects content below its `min_words` threshold, so smaller models are forced to expand the report before a half-page PDF is written. The default is `min_words=900`, which is usually closer to a 2-3 page PDF than a short answer.
-
-In the `simple` profile, `search_web` searches and then fetches/summarizes the top result pages automatically. This gives smaller models more content than raw search snippets.
 
 The default profile is `full`, which keeps the original tool surface. Use `both` only for clients and models that handle larger tool lists well.
 
@@ -161,13 +157,11 @@ You can also set the profile directly in a desktop MCP config:
 If you keep the full profile and want every `web_search` call to fetch after searching, set:
 
 ```env
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=summarize
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT=3
+LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
 ```
 
 Supported follow-up modes are:
 
-- `summarize`: run a search, then fetch/summarize the top results with `web_summarize`.
 - `fetch_first`: run a search, then fetch the top result with `web_fetch`.
 - `none`: search results only.
 
@@ -224,22 +218,6 @@ Parameters:
 - `max_chars`: maximum content characters before truncation. Use `0` for no truncation. Default: `120000`.
 
 Fetches pages with `httpx`, can force optional Crawl4AI browser rendering for JavaScript-heavy pages, and supports selector-based scraping. JSON responses include metadata, content, links, and images.
-
-### `web_summarize`
-
-Parameters:
-
-- `query`: optional search query. When provided, SearXNG result URLs are fetched and summarized.
-- `urls`: optional URLs to summarize. Accepts comma/newline-separated URLs, raw `web_search` Markdown, or Markdown links.
-- `limit`: maximum number of URLs to fetch and summarize. Default: `5`.
-- `categories`, `language`, `pageno`, `safesearch`, `time_range`, `engines`, `searxng_url`: search options used when `query` is provided.
-- `render`: fetch mode for each URL: `auto`, `static`, or `browser`. Default: `auto`.
-- `selector`: optional CSS selector to summarize a specific page region.
-- `summary_sentences`: maximum sentences per page summary. Default: `3`.
-- `max_chars_per_page`: maximum extracted page characters to consider before summarizing. Default: `30000`.
-- `include_failures`: include URLs that failed to fetch in the response. Default: `true`.
-
-This tool crawls multiple URLs and returns an overall summary plus per-source summaries with citations, final URLs, fetch status, render method, and optional search snippets. It does not return the full crawled page content.
 
 ### `extract_urls`
 
