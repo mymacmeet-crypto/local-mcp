@@ -14,7 +14,7 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
         web.fetcher.fetch_static = self._fetch_static
         web.fetcher.fetch_browser = self._fetch_browser
 
-    async def test_web_fetch_static_markdown_with_metadata_and_links(self):
+    async def test_web_fetch_returns_evidence_envelope_with_summary_and_links(self):
         async def fake_static(url: str, *, accept: str | None = None) -> FetchResult:
             return FetchResult(
                 html="""
@@ -23,7 +23,8 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
                   <body>
                     <main>
                       <h1>Example Page</h1>
-                      <p>Hello <a href="/docs">docs</a>.</p>
+                      <p>Hello there, this is a detailed example paragraph about documentation.</p>
+                      <p>It links to the <a href="/docs">docs</a> for further reading and evidence.</p>
                     </main>
                   </body>
                 </html>
@@ -34,17 +35,30 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
 
         web.fetcher.fetch_static = fake_static
 
-        result = await web.web_fetch(
-            "https://example.com/start",
-            render="static",
-            include_links=True,
+        payload = json.loads(
+            await web.web_fetch(
+                "https://example.com/start",
+                render="static",
+                include_links=True,
+            )
         )
 
-        self.assertIn("Fetch metadata:", result)
-        self.assertIn("- Render method: httpx", result)
-        self.assertIn("# Example Page", result)
-        self.assertIn("[docs](https://example.com/docs)", result)
-        self.assertIn("Links:", result)
+        # Evidence framing / anti-leakage metadata is present.
+        self.assertEqual(payload["tool"], "web_fetch")
+        self.assertEqual(payload["stage"], "evidence")
+        self.assertTrue(payload["requires_analysis"])
+        self.assertEqual(payload["display_policy"], "internal_working_material")
+        self.assertIn("do not paste", payload["agent_guidance"].lower())
+        self.assertIn("summary", payload)
+        self.assertIsInstance(payload["key_points"], list)
+
+        # Core fetch data.
+        self.assertEqual(payload["render_method"], "httpx")
+        self.assertEqual(payload["content_format"], "markdown")
+        self.assertEqual(payload["title"], "Example Page")
+        self.assertIn("# Example Page", payload["content"])
+        self.assertIn("[docs](https://example.com/docs)", payload["content"])
+        self.assertEqual(payload["links"][0]["url"], "https://example.com/docs")
 
     async def test_web_fetch_auto_uses_browser_when_browser_content_is_better(self):
         async def fake_static(url: str, *, accept: str | None = None) -> FetchResult:
@@ -65,16 +79,20 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
         web.fetcher.fetch_static = fake_static
         web.fetcher.fetch_browser = fake_browser
 
-        result = await web.web_fetch(
-            "https://example.com/app",
-            render="auto",
-            include_metadata=False,
+        payload = json.loads(
+            await web.web_fetch(
+                "https://example.com/app",
+                render="auto",
+                include_metadata=False,
+            )
         )
 
-        self.assertIn("Rendered app content", result)
-        self.assertNotIn("Fetch metadata:", result)
+        self.assertIn("Rendered app content", payload["content"])
+        self.assertEqual(payload["render_method"], "httpx + Crawl4AI")
+        # include_metadata=False empties the metadata block but keeps the envelope.
+        self.assertEqual(payload["metadata"], {})
 
-    async def test_web_fetch_json_includes_structured_scrape_data(self):
+    async def test_web_fetch_selector_scrapes_links_and_images(self):
         async def fake_static(url: str, *, accept: str | None = None) -> FetchResult:
             return FetchResult(
                 html="""
@@ -104,9 +122,10 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
             await web.web_fetch(
                 "https://example.com/catalog",
                 render="static",
-                output_format="json",
                 selector=".item",
-                include_metadata=False,
+                include_links=True,
+                include_images=True,
+                include_metadata=True,
             )
         )
 
@@ -116,6 +135,7 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Item", payload["content"])
         self.assertEqual(payload["links"][0]["url"], "https://example.com/item")
         self.assertEqual(payload["images"][0]["url"], "https://example.com/item.png")
+
 
 if __name__ == "__main__":
     unittest.main()

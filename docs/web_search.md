@@ -2,7 +2,7 @@
 
 ## Overview
 
-`web_search` searches the web through a SearXNG instance and returns a short overall summary plus a plain source list. It is useful when an MCP client needs current web results without calling a commercial search API directly.
+`web_search` is the **discovery** stage of web research. It searches the web through a SearXNG instance and returns a JSON envelope of ranked candidate sources — not a final answer. It is useful when an MCP client needs current web results without calling a commercial search API directly.
 
 Key capabilities:
 
@@ -10,7 +10,9 @@ Key capabilities:
 - Supports categories such as `general`, `news`, `images`, or comma-separated combinations.
 - Supports language, page number, safe-search, time range, and engine overrides.
 - Supports per-call SearXNG URL overrides and environment-based failover.
-- Synthesizes an overall summary from the result snippets and lists each source as a plain title and URL, plus answers and suggestions when available.
+- Returns each candidate as `{title, url, snippet, relevance_score}`, scores results by engine rank and query keyword overlap, and surfaces the most relevant as `recommended_urls`.
+- Emits `requires_fetch` and an embedded `agent_guidance` string that steer the model to call `web_fetch` before answering, so raw snippets are treated as intermediate evidence rather than a final answer.
+- Can optionally prefetch the top result(s) server-side (see the follow-up modes) and deliver them as `prefetched_sources`.
 
 ```mermaid
 flowchart TD
@@ -133,8 +135,8 @@ Typical workflow:
 
 1. Ask an MCP client to search for a topic.
 2. The client invokes `web_search` with a query and optional filters.
-3. The tool calls SearXNG, synthesizes an overall summary from the result snippets, and returns it with a plain source list.
-4. Use the returned URLs as citations or as input to `web_fetch`.
+3. The tool calls SearXNG, scores the results, and returns a JSON envelope of ranked candidates with `recommended_urls`, `requires_fetch`, and `agent_guidance`.
+4. The model calls `web_fetch` on one or more `recommended_urls` to read the full pages, then analyzes that evidence and writes a synthesized, cited answer. Search snippets alone are not treated as sufficient evidence.
 
 Example MCP prompt:
 
@@ -156,20 +158,34 @@ await tools.web_search(
 
 Example returned shape:
 
-```text
-Overall Summary:
-
-A short synthesized paragraph built from the result snippets, biased toward terms that also appear in the search query.
-
-Sources:
-
-Example title
-https://example.com/page
-Second example title
-https://example.com/other-page
+```json
+{
+  "tool": "web_search",
+  "stage": "discovery",
+  "query": "model context protocol",
+  "result_count": 2,
+  "requires_fetch": true,
+  "workflow": "web_search (discover sources) -> web_fetch (read evidence) -> analyze -> write a cited answer",
+  "agent_guidance": "These are candidate sources ... call web_fetch on recommended_urls ...",
+  "next_action": "Call web_fetch on one or more recommended_urls ...",
+  "recommended_urls": ["https://example.com/page", "https://example.com/other-page"],
+  "instant_answers": ["An optional SearXNG instant answer, treated as a hint only."],
+  "suggestions": ["alternate query"],
+  "results": [
+    {
+      "rank": 1,
+      "title": "Example title",
+      "url": "https://example.com/page",
+      "snippet": "Short preview text from the result.",
+      "relevance_score": 0.92,
+      "engines": ["duckduckgo"],
+      "published_date": null
+    }
+  ]
+}
 ```
 
-Instant answers appear above the summary as an `Answers:` block, and SearXNG's suggested alternate queries appear below the sources as a `Suggestions:` block, when present. Set `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first` to prepend the fully fetched top result above this response (see [Configuration](#configuration)).
+`instant_answers` (SearXNG instant answers) and `suggestions` (alternate queries) appear when present and are hints only. Enable a follow-up mode (`LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first` or `summarize`) to have the server fetch the top result(s) and attach them as a `prefetched_sources` array; `requires_fetch` then becomes `false` (see [Configuration](#configuration)).
 
 ## Running the Tool
 
@@ -207,9 +223,11 @@ Supported environment variables:
 | `SEARXNG_URLS` | unset | Comma-separated failover list. Takes priority over `SEARXNG_BASE_URL`. |
 | `LOCAL_MCP_SEARXNG_URLS` | unset | Alias for `SEARXNG_URLS`. |
 | `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | Search request timeout in milliseconds. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP` | `none` | Set to `fetch_first` to fetch the top result with `web_fetch` and prepend it above the summary, or `none` for summary-only behavior. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER` | `auto` | Fetch mode used by the `fetch_first` follow-up: `auto`, `static`, or `browser`. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS` | `50000` | Maximum page characters used by the `fetch_first` follow-up. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP` | `none` | `fetch_first` prefetches the top result, `summarize` prefetches the top `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` results, and `none` returns discovery results only. Prefetched pages are attached as `prefetched_sources` and set `requires_fetch` to `false`. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` | `3` | Number of top results prefetched by the `summarize` follow-up mode (1-5). |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER` | `auto` | Fetch mode used by follow-up prefetching: `auto`, `static`, or `browser`. |
+| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS` | `50000` | Maximum page characters used by follow-up prefetching. |
+| `LOCAL_MCP_WEB_SEARCH_RECOMMENDED_URLS` | `3` | Number of top-ranked URLs returned in `recommended_urls` (1-10). |
 | `MCP_HTTP_HOST` | `127.0.0.1` | HTTP server host. |
 | `MCP_HTTP_PORT` | `3002` | HTTP server port. |
 

@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import patch
 
@@ -33,6 +34,30 @@ class SearchHelperTests(unittest.TestCase):
         self.assertEqual(results[0].engines, ["duckduckgo"])
         self.assertEqual(results[0].score, 2.5)
 
+    def test_relevance_scores_prefer_query_overlap_and_engine_score(self):
+        results = [
+            SearchResult(
+                title="Quarterfinal schedule and kickoff times",
+                url="https://example.com/alpha",
+                content="Full quarterfinal schedule with kickoff times for the tournament.",
+                engines=["e"],
+                score=10.0,
+            ),
+            SearchResult(
+                title="Unrelated cooking blog",
+                url="https://example.com/beta",
+                content="A recipe for banana bread.",
+                engines=["e"],
+                score=1.0,
+            ),
+        ]
+
+        scores = search_tool._relevance_scores("quarterfinal schedule kickoff", results)
+
+        self.assertEqual(len(scores), 2)
+        self.assertGreater(scores[0], scores[1])
+        self.assertTrue(all(0.0 <= score <= 1.0 for score in scores))
+
 
 class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -45,7 +70,7 @@ class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
         web.fetcher.fetch_static = self._fetch_static
         web.fetcher.fetch_browser = self._fetch_browser
 
-    async def test_web_search_can_fetch_top_result_after_search(self):
+    async def test_web_search_prefetches_top_result_when_follow_up_enabled(self):
         async def fake_search(*args, **kwargs):
             return (
                 "http://searx.local/",
@@ -83,15 +108,17 @@ class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
         web.fetcher.fetch_static = fake_static
 
         with patch.dict("os.environ", {"LOCAL_MCP_WEB_SEARCH_FOLLOW_UP": "fetch_first"}, clear=False):
-            result = await search_tool.web_search("follow up test", limit=1)
+            payload = json.loads(await search_tool.web_search("follow up test", limit=1))
 
-        self.assertIn("Overall Summary:", result)
-        self.assertIn("Sources:", result)
-        self.assertIn("Follow Up Result\nhttps://example.com/follow-up", result)
-        self.assertIn("Follow-up web_fetch result for top result", result)
-        self.assertIn("Fetched article content explains", result)
+        self.assertEqual(payload["stage"], "discovery")
+        self.assertFalse(payload["requires_fetch"])
+        self.assertEqual(len(payload["prefetched_sources"]), 1)
+        prefetched = payload["prefetched_sources"][0]
+        self.assertEqual(prefetched["tool"], "web_fetch")
+        self.assertIn("Fetched article content explains", prefetched["content"])
+        self.assertEqual(payload["results"][0]["url"], "https://example.com/follow-up")
 
-    async def test_web_search_returns_overall_summary_and_plain_sources(self):
+    async def test_web_search_returns_discovery_envelope_without_follow_up(self):
         async def fake_search(*args, **kwargs):
             return (
                 "http://searx.local/",
@@ -118,17 +145,21 @@ class WebSearchFollowUpTests(unittest.IsolatedAsyncioTestCase):
         search_tool.searxng.search = fake_search
 
         with patch.dict("os.environ", {"LOCAL_MCP_WEB_SEARCH_FOLLOW_UP": "none"}, clear=False):
-            result = await search_tool.web_search("quarterfinal schedule", limit=2)
+            payload = json.loads(await search_tool.web_search("quarterfinal schedule", limit=2))
 
-        self.assertTrue(result.startswith("Overall Summary:"))
-        self.assertIn("Sources:", result)
-        self.assertIn("Alpha Result\nhttps://example.com/alpha", result)
-        self.assertIn("Beta Result\nhttps://example.com/beta", result)
-        self.assertIn("quarterfinal schedule and kickoff times", result)
-        self.assertNotIn("Search query:", result)
-        self.assertNotIn("Results:", result)
-        self.assertNotIn("Engines:", result)
-        self.assertNotIn("URL:", result)
+        self.assertEqual(payload["tool"], "web_search")
+        self.assertEqual(payload["stage"], "discovery")
+        self.assertTrue(payload["requires_fetch"])
+        self.assertEqual(payload["result_count"], 2)
+        self.assertNotIn("prefetched_sources", payload)
+
+        urls = [result["url"] for result in payload["results"]]
+        self.assertEqual(urls, ["https://example.com/alpha", "https://example.com/beta"])
+        self.assertIn("relevance_score", payload["results"][0])
+        self.assertIn("https://example.com/alpha", payload["recommended_urls"])
+
+        # The old plain "Overall Summary" answer-shaped output is gone.
+        self.assertNotIn("Overall Summary", json.dumps(payload))
 
 
 if __name__ == "__main__":

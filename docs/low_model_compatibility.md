@@ -9,6 +9,7 @@ The same MCP tools worked well with Claude but produced weaker results with Qwen
 - Qwen called file-writing tools with very short content.
 - Markdown or PDF outputs were often only half a page.
 - Qwen sometimes stopped after `web_search` and did not call `web_fetch`.
+- Qwen pasted raw search snippets or raw fetched markdown to the user as if they were a final answer.
 - The full tool list exposed many optional arguments, which made tool selection harder for smaller models.
 
 This was not mainly a PDF rendering problem. The file generator writes the content it receives. Claude usually creates a fuller draft before calling the file tool; Qwen often sends a shorter draft.
@@ -37,26 +38,38 @@ The simple profile exposes fewer, clearer tools:
 
 This reduces the number of choices the model must make.
 
-### 2. Automatic Search Follow-Up
+### 2. Discovery / Evidence Framing
 
-`web_search` can now automatically fetch after search. Enable it with:
+The web tools now describe an explicit two-step research workflow and encode it in both their descriptions and their outputs:
+
+```text
+web_search (discover sources) -> web_fetch (read evidence) -> analyze -> write a cited answer
+```
+
+- `web_search` is a **discovery** tool. It returns JSON candidates `{title, url, snippet, relevance_score}` with `recommended_urls`, `requires_fetch: true`, and an `agent_guidance` string telling the model that snippets are not sufficient evidence and that it must call `web_fetch` next.
+- `web_fetch` is an **evidence** tool. It returns a JSON envelope with a server-side `summary` and `key_points`, marks the `content` as `display_policy: internal_working_material`, and includes `agent_guidance` telling the model not to paste the raw content to the user but to synthesize its own cited answer.
+
+This directly counters the two failure modes where Qwen returned raw snippets or raw fetched markdown as if they were the final answer.
+
+### 3. Automatic Search Follow-Up
+
+`web_search` can also fetch after searching, so the server carries the second step for weaker models. Enable it with:
 
 ```env
 LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
 ```
 
-With this setting, a `web_search` call returns normal search results and then appends the fetched content of the top result.
+With a follow-up mode enabled, `web_search` fetches the top result(s), attaches them as `prefetched_sources`, and sets `requires_fetch` to `false`, so the model receives evidence without needing to remember a second tool call.
 
 Supported modes:
 
 | Value | Behavior |
 | --- | --- |
 | `fetch_first` | Search, then fetch only the first result with `web_fetch`. |
-| `none` | Search results only. |
+| `summarize` | Search, then fetch the top `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` results (default 3). |
+| `none` | Discovery results only; the model is expected to call `web_fetch` itself. |
 
-This helps Qwen because it does not need to remember a second tool call.
-
-### 3. Better Schemas For Tool Arguments
+### 4. Better Schemas For Tool Arguments
 
 Several free-form string parameters were changed to enum-like `Literal` types. This makes tool schemas clearer for clients and models.
 
@@ -70,7 +83,7 @@ Examples:
 
 Smaller models usually do better when valid choices are explicit.
 
-### 4. Minimum Content Guard
+### 5. Minimum Content Guard
 
 `generate_file` now supports:
 
@@ -211,9 +224,13 @@ Main implementation files:
 - [`local_mcp/tools/file_generation.py`](../local_mcp/tools/file_generation.py)
 - [`local_mcp/tools/web.py`](../local_mcp/tools/web.py)
 - [`local_mcp/tools/documents.py`](../local_mcp/tools/documents.py)
+- [`local_mcp/shared/guidance.py`](../local_mcp/shared/guidance.py)
+- [`local_mcp/shared/summarize.py`](../local_mcp/shared/summarize.py)
 
 Tests:
 
 - [`tests/test_compatibility_imports.py`](../tests/test_compatibility_imports.py)
 - [`tests/test_file_generation.py`](../tests/test_file_generation.py)
 - [`tests/test_search_helpers.py`](../tests/test_search_helpers.py)
+- [`tests/test_summarize_helpers.py`](../tests/test_summarize_helpers.py)
+- [`tests/test_web_fetch_tool.py`](../tests/test_web_fetch_tool.py)

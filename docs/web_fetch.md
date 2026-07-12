@@ -2,7 +2,7 @@
 
 ## Overview
 
-`web_fetch` fetches, browser-renders, or scrapes a page and returns Markdown, plain text, HTML, or structured JSON.
+`web_fetch` is the **evidence** stage of web research. It fetches, browser-renders, or scrapes a page and returns a JSON envelope whose `content` field holds the extracted page content (Markdown, plain text, or HTML), alongside a server-generated `summary` and `key_points`.
 
 Key capabilities:
 
@@ -13,6 +13,7 @@ Key capabilities:
 - Supports CSS selectors for region-level scraping.
 - Can include page metadata, links, and image URLs.
 - Resolves relative links and image URLs to absolute URLs.
+- Generates a concise extractive `summary` and `key_points` server-side, and frames the response as intermediate evidence (`display_policy: internal_working_material`) with an `agent_guidance` string that instructs the model to analyze the content and write its own cited answer rather than pasting the raw content to the user.
 
 ## Installation
 
@@ -39,10 +40,11 @@ The tool accepts these parameters:
 | `render` | string | `auto` | `auto`, `static`, or `browser`. |
 | `output_format` | string | `markdown` | `markdown`, `text`, `html`, or `json`. |
 | `selector` | string | empty | Optional CSS selector for scraping a specific region. |
-| `include_links` | boolean | `false` | Include scraped links in non-JSON responses. JSON responses always include links. |
-| `include_images` | boolean | `false` | Include scraped image URLs in non-JSON responses. JSON responses always include images. |
-| `include_metadata` | boolean | `true` | Include fetch metadata before non-JSON content. JSON responses always include metadata. |
-| `max_chars` | integer | `120000` | Maximum content characters before truncation. Use `0` for no truncation. |
+| `include_links` | boolean | `false` | Add a `links` array (each `{url, text}`) to the response. |
+| `include_images` | boolean | `false` | Add an `images` array (each `{url, alt, title, ...}`) to the response. |
+| `include_metadata` | boolean | `true` | Populate the `metadata` block in the response. When `false`, `metadata` is an empty object. |
+| `output_format` | string | `markdown` | Format of the `content` field: `markdown`, `text`, `html`, or `json` (`json` yields Markdown `content`). |
+| `max_chars` | integer | `120000` | Maximum `content` characters before truncation. Use `0` for no truncation. |
 
 Example MCP prompts:
 
@@ -71,39 +73,34 @@ await tools.web_fetch(
 
 ## Output
 
-Markdown, text, and HTML responses can include a metadata preface:
-
-```text
-Fetch metadata:
-- URL: https://example.com
-- Final URL: https://example.com/
-- Status: 200
-- Render method: httpx
-- Output format: markdown
-- Title: Example Domain
-
-# Example Domain
-
-This domain is for use in illustrative examples in documents.
-```
-
-JSON responses include structured fields:
+Every `web_fetch` call returns a JSON evidence envelope. The `content` field holds the extracted page content in the requested `content_format`; `summary` and `key_points` are generated server-side; `agent_guidance`, `requires_analysis`, and `display_policy` frame the payload as intermediate working material.
 
 ```json
 {
+  "tool": "web_fetch",
+  "stage": "evidence",
   "url": "https://example.com",
   "final_url": "https://example.com/",
   "status": 200,
+  "title": "Example Domain",
   "render_method": "httpx",
-  "output_format": "json",
+  "content_format": "markdown",
   "selector": "",
-  "metadata": {},
+  "requires_analysis": true,
+  "display_policy": "internal_working_material",
+  "workflow": "web_search (discover sources) -> web_fetch (read evidence) -> analyze -> write a cited answer",
+  "agent_guidance": "This is source material (evidence) ... do NOT paste it ... write your own concise answer that cites this url.",
+  "next_action": "Analyze content (and summary/key_points) as evidence, then write a synthesized answer citing this url.",
+  "summary": "A short extractive summary of the page.",
+  "key_points": ["Key sentence one.", "Key sentence two."],
+  "metadata": {"title": "Example Domain"},
   "warnings": [],
-  "content": "Example content",
-  "links": [],
-  "images": []
+  "truncated": false,
+  "content": "# Example Domain\n\nThis domain is for use in illustrative examples in documents."
 }
 ```
+
+`links` and `images` arrays are added only when `include_links` / `include_images` are `true`. Setting `include_metadata=false` returns an empty `metadata` object.
 
 ## Configuration
 
@@ -134,7 +131,7 @@ Confirm the selector matches the fetched or browser-rendered HTML. For JavaScrip
 
 ### Output is too large
 
-Lower `max_chars`, use `selector` to target a smaller region, or use `output_format="json"` and process only the fields you need.
+Lower `max_chars`, use `selector` to target a smaller region, or rely on the response `summary` and `key_points` instead of the full `content` field.
 
 ## References
 

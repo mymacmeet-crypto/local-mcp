@@ -45,7 +45,8 @@ MCP client
   -> httpx static fetch, Crawl4AI browser render, or auto fallback
   -> optional CSS selector narrowing
   -> local_mcp.web.html extracts Markdown/text/HTML, metadata, links, images
-  -> Markdown, text, HTML, or JSON response
+  -> local_mcp.shared.summarize builds a server-side summary and key_points
+  -> JSON evidence envelope (summary, key_points, content, agent_guidance)
 ```
 
 ### `extract_urls`
@@ -68,8 +69,9 @@ MCP client
   -> local_mcp.tools.search.web_search
   -> local_mcp.search.searxng calls /search?format=json
   -> result cleanup, de-duplication, limit handling
-  -> local extractive summarizer synthesizes an overall summary from result snippets
-  -> Markdown response with overall summary and a plain title/URL source list
+  -> relevance scoring (engine rank + query keyword overlap) and recommended_urls
+  -> optional server-side prefetch of top result(s) via web_fetch (follow-up modes)
+  -> JSON discovery envelope (ranked candidates, requires_fetch, agent_guidance)
 ```
 
 ### `extract_image_text`

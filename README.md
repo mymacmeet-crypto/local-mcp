@@ -162,8 +162,11 @@ LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
 
 Supported follow-up modes are:
 
-- `fetch_first`: run a search, then fetch the top result with `web_fetch`.
-- `none`: search results only.
+- `fetch_first`: run a search, then fetch the top result with `web_fetch` and attach it as `prefetched_sources`.
+- `summarize`: run a search, then fetch the top `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` results (default 3) and attach them as `prefetched_sources`.
+- `none`: discovery results only (the model is expected to call `web_fetch` itself).
+
+When any prefetch mode is active, `requires_fetch` is set to `false` and the fetched evidence is delivered inside the search response, so weaker models do not need to remember a second tool call.
 
 ## Tools
 
@@ -181,7 +184,7 @@ Parameters:
 - `engines`: optional comma-separated SearXNG engines override.
 - `searxng_url`: optional SearXNG base URL for this request.
 
-The response is an `Overall Summary` synthesized from the result snippets, followed by a plain `Sources` list (title and URL only, no snippets or metadata), plus `Answers`/`Suggestions` blocks when SearXNG returns them.
+`web_search` is a **discovery** tool, not an answer tool. It returns a JSON envelope of ranked candidate sources — each result carries `title`, `url`, `snippet`, and a `relevance_score` — plus `recommended_urls`, `requires_fetch`, `instant_answers`/`suggestions`, and an embedded `agent_guidance` string. The snippets are previews only, not evidence: the intended next step is to call `web_fetch` on the `recommended_urls`, then synthesize an answer from the fetched content. When a follow-up prefetch mode is enabled the fetched pages are attached as `prefetched_sources` and `requires_fetch` becomes `false`.
 
 ### `web_search_to_file`
 
@@ -210,14 +213,14 @@ Parameters:
 
 - `url`: page URL to fetch. Scheme-less input like `example.com` is allowed.
 - `render`: fetch mode: `auto`, `static`, or `browser`. Default: `auto`.
-- `output_format`: returned content format: `markdown`, `text`, `html`, or `json`. Default: `markdown`.
+- `output_format`: format of the returned `content` field: `markdown`, `text`, `html`, or `json`. Default: `markdown`.
 - `selector`: optional CSS selector for scraping a specific page region.
-- `include_links`: include scraped links in non-JSON responses. Default: `false`.
-- `include_images`: include scraped image URLs in non-JSON responses. Default: `false`.
-- `include_metadata`: include fetch metadata before non-JSON content. Default: `true`.
-- `max_chars`: maximum content characters before truncation. Use `0` for no truncation. Default: `120000`.
+- `include_links`: add a `links` array to the response. Default: `false`.
+- `include_images`: add an `images` array to the response. Default: `false`.
+- `include_metadata`: populate the `metadata` block in the response. Default: `true`.
+- `max_chars`: maximum `content` characters before truncation. Use `0` for no truncation. Default: `120000`.
 
-Fetches pages with `httpx`, can force optional Crawl4AI browser rendering for JavaScript-heavy pages, and supports selector-based scraping. JSON responses include metadata, content, links, and images.
+`web_fetch` is an **evidence** tool. It fetches pages with `httpx` (with optional Crawl4AI browser rendering for JavaScript-heavy pages) and always returns a JSON envelope: `{url, final_url, status, title, summary, key_points, content, metadata, warnings, ...}`. A concise `summary` and `key_points` are generated server-side. The `content` field is raw source material (`display_policy: internal_working_material`) and carries an `agent_guidance` string instructing the model to analyze it and write its own cited answer rather than pasting the content to the user.
 
 ### `extract_urls`
 

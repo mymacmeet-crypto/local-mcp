@@ -1,28 +1,35 @@
-"""MCP tool handler for SearXNG search."""
+"""MCP tool handler for SearXNG search (discovery stage of web research)."""
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
-import re
-from collections import Counter
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
 from local_mcp.search import searxng
+from local_mcp.shared import guidance, summarize
 from local_mcp.shared.errors import tool_error
 from local_mcp.shared.urls import markdown_link_target
 
 SearchTimeRange = Literal["", "day", "month", "year"]
+
 FOLLOW_UP_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP"
 FOLLOW_UP_RENDER_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER"
 FOLLOW_UP_MAX_CHARS_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS"
-OVERVIEW_SENTENCE_LIMIT = 4
+FOLLOW_UP_LIMIT_ENV = "LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT"
+RECOMMENDED_URL_ENV = "LOCAL_MCP_WEB_SEARCH_RECOMMENDED_URLS"
+
+# Weights blend the SearXNG engine score with query/snippet keyword overlap.
+_ENGINE_SCORE_WEIGHT = 0.65
+_KEYWORD_OVERLAP_WEIGHT = 0.35
 
 
 async def web_search(
     query: Annotated[str, Field(description="Search query to send to SearXNG.")],
-    limit: Annotated[int, Field(description="Maximum number of search results to return.", ge=1, le=20)] = 8,
+    limit: Annotated[int, Field(description="Maximum number of candidate results to return.", ge=1, le=20)] = 8,
     categories: Annotated[
         str,
         Field(description="SearXNG categories, for example `general`, `news`, `images`, or `general,news`."),
@@ -54,7 +61,7 @@ async def web_search(
         ),
     ] = "",
 ) -> str:
-    """Search the web through SearXNG and return an overall summary plus a source list."""
+    """Discover candidate web sources for a question. Discovery only, not a final answer."""
     try:
         instance_url, results, answers, suggestions = await searxng.search(
             query,
@@ -70,16 +77,101 @@ async def web_search(
     except Exception as err:
         raise tool_error(f"SearXNG search failed: {err}")
 
-    response = _format_overview_response(
+    payload = _build_search_payload(
         query=query,
+        instance_url=instance_url,
         results=results,
         answers=answers,
         suggestions=suggestions,
     )
-    follow_up = await _web_search_follow_up(results)
-    if follow_up:
-        return f"{follow_up}\n\n{response}"
-    return response
+
+    prefetched = await _web_search_follow_up(results)
+    if prefetched:
+        payload["requires_fetch"] = False
+        payload["agent_guidance"] = guidance.PREFETCHED_GUIDANCE
+        payload["next_action"] = guidance.PREFETCHED_NEXT_ACTION
+        payload["prefetched_sources"] = prefetched
+
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def _build_search_payload(
+    *,
+    query: str,
+    instance_url: str,
+    results: list[searxng.SearchResult],
+    answers: list[str],
+    suggestions: list[str],
+) -> dict[str, Any]:
+    scores = _relevance_scores(query, results)
+    result_items: list[dict[str, Any]] = []
+    for rank, (result, score) in enumerate(zip(results, scores), start=1):
+        result_items.append(
+            {
+                "rank": rank,
+                "title": result.title,
+                "url": result.url,
+                "snippet": result.content,
+                "relevance_score": score,
+                "engines": result.engines,
+                "published_date": result.published_date,
+            }
+        )
+
+    payload: dict[str, Any] = {
+        "tool": "web_search",
+        "stage": "discovery",
+        "query": query.strip(),
+        "searxng_instance": instance_url,
+        "result_count": len(result_items),
+        "requires_fetch": bool(result_items),
+        "workflow": guidance.WORKFLOW,
+        "agent_guidance": guidance.SEARCH_RESULT_GUIDANCE,
+        "next_action": guidance.SEARCH_NEXT_ACTION,
+        "recommended_urls": _recommended_urls(result_items),
+        # SearXNG instant answers are hints only; still verify by fetching.
+        "instant_answers": answers,
+        "suggestions": suggestions,
+        "results": result_items,
+    }
+    if not result_items:
+        payload["note"] = "No search results found. Try a broader query, other categories, or different engines."
+    return payload
+
+
+def _relevance_scores(query: str, results: list[searxng.SearchResult]) -> list[float]:
+    """Score each result in [0, 1] from engine rank/score and query keyword overlap."""
+    if not results:
+        return []
+
+    query_terms = set(summarize.keywords(query))
+    raw_scores = [result.score for result in results if result.score is not None]
+    max_score = max(raw_scores) if raw_scores else 0.0
+    total = len(results)
+
+    scores: list[float] = []
+    for index, result in enumerate(results):
+        if result.score is not None and max_score > 0:
+            engine_component = result.score / max_score
+        else:
+            engine_component = (total - index) / total
+        text_terms = set(summarize.keywords(f"{result.title} {result.content}"))
+        overlap = len(query_terms & text_terms) / len(query_terms) if query_terms else 0.0
+        combined = _ENGINE_SCORE_WEIGHT * engine_component + _KEYWORD_OVERLAP_WEIGHT * overlap
+        scores.append(round(max(0.0, min(1.0, combined)), 2))
+    return scores
+
+
+def _recommended_urls(result_items: list[dict[str, Any]]) -> list[str]:
+    count = _env_int(RECOMMENDED_URL_ENV, default=3, minimum=1, maximum=10)
+    ranked = sorted(result_items, key=lambda item: item["relevance_score"], reverse=True)
+    urls: list[str] = []
+    for item in ranked:
+        if item["url"] not in urls:
+            urls.append(item["url"])
+        if len(urls) >= count:
+            break
+    return urls
 
 
 def format_search_response(
@@ -90,6 +182,7 @@ def format_search_response(
     answers: list[str],
     suggestions: list[str],
 ) -> str:
+    """Citation-ready Markdown for file output (used by web_search_to_file)."""
     lines = [
         f'Search query: "{query.strip()}"',
         f"SearXNG instance: {instance_url}",
@@ -131,146 +224,48 @@ def _format_search_metadata(result: searxng.SearchResult) -> str:
     return " | ".join(metadata)
 
 
-def _format_overview_response(
-    *,
-    query: str,
-    results: list[searxng.SearchResult],
-    answers: list[str],
-    suggestions: list[str],
-) -> str:
-    if not results:
-        return "No search results found."
+async def _web_search_follow_up(results: list[searxng.SearchResult]) -> list[dict[str, Any]]:
+    """Optionally prefetch top results server-side so weaker models get evidence.
 
-    lines: list[str] = []
-    if answers:
-        lines.extend(["Answers:"])
-        lines.extend(f"- {answer}" for answer in answers[:5])
-        lines.append("")
-
-    overview = _synthesize_overview(query, results)
-    lines.extend(["Overall Summary:", "", overview or "No summary could be generated.", "", "Sources:", ""])
-    for result in results:
-        lines.append(result.title)
-        lines.append(result.url)
-
-    if suggestions:
-        lines.extend(["", "Suggestions:"])
-        lines.extend(f"- {suggestion}" for suggestion in suggestions[:5])
-
-    return "\n".join(lines)
-
-
-def _synthesize_overview(query: str, results: list[searxng.SearchResult]) -> str:
-    candidates: list[str] = []
-    for result in results:
-        candidates.extend(_sentence_candidates(result.content))
-    if not candidates:
-        return ""
-
-    focus_terms = set(_keywords(query))
-    word_counts = Counter(word for candidate in candidates for word in _keywords(candidate))
-    scored: list[tuple[float, int, str]] = []
-    for index, candidate in enumerate(candidates):
-        words = _keywords(candidate)
-        if not words:
-            continue
-        unique_words = set(words)
-        score = sum(word_counts[word] for word in unique_words) / max(len(unique_words), 1)
-        score += len(unique_words & focus_terms) * 4
-        scored.append((score, index, candidate))
-
-    if not scored:
-        return _limit_text(" ".join(candidates), 900)
-
-    selected = sorted(sorted(scored, reverse=True)[:OVERVIEW_SENTENCE_LIMIT], key=lambda item: item[1])
-    return _limit_text(" ".join(candidate for _score, _index, candidate in selected), 900)
-
-
-def _sentence_candidates(text: str) -> list[str]:
-    candidates = []
-    for chunk in re.split(r"(?<=[.!?])\s+|\n+", text or ""):
-        cleaned = " ".join(chunk.split())
-        if len(cleaned) < 20:
-            continue
-        candidates.append(cleaned)
-    return candidates
-
-
-_STOPWORDS = {
-    "about",
-    "after",
-    "again",
-    "also",
-    "because",
-    "before",
-    "being",
-    "between",
-    "could",
-    "from",
-    "have",
-    "into",
-    "more",
-    "other",
-    "over",
-    "than",
-    "that",
-    "their",
-    "there",
-    "these",
-    "they",
-    "this",
-    "through",
-    "were",
-    "when",
-    "where",
-    "which",
-    "with",
-    "would",
-    "your",
-}
-
-
-def _keywords(text: str) -> list[str]:
-    words = re.findall(r"[a-zA-Z][a-zA-Z0-9_-]{2,}", (text or "").lower())
-    return [word for word in words if word not in _STOPWORDS]
-
-
-def _limit_text(text: str, limit: int) -> str:
-    cleaned = " ".join((text or "").split())
-    if len(cleaned) <= limit:
-        return cleaned
-    return cleaned[:limit].rsplit(" ", 1)[0].rstrip(".,;:") + "..."
-
-
-async def _web_search_follow_up(results: list[searxng.SearchResult]) -> str:
+    Returns a list of parsed ``web_fetch`` envelopes (empty when disabled).
+    """
     mode = _follow_up_mode()
     if mode == "none" or not results:
-        return ""
+        return []
 
-    try:
-        if mode == "fetch_first":
-            return await _fetch_first_search_result(results[0])
-    except Exception as err:
-        return f"Follow-up {mode} failed: {err}"
+    if mode == "fetch_first":
+        targets = results[:1]
+    else:  # summarize
+        limit = _env_int(FOLLOW_UP_LIMIT_ENV, default=3, minimum=1, maximum=5)
+        targets = results[:limit]
 
-    return ""
+    envelopes = await asyncio.gather(
+        *(_fetch_source_envelope(result) for result in targets),
+        return_exceptions=True,
+    )
+    return [envelope for envelope in envelopes if isinstance(envelope, dict)]
 
 
-async def _fetch_first_search_result(result: searxng.SearchResult) -> str:
+async def _fetch_source_envelope(result: searxng.SearchResult) -> dict[str, Any]:
     from local_mcp.tools import web as web_tools
 
-    content = await web_tools.web_fetch(
+    raw = await web_tools.web_fetch(
         url=result.url,
         render=os.environ.get(FOLLOW_UP_RENDER_ENV, "auto"),
         max_chars=_env_int(FOLLOW_UP_MAX_CHARS_ENV, default=50_000, minimum=1000, maximum=500_000),
     )
-    return f"Follow-up web_fetch result for top result ({result.url}):\n{content}"
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return {"tool": "web_fetch", "url": result.url, "content": raw}
 
 
 def _follow_up_mode() -> str:
     raw = (os.environ.get(FOLLOW_UP_ENV) or "none").strip().lower()
-    if raw in {"fetch", "fetch_first", "fetch-first", "web_fetch", "web-fetch"}:
+    if raw in {"fetch", "fetch_first", "fetch-first", "web_fetch", "web-fetch", "first"}:
         return "fetch_first"
+    if raw in {"summarize", "summarise", "fetch_top", "fetch-top", "top"}:
+        return "summarize"
     return "none"
 
 
@@ -285,15 +280,17 @@ def _env_int(name: str, *, default: int, minimum: int, maximum: int) -> int:
 def _describe_follow_up(mode: str) -> str:
     if mode == "fetch_first":
         return (
-            " The top result's page is already fetched in full above the search "
-            "summary in this response — treat that content as the primary "
-            "answer. Do not call web_fetch again on that URL unless you need a "
-            "different page."
+            " Server-side follow-up is ON (fetch_first): the top result is "
+            "already fetched into `prefetched_sources` and `requires_fetch` is "
+            "false, so analyze that evidence and answer directly."
+        )
+    if mode == "summarize":
+        return (
+            " Server-side follow-up is ON (summarize): the top results are "
+            "already fetched into `prefetched_sources` and `requires_fetch` is "
+            "false, so analyze that evidence and answer directly."
         )
     return ""
 
 
-web_search.__doc__ = (
-    "Search the web through SearXNG and return an overall summary plus a source list."
-    + _describe_follow_up(_follow_up_mode())
-)
+web_search.__doc__ = guidance.WEB_SEARCH_DESCRIPTION + _describe_follow_up(_follow_up_mode())

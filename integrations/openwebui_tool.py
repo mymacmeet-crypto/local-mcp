@@ -220,9 +220,13 @@ class Tools:
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
-        Search the web through SearXNG and return an overall summary plus a plain source list.
+        STEP 1 of web research: DISCOVER candidate sources (discovery only, not an answer).
+        Returns ranked JSON candidates {title, url, snippet, relevance_score} with
+        recommended_urls and requires_fetch=true. Snippets are previews, not evidence:
+        do not answer from them. Next, call web_fetch on the recommended_urls, read the
+        evidence, then write your own synthesized, cited answer.
         :param query: Search query to send to SearXNG.
-        :param limit: Maximum number of search results to return. Allowed range is 1 to 20.
+        :param limit: Maximum number of candidate results to return. Allowed range is 1 to 20.
         :param categories: SearXNG categories, for example 'general', 'news', 'images', or 'general,news'.
         :param language: SearXNG language code. Use 'auto' for automatic language detection.
         :param pageno: SearXNG result page number. Allowed range is 1 to 20.
@@ -367,10 +371,14 @@ class Tools:
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
-        Fetch, browser-render, or scrape a web page into Markdown, text, HTML, or JSON.
+        STEP 2 of web research: RETRIEVE one page's full content as evidence.
+        Returns JSON {url, title, summary, key_points, content, ...}. The content is raw
+        source material (internal working material): do NOT paste content, summary, markdown,
+        HTML, or long text blocks to the user. Read it, extract the relevant facts, and write
+        your own concise, cited answer.
         :param url: Page URL to fetch. Scheme-less input like 'example.com' is allowed.
         :param render: Fetch mode: auto, static, or browser.
-        :param output_format: Returned content format: markdown, text, html, or json.
+        :param output_format: Format of the returned `content` field: markdown, text, html, or json.
         :param selector: Optional CSS selector for scraping a specific page region.
         :param include_links: Include scraped links from the page or selected region.
         :param include_images: Include scraped image URLs from the page or selected region.

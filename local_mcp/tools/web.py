@@ -8,6 +8,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
+from local_mcp.shared import guidance, summarize
 from local_mcp.shared.errors import describe_fetch_error, tool_error
 from local_mcp.shared.urls import (
     markdown_link_target,
@@ -37,7 +38,7 @@ async def web_fetch(
     ] = "auto",
     output_format: Annotated[
         WebFetchOutputFormat,
-        Field(description="Returned content format: `markdown`, `text`, `html`, or `json`."),
+        Field(description="Format of the returned `content` field: `markdown`, `text`, or `html` (`json` yields Markdown content). The overall response is always a JSON evidence envelope."),
     ] = "markdown",
     selector: Annotated[
         str,
@@ -45,22 +46,22 @@ async def web_fetch(
     ] = "",
     include_links: Annotated[
         bool,
-        Field(description="Include scraped links from the page or selected region."),
+        Field(description="Add a `links` array (each {url, text}) to the response."),
     ] = False,
     include_images: Annotated[
         bool,
-        Field(description="Include scraped image URLs from the page or selected region."),
+        Field(description="Add an `images` array (each {url, alt, title, ...}) to the response."),
     ] = False,
     include_metadata: Annotated[
         bool,
-        Field(description="Include fetch metadata before non-JSON content. JSON responses always include metadata."),
+        Field(description="Populate the `metadata` block in the response. When false, `metadata` is an empty object."),
     ] = True,
     max_chars: Annotated[
         int,
-        Field(description="Maximum content characters to return before truncation. Use 0 for no truncation.", ge=0, le=500000),
+        Field(description="Maximum `content` characters before truncation. Use 0 for no truncation. `summary` and `key_points` are unaffected.", ge=0, le=500000),
     ] = 120000,
 ) -> str:
-    """Fetch, browser-render, or scrape a web page into Markdown, text, HTML, or JSON."""
+    """Retrieve one web page as evidence: JSON with summary, key_points, and content."""
     target = normalize_url(url)
     render_mode = _validate_choice(render, RENDER_MODES, "render mode")
     output = _validate_choice(output_format, WEB_FETCH_OUTPUT_FORMATS, "output format")
@@ -75,14 +76,17 @@ async def web_fetch(
     try:
         metadata = html.extract_metadata(page.html, page.final_url)
         content = _content_for_page(page, output, selector)
+        # Plain text drives the extractive summary/key points (markdown syntax
+        # would otherwise pollute the sentence scoring).
+        summary_source = html.html_to_text(page.html, selector=selector) or content
         links = (
             html.extract_link_details(page.html, page.final_url, selector=selector, limit=WEB_FETCH_LINK_LIMIT)
-            if include_links or output == "json"
+            if include_links
             else []
         )
         images = (
             html.extract_images(page.html, page.final_url, selector=selector, limit=WEB_FETCH_IMAGE_LIMIT)
-            if include_images or output == "json"
+            if include_images
             else []
         )
     except Exception as err:
@@ -95,46 +99,37 @@ async def web_fetch(
     if truncated:
         warnings.append(f"Content truncated to {max_chars} characters.")
 
-    if output == "json":
-        payload = {
-            "url": target,
-            "final_url": page.final_url,
-            "status": page.status,
-            "render_method": render_method,
-            "output_format": output,
-            "selector": selector,
-            "metadata": metadata,
-            "warnings": warnings,
-            "content": content,
-            "links": links,
-            "images": images,
-        }
-        return json.dumps(payload, ensure_ascii=False, indent=2)
-
-    sections: list[str] = []
-    if include_metadata:
-        sections.append(
-            _format_fetch_metadata(
-                url=target,
-                final_url=page.final_url,
-                status=page.status,
-                render_method=render_method,
-                output_format=output,
-                selector=selector,
-                metadata=metadata,
-                warnings=warnings,
-            )
-        )
-    if content:
-        sections.append(content)
-    if include_links:
-        sections.append(_format_links(links))
-    if include_images:
-        sections.append(_format_images(images))
-
-    if not sections:
+    if not content and not summary_source and not links and not images:
         raise tool_error(f"No extractable content found for {target}.")
-    return "\n\n".join(section for section in sections if section).strip()
+
+    envelope: dict[str, object] = {
+        "tool": "web_fetch",
+        "stage": "evidence",
+        "url": target,
+        "final_url": page.final_url,
+        "status": page.status,
+        "title": metadata.get("title") or html.extract_title(page.html) or "",
+        "render_method": render_method,
+        "content_format": "markdown" if output == "json" else output,
+        "selector": selector,
+        "requires_analysis": True,
+        "display_policy": guidance.DISPLAY_POLICY,
+        "workflow": guidance.WORKFLOW,
+        "agent_guidance": guidance.FETCH_RESULT_GUIDANCE,
+        "next_action": guidance.FETCH_NEXT_ACTION,
+        "summary": summarize.summarize_text(summary_source),
+        "key_points": summarize.extract_key_points(summary_source),
+        "metadata": metadata if include_metadata else {},
+        "warnings": warnings,
+        "truncated": truncated,
+        "content": content,
+    }
+    if include_links:
+        envelope["links"] = links
+    if include_images:
+        envelope["images"] = images
+
+    return json.dumps(envelope, ensure_ascii=False, indent=2)
 
 
 async def extract_urls(
@@ -272,56 +267,6 @@ def _truncate(content: str, max_chars: int) -> tuple[str, bool]:
     return content[:max_chars].rstrip(), True
 
 
-def _format_fetch_metadata(
-    *,
-    url: str,
-    final_url: str,
-    status: int,
-    render_method: str,
-    output_format: str,
-    selector: str,
-    metadata: dict[str, str],
-    warnings: list[str],
-) -> str:
-    lines = [
-        "Fetch metadata:",
-        f"- URL: {url}",
-        f"- Final URL: {final_url}",
-        f"- Status: {status}",
-        f"- Render method: {render_method}",
-        f"- Output format: {output_format}",
-    ]
-    if selector:
-        lines.append(f"- Selector: {selector}")
-    for key, value in metadata.items():
-        label = key.replace("_", " ").title()
-        lines.append(f"- {label}: {value}")
-    if warnings:
-        lines.append("Warnings:")
-        lines.extend(f"- {warning}" for warning in warnings)
-    return "\n".join(lines)
-
-
-def _format_links(links: list[dict[str, str]]) -> str:
-    if not links:
-        return "Links: none"
-    lines = ["Links:"]
-    for link in links:
-        text = link.get("text") or link["url"]
-        lines.append(f"- [{text}]({markdown_link_target(link['url'])})")
-    return "\n".join(lines)
-
-
-def _format_images(images: list[dict[str, str]]) -> str:
-    if not images:
-        return "Images: none"
-    lines = ["Images:"]
-    for image in images:
-        label = image.get("alt") or image.get("title") or image["url"]
-        lines.append(f"- [{label}]({markdown_link_target(image['url'])})")
-    return "\n".join(lines)
-
-
 def _format_url_stats(urls: list[tuple[str, str]]) -> str:
     sources = ("robots.txt", "sitemap.xml", "httpx", "Crawl4AI")
     counts = {source: 0 for source in sources}
@@ -337,3 +282,7 @@ def _format_url_stats(urls: list[tuple[str, str]]) -> str:
 
 def _format_sourced_url(url: str, source: str) -> str:
     return f"- [{url}]({markdown_link_target(url)}) ({source})"
+
+
+# Expose the full workflow guidance as the MCP tool description.
+web_fetch.__doc__ = guidance.WEB_FETCH_DESCRIPTION
