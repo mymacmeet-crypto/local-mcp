@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import Field
 
-from local_mcp.shared import guidance, summarize
+from local_mcp.shared import guidance
 from local_mcp.shared.errors import describe_fetch_error, tool_error
 from local_mcp.shared.urls import (
     markdown_link_target,
@@ -21,114 +21,41 @@ from local_mcp.web import fetcher, html, sitemap
 
 DEFAULT_LIMIT = int(os.environ.get("LOCAL_MCP_URL_LIMIT", "500"))
 MIN_MARKDOWN_CHARS = int(os.environ.get("LOCAL_MCP_MIN_MARKDOWN_CHARS", "200"))
-WEB_FETCH_LINK_LIMIT = int(os.environ.get("LOCAL_MCP_WEB_FETCH_LINK_LIMIT", "100"))
-WEB_FETCH_IMAGE_LIMIT = int(os.environ.get("LOCAL_MCP_WEB_FETCH_IMAGE_LIMIT", "100"))
-
-RENDER_MODES = {"auto", "static", "browser"}
-WEB_FETCH_OUTPUT_FORMATS = {"markdown", "text", "html", "json"}
-RenderMode = Literal["auto", "static", "browser"]
-WebFetchOutputFormat = Literal["markdown", "text", "html", "json"]
 
 
 async def web_fetch(
     url: Annotated[str, Field(description="Page URL to fetch. Scheme-less input like `example.com` is allowed.")],
-    render: Annotated[
-        RenderMode,
-        Field(description="Fetch mode: `auto` uses httpx first and browser fallback when content is thin; `static` uses only httpx; `browser` forces browser rendering."),
-    ] = "auto",
-    output_format: Annotated[
-        WebFetchOutputFormat,
-        Field(description="Format of the returned `content` field: `markdown`, `text`, or `html` (`json` yields Markdown content). The overall response is always a JSON evidence envelope."),
-    ] = "markdown",
-    selector: Annotated[
-        str,
-        Field(description="Optional CSS selector for scraping a specific page region. Empty extracts the main/article/body content."),
-    ] = "",
-    include_links: Annotated[
-        bool,
-        Field(description="Add a `links` array (each {url, text}) to the response."),
-    ] = False,
-    include_images: Annotated[
-        bool,
-        Field(description="Add an `images` array (each {url, alt, title, ...}) to the response."),
-    ] = False,
-    include_metadata: Annotated[
-        bool,
-        Field(description="Populate the `metadata` block in the response. When false, `metadata` is an empty object."),
-    ] = True,
     max_chars: Annotated[
         int,
-        Field(description="Maximum `content` characters before truncation. Use 0 for no truncation. `summary` and `key_points` are unaffected.", ge=0, le=500000),
+        Field(description="Maximum `content` characters before truncation. Use 0 for no truncation.", ge=0, le=500000),
     ] = 120000,
 ) -> str:
-    """Retrieve one web page as evidence: JSON with summary, key_points, and content."""
+    """Retrieve one web page as evidence: JSON with the page url and Markdown content."""
     target = normalize_url(url)
-    render_mode = _validate_choice(render, RENDER_MODES, "render mode")
-    output = _validate_choice(output_format, WEB_FETCH_OUTPUT_FORMATS, "output format")
-    selector = (selector or "").strip()
-    warnings: list[str] = []
 
     try:
-        page, render_method = await _fetch_for_mode(target, render_mode, output, selector, warnings)
+        page = await _fetch_auto(target)
     except Exception as err:
         raise tool_error(describe_fetch_error(err, target))
 
     try:
-        metadata = html.extract_metadata(page.html, page.final_url)
-        content = _content_for_page(page, output, selector)
-        # Plain text drives the extractive summary/key points (markdown syntax
-        # would otherwise pollute the sentence scoring).
-        summary_source = html.html_to_text(page.html, selector=selector) or content
-        links = (
-            html.extract_link_details(page.html, page.final_url, selector=selector, limit=WEB_FETCH_LINK_LIMIT)
-            if include_links
-            else []
-        )
-        images = (
-            html.extract_images(page.html, page.final_url, selector=selector, limit=WEB_FETCH_IMAGE_LIMIT)
-            if include_images
-            else []
-        )
+        content = _markdown_content(page)
     except Exception as err:
         raise tool_error(f"Could not scrape {page.final_url}: {err}")
 
-    if selector and not content:
-        raise tool_error(f"No content found for selector {selector!r} at {page.final_url}.")
-
-    content, truncated = _truncate(content, max_chars)
-    if truncated:
-        warnings.append(f"Content truncated to {max_chars} characters.")
-
-    if not content and not summary_source and not links and not images:
+    content, _ = _truncate(content, max_chars)
+    if not content:
         raise tool_error(f"No extractable content found for {target}.")
 
     envelope: dict[str, object] = {
-        "tool": "web_fetch",
         "stage": "evidence",
         "url": target,
-        "final_url": page.final_url,
-        "status": page.status,
-        "title": metadata.get("title") or html.extract_title(page.html) or "",
-        "render_method": render_method,
-        "content_format": "markdown" if output == "json" else output,
-        "selector": selector,
         "requires_analysis": True,
-        "display_policy": guidance.DISPLAY_POLICY,
         "workflow": guidance.WORKFLOW,
         "agent_guidance": guidance.FETCH_RESULT_GUIDANCE,
         "next_action": guidance.FETCH_NEXT_ACTION,
-        "summary": summarize.summarize_text(summary_source),
-        "key_points": summarize.extract_key_points(summary_source),
-        "metadata": metadata if include_metadata else {},
-        "warnings": warnings,
-        "truncated": truncated,
         "content": content,
     }
-    if include_links:
-        envelope["links"] = links
-    if include_images:
-        envelope["images"] = images
-
     return json.dumps(envelope, ensure_ascii=False, indent=2)
 
 
@@ -207,58 +134,24 @@ async def extract_urls(
     )
 
 
-async def _fetch_for_mode(
-    target: str,
-    render_mode: str,
-    output_format: str,
-    selector: str,
-    warnings: list[str],
-) -> tuple[fetcher.FetchResult, str]:
-    if render_mode == "browser":
-        return await fetcher.fetch_browser(target), "Crawl4AI"
-
+async def _fetch_auto(target: str) -> fetcher.FetchResult:
+    """Fetch statically, falling back to browser rendering when static content is thin."""
     page = await fetcher.fetch_static(target)
-    if render_mode == "static":
-        return page, "httpx"
-
-    content = _content_for_page(page, output_format, selector)
-    if output_format in {"markdown", "text", "json"} and len(content) < MIN_MARKDOWN_CHARS:
+    content = _markdown_content(page)
+    if len(content) < MIN_MARKDOWN_CHARS:
         try:
             rendered = await fetcher.fetch_browser(page.final_url)
-        except Exception as err:
-            warnings.append(f"Browser fallback unavailable: {err}")
-        else:
-            rendered_content = _content_for_page(rendered, output_format, selector)
-            if len(rendered_content) > len(content):
-                return rendered, "httpx + Crawl4AI"
-
-    return page, "httpx"
+        except Exception:
+            return page
+        if len(_markdown_content(rendered)) > len(content):
+            return rendered
+    return page
 
 
-def _content_for_page(page: fetcher.FetchResult, output_format: str, selector: str) -> str:
-    if output_format == "markdown" and page.markdown and not selector:
+def _markdown_content(page: fetcher.FetchResult) -> str:
+    if page.markdown:
         return page.markdown
-    return _content_for_format(page.html, page.final_url, output_format, selector)
-
-
-def _content_for_format(html_source: str, base_url: str, output_format: str, selector: str) -> str:
-    if output_format == "markdown":
-        return html.html_to_markdown(html_source, base_url, selector=selector)
-    if output_format == "text":
-        return html.html_to_text(html_source, selector=selector)
-    if output_format == "html":
-        return html.html_fragment(html_source, selector=selector)
-    if output_format == "json":
-        return html.html_to_markdown(html_source, base_url, selector=selector)
-    raise tool_error(f"Unsupported output format: {output_format}.")
-
-
-def _validate_choice(value: str, allowed: set[str], label: str) -> str:
-    normalized = (value or "").strip().lower()
-    if normalized not in allowed:
-        choices = ", ".join(sorted(allowed))
-        raise tool_error(f"Unsupported {label}: {value}. Choose one of: {choices}.")
-    return normalized
+    return html.html_to_markdown(page.html, page.final_url)
 
 
 def _truncate(content: str, max_chars: int) -> tuple[str, bool]:

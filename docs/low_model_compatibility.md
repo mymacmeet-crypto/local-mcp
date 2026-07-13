@@ -46,44 +46,25 @@ The web tools now describe an explicit two-step research workflow and encode it 
 web_search (discover sources) -> web_fetch (read evidence) -> analyze -> write a cited answer
 ```
 
-- `web_search` is a **discovery** tool. It returns JSON candidates `{title, url, snippet, relevance_score}` with `recommended_urls`, `requires_fetch: true`, and an `agent_guidance` string telling the model that snippets are not sufficient evidence and that it must call `web_fetch` next.
-- `web_fetch` is an **evidence** tool. It returns a JSON envelope with a server-side `summary` and `key_points`, marks the `content` as `display_policy: internal_working_material`, and includes `agent_guidance` telling the model not to paste the raw content to the user but to synthesize its own cited answer.
+- `web_search` is a **discovery** tool. It returns a minimal JSON envelope with a `urls` list, `requires_fetch: true`, and `agent_guidance`/`next_action` strings telling the model that the URLs are not sufficient evidence and that it must call `web_fetch` next.
+- `web_fetch` is an **evidence** tool. It returns a minimal JSON envelope with the page `url` and its Markdown `content`, plus `requires_analysis: true` and an `agent_guidance`/`next_action` pair telling the model not to paste the raw content to the user but to synthesize its own cited answer.
 
 This directly counters the two failure modes where Qwen returned raw snippets or raw fetched markdown as if they were the final answer.
 
-### 3. Automatic Search Follow-Up
-
-`web_search` can also fetch after searching, so the server carries the second step for weaker models. Enable it with:
-
-```env
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
-```
-
-With a follow-up mode enabled, `web_search` fetches the top result(s), attaches them as `prefetched_sources`, and sets `requires_fetch` to `false`, so the model receives evidence without needing to remember a second tool call.
-
-Supported modes:
-
-| Value | Behavior |
-| --- | --- |
-| `fetch_first` | Search, then fetch only the first result with `web_fetch`. |
-| `summarize` | Search, then fetch the top `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` results (default 3). |
-| `none` | Discovery results only; the model is expected to call `web_fetch` itself. |
-
-### 4. Better Schemas For Tool Arguments
+### 3. Better Schemas For Tool Arguments
 
 Several free-form string parameters were changed to enum-like `Literal` types. This makes tool schemas clearer for clients and models.
 
 Examples:
 
-- `render`: `auto`, `static`, `browser`
-- `output_format`: `markdown`, `text`, `html`, `json`
+- `output_format` (`parse_document`): `markdown`, `text`, `json`
 - `parser`: `auto`, `pypdf`, `pymupdf4llm`, `pdfplumber`, `docling`, `marker`, `mineru`, `text`
 - `file_type`: `md`, `markdown`, `pdf`
 - `write_mode`: `write`, `append`
 
 Smaller models usually do better when valid choices are explicit.
 
-### 5. Minimum Content Guard
+### 4. Minimum Content Guard
 
 `generate_file` now supports:
 
@@ -108,7 +89,6 @@ For Qwen or another smaller local model, use:
 ```env
 LOCAL_MCP_FILE_OUTPUT_DIR=generated_files
 LOCAL_MCP_TOOL_PROFILE=simple
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
 ```
 
 Restart the MCP server after changing `.env`.
@@ -140,14 +120,14 @@ With the recommended settings, the flow becomes:
 ```text
 User asks question
   -> model calls web_search
-  -> server searches SearXNG
-  -> server fetches the top result page
-  -> model receives richer source-backed context
+  -> server searches SearXNG and returns candidate urls
+  -> model calls web_fetch on one or more urls (guided by agent_guidance/next_action)
+  -> model receives source-backed evidence
   -> model answers or writes a file
   -> file tool rejects too-short report content when min_words is set
 ```
 
-The server now carries more of the workflow, so the model has fewer chances to skip important steps.
+The tool descriptions and per-response guidance keep the model on the discovery -> evidence -> answer path, so it has fewer chances to skip important steps.
 
 ## Testing
 
@@ -169,19 +149,13 @@ Useful manual test:
 Using local-mcp, search the web for "MCP server tool calling best practices" and return a detailed answer using the fetched page content.
 ```
 
-The response should include fetched source content, not only short search snippets.
+The response should include fetched source content, not only the raw URL list.
 
 ## Troubleshooting
 
-### The response still only contains search snippets
+### The response still only contains a URL list
 
-Check `.env`:
-
-```env
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
-```
-
-Then restart the MCP server.
+The model stopped after `web_search` instead of calling `web_fetch`. Reinforce the workflow in the prompt (for example, "use the fetched page content"), and confirm the model is honoring the `agent_guidance`/`next_action` fields in the search response.
 
 ### The model still chooses the wrong tool
 
@@ -212,7 +186,7 @@ python -m pip install ".[browser]"
 crawl4ai-setup
 ```
 
-Then retry with `render=auto` or `render=browser`.
+Then retry the fetch. `web_fetch` automatically falls back to browser rendering when the static content is thin.
 
 ## Changed Files
 

@@ -15,7 +15,7 @@ async def fetch_web_page(
     url: Annotated[str, Field(description="Page URL to fetch. Scheme-less input like example.com is allowed.")],
     max_chars: Annotated[int, Field(description="Maximum characters to return.", ge=1000, le=120000)] = 50_000,
 ) -> str:
-    """Fetch one web page as evidence (JSON with summary, key_points, content).
+    """Fetch one web page as evidence (JSON with the page url and Markdown content).
 
     Read the returned content as source material, then write your own answer.
     Do not paste the raw content back to the user. Only provide url and optional

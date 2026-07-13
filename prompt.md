@@ -55,15 +55,11 @@ Using local-mcp, extract URLs from https://www.python.org with same_domain=false
 ## `web_fetch`
 
 ```
-Using local-mcp, fetch https://example.com as Markdown.
+Using local-mcp, fetch https://example.com and use the content as evidence.
 ```
 
 ```
-Using local-mcp, browser-render https://example.com/app and return text.
-```
-
-```
-Using local-mcp, scrape .product-card elements from https://example.com/catalog and return JSON.
+Using local-mcp, fetch https://example.com/app with max_chars=20000.
 ```
 
 ## `extract_image_text`

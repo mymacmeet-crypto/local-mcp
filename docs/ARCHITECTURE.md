@@ -42,11 +42,10 @@ Implementation code lives under `local_mcp/`. Root files are limited to project 
 MCP client
   -> local_mcp.tools.web.web_fetch
   -> normalize input URL
-  -> httpx static fetch, Crawl4AI browser render, or auto fallback
-  -> optional CSS selector narrowing
-  -> local_mcp.web.html extracts Markdown/text/HTML, metadata, links, images
-  -> local_mcp.shared.summarize builds a server-side summary and key_points
-  -> JSON evidence envelope (summary, key_points, content, agent_guidance)
+  -> httpx static fetch with automatic Crawl4AI browser fallback when content is thin
+  -> local_mcp.web.html extracts Markdown content
+  -> truncate to max_chars
+  -> minimal JSON evidence envelope (url, content, requires_analysis, agent_guidance)
 ```
 
 ### `extract_urls`
@@ -69,9 +68,8 @@ MCP client
   -> local_mcp.tools.search.web_search
   -> local_mcp.search.searxng calls /search?format=json
   -> result cleanup, de-duplication, limit handling
-  -> relevance scoring (engine rank + query keyword overlap) and recommended_urls
-  -> optional server-side prefetch of top result(s) via web_fetch (follow-up modes)
-  -> JSON discovery envelope (ranked candidates, requires_fetch, agent_guidance)
+  -> collect result URLs in SearXNG order
+  -> minimal JSON discovery envelope (urls, requires_fetch, agent_guidance)
 ```
 
 ### `extract_image_text`

@@ -4,6 +4,16 @@ import unittest
 from local_mcp.tools import web
 from local_mcp.web.fetcher import FetchResult
 
+ENVELOPE_KEYS = {
+    "stage",
+    "url",
+    "requires_analysis",
+    "workflow",
+    "agent_guidance",
+    "next_action",
+    "content",
+}
+
 
 class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -14,7 +24,7 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
         web.fetcher.fetch_static = self._fetch_static
         web.fetcher.fetch_browser = self._fetch_browser
 
-    async def test_web_fetch_returns_evidence_envelope_with_summary_and_links(self):
+    async def test_web_fetch_returns_minimal_evidence_envelope(self):
         async def fake_static(url: str, *, accept: str | None = None) -> FetchResult:
             return FetchResult(
                 html="""
@@ -35,30 +45,17 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
 
         web.fetcher.fetch_static = fake_static
 
-        payload = json.loads(
-            await web.web_fetch(
-                "https://example.com/start",
-                render="static",
-                include_links=True,
-            )
-        )
+        payload = json.loads(await web.web_fetch("https://example.com/start"))
 
-        # Evidence framing / anti-leakage metadata is present.
-        self.assertEqual(payload["tool"], "web_fetch")
+        # Only the seven minimal fields, nothing extra.
+        self.assertEqual(set(payload), ENVELOPE_KEYS)
         self.assertEqual(payload["stage"], "evidence")
+        self.assertEqual(payload["url"], "https://example.com/start")
         self.assertTrue(payload["requires_analysis"])
-        self.assertEqual(payload["display_policy"], "internal_working_material")
         self.assertIn("do not paste", payload["agent_guidance"].lower())
-        self.assertIn("summary", payload)
-        self.assertIsInstance(payload["key_points"], list)
-
-        # Core fetch data.
-        self.assertEqual(payload["render_method"], "httpx")
-        self.assertEqual(payload["content_format"], "markdown")
-        self.assertEqual(payload["title"], "Example Page")
+        # Content is Markdown extracted from the main region.
         self.assertIn("# Example Page", payload["content"])
         self.assertIn("[docs](https://example.com/docs)", payload["content"])
-        self.assertEqual(payload["links"][0]["url"], "https://example.com/docs")
 
     async def test_web_fetch_auto_uses_browser_when_browser_content_is_better(self):
         async def fake_static(url: str, *, accept: str | None = None) -> FetchResult:
@@ -79,62 +76,25 @@ class WebFetchToolTests(unittest.IsolatedAsyncioTestCase):
         web.fetcher.fetch_static = fake_static
         web.fetcher.fetch_browser = fake_browser
 
-        payload = json.loads(
-            await web.web_fetch(
-                "https://example.com/app",
-                render="auto",
-                include_metadata=False,
-            )
-        )
+        payload = json.loads(await web.web_fetch("https://example.com/app"))
 
+        self.assertEqual(set(payload), ENVELOPE_KEYS)
         self.assertIn("Rendered app content", payload["content"])
-        self.assertEqual(payload["render_method"], "httpx + Crawl4AI")
-        # include_metadata=False empties the metadata block but keeps the envelope.
-        self.assertEqual(payload["metadata"], {})
 
-    async def test_web_fetch_selector_scrapes_links_and_images(self):
+    async def test_web_fetch_truncates_content_to_max_chars(self):
         async def fake_static(url: str, *, accept: str | None = None) -> FetchResult:
+            body = "<p>" + ("word " * 500) + "</p>"
             return FetchResult(
-                html="""
-                <html>
-                  <head>
-                    <title>Catalog</title>
-                    <meta name="description" content="Catalog page">
-                  </head>
-                  <body>
-                    <main>
-                      <article class="item">
-                        <h1>Item</h1>
-                        <a href="/item">Open item</a>
-                        <img src="/item.png" alt="Item image">
-                      </article>
-                    </main>
-                  </body>
-                </html>
-                """,
-                final_url="https://example.com/catalog",
+                html=f"<html><body><main>{body}</main></body></html>",
+                final_url="https://example.com/long",
                 status=200,
             )
 
         web.fetcher.fetch_static = fake_static
 
-        payload = json.loads(
-            await web.web_fetch(
-                "https://example.com/catalog",
-                render="static",
-                selector=".item",
-                include_links=True,
-                include_images=True,
-                include_metadata=True,
-            )
-        )
+        payload = json.loads(await web.web_fetch("https://example.com/long", max_chars=50))
 
-        self.assertEqual(payload["render_method"], "httpx")
-        self.assertEqual(payload["metadata"]["title"], "Catalog")
-        self.assertEqual(payload["selector"], ".item")
-        self.assertIn("Item", payload["content"])
-        self.assertEqual(payload["links"][0]["url"], "https://example.com/item")
-        self.assertEqual(payload["images"][0]["url"], "https://example.com/item.png")
+        self.assertLessEqual(len(payload["content"]), 50)
 
 
 if __name__ == "__main__":

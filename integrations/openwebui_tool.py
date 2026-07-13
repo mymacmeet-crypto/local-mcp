@@ -210,35 +210,18 @@ class Tools:
         self,
         query: str,
         limit: int = 8,
-        categories: str = "general",
-        language: str = "auto",
-        pageno: int = 1,
-        safesearch: int = 0,
-        time_range: str = "",
-        engines: str = "",
-        searxng_url: str = "",
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
         STEP 1 of web research: DISCOVER candidate sources (discovery only, not an answer).
-        Returns ranked JSON candidates {title, url, snippet, relevance_score} with
-        recommended_urls and requires_fetch=true. Snippets are previews, not evidence:
-        do not answer from them. Next, call web_fetch on the recommended_urls, read the
-        evidence, then write your own synthesized, cited answer.
+        Returns a JSON envelope with a list of candidate source `urls` and
+        requires_fetch=true. The URLs alone are not evidence: do not answer from
+        them. Next, call web_fetch on one or more of the urls, read the evidence,
+        then write your own synthesized, cited answer.
         :param query: Search query to send to SearXNG.
-        :param limit: Maximum number of candidate results to return. Allowed range is 1 to 20.
-        :param categories: SearXNG categories, for example 'general', 'news', 'images', or 'general,news'.
-        :param language: SearXNG language code. Use 'auto' for automatic language detection.
-        :param pageno: SearXNG result page number. Allowed range is 1 to 20.
-        :param safesearch: Safe-search level, where 0 is off, 1 is moderate, and 2 is strict.
-        :param time_range: Optional SearXNG time range: 'day', 'month', or 'year'.
-        :param engines: Optional comma-separated SearXNG engines override.
-        :param searxng_url: Optional SearXNG base URL for this request.
+        :param limit: Maximum number of URLs to return. Allowed range is 1 to 20.
         """
-        _log(
-            "web_search",
-            f"query={query} limit={limit} categories={categories} language={language}",
-        )
+        _log("web_search", f"query={query} limit={limit}")
         await self._emit_status(__event_emitter__, f"Searching for {query}...", False)
 
         result = self._call(
@@ -246,13 +229,6 @@ class Tools:
             {
                 "query": query,
                 "limit": limit,
-                "categories": categories,
-                "language": language,
-                "pageno": pageno,
-                "safesearch": safesearch,
-                "time_range": time_range,
-                "engines": engines,
-                "searxng_url": searxng_url,
             },
         )
 
@@ -361,46 +337,25 @@ class Tools:
     async def web_fetch(
         self,
         url: str,
-        render: str = "auto",
-        output_format: str = "markdown",
-        selector: str = "",
-        include_links: bool = False,
-        include_images: bool = False,
-        include_metadata: bool = True,
         max_chars: int = 120000,
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
         STEP 2 of web research: RETRIEVE one page's full content as evidence.
-        Returns JSON {url, title, summary, key_points, content, ...}. The content is raw
-        source material (internal working material): do NOT paste content, summary, markdown,
-        HTML, or long text blocks to the user. Read it, extract the relevant facts, and write
-        your own concise, cited answer.
+        Returns a JSON envelope with the page url and its Markdown content. The content is raw
+        source material (internal working material): do NOT paste content, markdown, HTML, or
+        long text blocks to the user. Read it, extract the relevant facts, and write your own
+        concise, cited answer.
         :param url: Page URL to fetch. Scheme-less input like 'example.com' is allowed.
-        :param render: Fetch mode: auto, static, or browser.
-        :param output_format: Format of the returned `content` field: markdown, text, html, or json.
-        :param selector: Optional CSS selector for scraping a specific page region.
-        :param include_links: Include scraped links from the page or selected region.
-        :param include_images: Include scraped image URLs from the page or selected region.
-        :param include_metadata: Include fetch metadata before non-JSON content.
         :param max_chars: Maximum content characters to return before truncation. Use 0 for no truncation.
         """
-        _log(
-            "web_fetch",
-            f"url={url} render={render} output_format={output_format} selector={selector}",
-        )
+        _log("web_fetch", f"url={url} max_chars={max_chars}")
         await self._emit_status(__event_emitter__, f"Fetching {url}...", False)
 
         result = self._call(
             "web_fetch",
             {
                 "url": url,
-                "render": render,
-                "output_format": output_format,
-                "selector": selector,
-                "include_links": include_links,
-                "include_images": include_images,
-                "include_metadata": include_metadata,
                 "max_chars": max_chars,
             },
         )

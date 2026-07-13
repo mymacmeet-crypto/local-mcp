@@ -2,26 +2,24 @@
 
 ## Overview
 
-`web_search` is the **discovery** stage of web research. It searches the web through a SearXNG instance and returns a JSON envelope of ranked candidate sources — not a final answer. It is useful when an MCP client needs current web results without calling a commercial search API directly.
+`web_search` is the **discovery** stage of web research. It searches the web through a SearXNG instance and returns a minimal JSON envelope containing a list of candidate source URLs — not a final answer. It is useful when an MCP client needs current web results without calling a commercial search API directly.
 
 Key capabilities:
 
 - Sends search requests to SearXNG's JSON API.
-- Supports categories such as `general`, `news`, `images`, or comma-separated combinations.
-- Supports language, page number, safe-search, time range, and engine overrides.
-- Supports per-call SearXNG URL overrides and environment-based failover.
-- Returns each candidate as `{title, url, snippet, relevance_score}`, scores results by engine rank and query keyword overlap, and surfaces the most relevant as `recommended_urls`.
-- Emits `requires_fetch` and an embedded `agent_guidance` string that steer the model to call `web_fetch` before answering, so raw snippets are treated as intermediate evidence rather than a final answer.
-- Can optionally prefetch the top result(s) server-side (see the follow-up modes) and deliver them as `prefetched_sources`.
+- Takes only two inputs: the `query` and an optional `limit`.
+- Uses `SEARXNG_URLS` / `SEARXNG_BASE_URL` for the instance and environment-based failover.
+- Returns a `urls` list of candidate sources in SearXNG order (deduplicated, capped at `limit`).
+- Emits `requires_fetch` and an embedded `agent_guidance`/`next_action` pair that steer the model to call `web_fetch` before answering, so the URL list is treated as intermediate discovery rather than a final answer.
 
 ```mermaid
 flowchart TD
-    A[MCP client calls web_search] --> B[Validate query and options]
+    A[MCP client calls web_search] --> B[Validate query and limit]
     B --> C[Choose SearXNG URL]
     C --> D[GET /search?format=json]
-    D --> E[Parse answers, suggestions, and results]
-    E --> F[Synthesize an overall summary from result snippets]
-    F --> G[Return overall summary plus plain source list]
+    D --> E[Parse and deduplicate results]
+    E --> F[Collect result URLs in order, capped at limit]
+    F --> G[Return urls list with requires_fetch and agent_guidance]
 ```
 
 ## Prerequisites
@@ -122,26 +120,19 @@ The tool accepts these parameters:
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `query` | string | required | Search query sent to SearXNG. |
-| `limit` | integer | `8` | Maximum number of results. Allowed range: `1` to `20`. |
-| `categories` | string | `general` | SearXNG category or comma-separated categories. |
-| `language` | string | `auto` | SearXNG language code or `auto`. |
-| `pageno` | integer | `1` | Result page number. Allowed range: `1` to `20`. |
-| `safesearch` | integer | `0` | Safe-search level: `0` off, `1` moderate, `2` strict. |
-| `time_range` | string | empty | Optional SearXNG time range: `day`, `month`, or `year`. |
-| `engines` | string | empty | Optional comma-separated SearXNG engines. |
-| `searxng_url` | string | empty | Optional SearXNG base URL for this call only. |
+| `limit` | integer | `8` | Maximum number of URLs to return. Allowed range: `1` to `20`. |
 
 Typical workflow:
 
 1. Ask an MCP client to search for a topic.
-2. The client invokes `web_search` with a query and optional filters.
-3. The tool calls SearXNG, scores the results, and returns a JSON envelope of ranked candidates with `recommended_urls`, `requires_fetch`, and `agent_guidance`.
-4. The model calls `web_fetch` on one or more `recommended_urls` to read the full pages, then analyzes that evidence and writes a synthesized, cited answer. Search snippets alone are not treated as sufficient evidence.
+2. The client invokes `web_search` with a query (and optionally a `limit`).
+3. The tool calls SearXNG and returns a JSON envelope with a `urls` list, `requires_fetch`, and `agent_guidance`.
+4. The model calls `web_fetch` on one or more of the `urls` to read the full pages, then analyzes that evidence and writes a synthesized, cited answer. The URL list alone is not treated as sufficient evidence.
 
 Example MCP prompt:
 
 ```text
-Using local-mcp, search recent news for SearXNG with categories=news, time_range=month, and limit=5.
+Using local-mcp, search for the Model Context Protocol and return the top 5 URLs.
 ```
 
 Example OpenWebUI-style call:
@@ -150,9 +141,6 @@ Example OpenWebUI-style call:
 await tools.web_search(
     query="OpenAI Model Context Protocol",
     limit=5,
-    categories="general",
-    language="auto",
-    safesearch=1
 )
 ```
 
@@ -160,32 +148,20 @@ Example returned shape:
 
 ```json
 {
-  "tool": "web_search",
   "stage": "discovery",
   "query": "model context protocol",
-  "result_count": 2,
   "requires_fetch": true,
   "workflow": "web_search (discover sources) -> web_fetch (read evidence) -> analyze -> write a cited answer",
-  "agent_guidance": "These are candidate sources ... call web_fetch on recommended_urls ...",
-  "next_action": "Call web_fetch on one or more recommended_urls ...",
-  "recommended_urls": ["https://example.com/page", "https://example.com/other-page"],
-  "instant_answers": ["An optional SearXNG instant answer, treated as a hint only."],
-  "suggestions": ["alternate query"],
-  "results": [
-    {
-      "rank": 1,
-      "title": "Example title",
-      "url": "https://example.com/page",
-      "snippet": "Short preview text from the result.",
-      "relevance_score": 0.92,
-      "engines": ["duckduckgo"],
-      "published_date": null
-    }
+  "agent_guidance": "These are candidate source URLs discovered on the web, not a final answer. Next step: call web_fetch on one or more of the `urls` ...",
+  "next_action": "Call web_fetch on one or more of the `urls` to read the full pages ...",
+  "urls": [
+    "https://modelcontextprotocol.io/introduction",
+    "https://en.wikipedia.org/wiki/Model_Context_Protocol"
   ]
 }
 ```
 
-`instant_answers` (SearXNG instant answers) and `suggestions` (alternate queries) appear when present and are hints only. Enable a follow-up mode (`LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first` or `summarize`) to have the server fetch the top result(s) and attach them as a `prefetched_sources` array; `requires_fetch` then becomes `false` (see [Configuration](#configuration)).
+When no results are found, `urls` is an empty list and `requires_fetch` is `false`.
 
 ## Running the Tool
 
@@ -223,11 +199,6 @@ Supported environment variables:
 | `SEARXNG_URLS` | unset | Comma-separated failover list. Takes priority over `SEARXNG_BASE_URL`. |
 | `LOCAL_MCP_SEARXNG_URLS` | unset | Alias for `SEARXNG_URLS`. |
 | `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | Search request timeout in milliseconds. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP` | `none` | `fetch_first` prefetches the top result, `summarize` prefetches the top `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` results, and `none` returns discovery results only. Prefetched pages are attached as `prefetched_sources` and set `requires_fetch` to `false`. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` | `3` | Number of top results prefetched by the `summarize` follow-up mode (1-5). |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER` | `auto` | Fetch mode used by follow-up prefetching: `auto`, `static`, or `browser`. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS` | `50000` | Maximum page characters used by follow-up prefetching. |
-| `LOCAL_MCP_WEB_SEARCH_RECOMMENDED_URLS` | `3` | Number of top-ranked URLs returned in `recommended_urls` (1-10). |
 | `MCP_HTTP_HOST` | `127.0.0.1` | HTTP server host. |
 | `MCP_HTTP_PORT` | `3002` | HTTP server port. |
 
@@ -240,15 +211,12 @@ MCP_HTTP_HOST=127.0.0.1
 MCP_HTTP_PORT=3002
 ```
 
-Example per-call override:
+Example call:
 
 ```json
 {
   "query": "privacy preserving search",
-  "limit": 10,
-  "categories": "general,news",
-  "time_range": "month",
-  "searxng_url": "https://search.example.com"
+  "limit": 10
 }
 ```
 

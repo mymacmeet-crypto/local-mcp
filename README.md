@@ -154,20 +154,6 @@ You can also set the profile directly in a desktop MCP config:
 }
 ```
 
-If you keep the full profile and want every `web_search` call to fetch after searching, set:
-
-```env
-LOCAL_MCP_WEB_SEARCH_FOLLOW_UP=fetch_first
-```
-
-Supported follow-up modes are:
-
-- `fetch_first`: run a search, then fetch the top result with `web_fetch` and attach it as `prefetched_sources`.
-- `summarize`: run a search, then fetch the top `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` results (default 3) and attach them as `prefetched_sources`.
-- `none`: discovery results only (the model is expected to call `web_fetch` itself).
-
-When any prefetch mode is active, `requires_fetch` is set to `false` and the fetched evidence is delivered inside the search response, so weaker models do not need to remember a second tool call.
-
 ## Tools
 
 ### `web_search`
@@ -175,16 +161,9 @@ When any prefetch mode is active, `requires_fetch` is set to `false` and the fet
 Parameters:
 
 - `query`: search query to send to SearXNG.
-- `limit`: maximum number of search results to return. Default: `8`.
-- `categories`: SearXNG categories, for example `general`, `news`, `images`, or `general,news`. Default: `general`.
-- `language`: SearXNG language code. Default: `auto`.
-- `pageno`: SearXNG result page number. Default: `1`.
-- `safesearch`: safe-search level, where `0` is off, `1` is moderate, and `2` is strict. Default: `0`.
-- `time_range`: optional SearXNG time range: `day`, `month`, or `year`.
-- `engines`: optional comma-separated SearXNG engines override.
-- `searxng_url`: optional SearXNG base URL for this request.
+- `limit`: maximum number of URLs to return. Default: `8`. Allowed range: `1` to `20`.
 
-`web_search` is a **discovery** tool, not an answer tool. It returns a JSON envelope of ranked candidate sources — each result carries `title`, `url`, `snippet`, and a `relevance_score` — plus `recommended_urls`, `requires_fetch`, `instant_answers`/`suggestions`, and an embedded `agent_guidance` string. The snippets are previews only, not evidence: the intended next step is to call `web_fetch` on the `recommended_urls`, then synthesize an answer from the fetched content. When a follow-up prefetch mode is enabled the fetched pages are attached as `prefetched_sources` and `requires_fetch` becomes `false`.
+`web_search` is a **discovery** tool, not an answer tool. It returns a minimal JSON envelope: `stage`, `query`, `requires_fetch`, `workflow`, `agent_guidance`, `next_action`, and a `urls` list of candidate source URLs (in SearXNG order). The URLs alone are not evidence: the intended next step is to call `web_fetch` on one or more of the `urls`, then synthesize an answer from the fetched content.
 
 ### `web_search_to_file`
 
@@ -212,15 +191,9 @@ This runs the search server-side and writes the formatted results directly into 
 Parameters:
 
 - `url`: page URL to fetch. Scheme-less input like `example.com` is allowed.
-- `render`: fetch mode: `auto`, `static`, or `browser`. Default: `auto`.
-- `output_format`: format of the returned `content` field: `markdown`, `text`, `html`, or `json`. Default: `markdown`.
-- `selector`: optional CSS selector for scraping a specific page region.
-- `include_links`: add a `links` array to the response. Default: `false`.
-- `include_images`: add an `images` array to the response. Default: `false`.
-- `include_metadata`: populate the `metadata` block in the response. Default: `true`.
 - `max_chars`: maximum `content` characters before truncation. Use `0` for no truncation. Default: `120000`.
 
-`web_fetch` is an **evidence** tool. It fetches pages with `httpx` (with optional Crawl4AI browser rendering for JavaScript-heavy pages) and always returns a JSON envelope: `{url, final_url, status, title, summary, key_points, content, metadata, warnings, ...}`. A concise `summary` and `key_points` are generated server-side. The `content` field is raw source material (`display_policy: internal_working_material`) and carries an `agent_guidance` string instructing the model to analyze it and write its own cited answer rather than pasting the content to the user.
+`web_fetch` is an **evidence** tool. It fetches pages with `httpx` (with automatic Crawl4AI browser rendering for JavaScript-heavy pages) and returns a minimal JSON envelope: `stage`, `url`, `requires_analysis`, `workflow`, `agent_guidance`, `next_action`, and the Markdown `content`. The `content` field is raw source material and carries an `agent_guidance` string instructing the model to analyze it and write its own cited answer rather than pasting the content to the user.
 
 ### `extract_urls`
 
