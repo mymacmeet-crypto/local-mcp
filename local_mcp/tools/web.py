@@ -17,10 +17,9 @@ from local_mcp.shared.urls import (
     same_path_prefix,
     url_route_path,
 )
-from local_mcp.web import fetcher, html, sitemap
+from local_mcp.web import content, fetcher, html, sitemap
 
 DEFAULT_LIMIT = int(os.environ.get("LOCAL_MCP_URL_LIMIT", "500"))
-MIN_MARKDOWN_CHARS = int(os.environ.get("LOCAL_MCP_MIN_MARKDOWN_CHARS", "200"))
 
 
 async def web_fetch(
@@ -34,17 +33,17 @@ async def web_fetch(
     target = normalize_url(url)
 
     try:
-        page = await _fetch_auto(target)
+        page = await content.fetch_auto(target)
     except Exception as err:
         raise tool_error(describe_fetch_error(err, target))
 
     try:
-        content = _markdown_content(page)
+        markdown = content.page_markdown(page)
     except Exception as err:
         raise tool_error(f"Could not scrape {page.final_url}: {err}")
 
-    content, _ = _truncate(content, max_chars)
-    if not content:
+    markdown, _ = _truncate(markdown, max_chars)
+    if not markdown:
         raise tool_error(f"No extractable content found for {target}.")
 
     envelope: dict[str, object] = {
@@ -54,7 +53,7 @@ async def web_fetch(
         "workflow": guidance.WORKFLOW,
         "agent_guidance": guidance.FETCH_RESULT_GUIDANCE,
         "next_action": guidance.FETCH_NEXT_ACTION,
-        "content": content,
+        "content": markdown,
     }
     return json.dumps(envelope, ensure_ascii=False, indent=2)
 
@@ -132,26 +131,6 @@ async def extract_urls(
         "URLs:\n"
         + "\n".join(_format_sourced_url(value, source) for value, source in urls)
     )
-
-
-async def _fetch_auto(target: str) -> fetcher.FetchResult:
-    """Fetch statically, falling back to browser rendering when static content is thin."""
-    page = await fetcher.fetch_static(target)
-    content = _markdown_content(page)
-    if len(content) < MIN_MARKDOWN_CHARS:
-        try:
-            rendered = await fetcher.fetch_browser(page.final_url)
-        except Exception:
-            return page
-        if len(_markdown_content(rendered)) > len(content):
-            return rendered
-    return page
-
-
-def _markdown_content(page: fetcher.FetchResult) -> str:
-    if page.markdown:
-        return page.markdown
-    return html.html_to_markdown(page.html, page.final_url)
 
 
 def _truncate(content: str, max_chars: int) -> tuple[str, bool]:

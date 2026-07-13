@@ -157,6 +157,8 @@ The response should include fetched source content, not only the raw URL list.
 
 The model stopped after `web_search` instead of calling `web_fetch`. Reinforce the workflow in the prompt (for example, "use the fetched page content"), and confirm the model is honoring the `agent_guidance`/`next_action` fields in the search response.
 
+If a model reliably stops early, prefer the [`smart_search`](smart_search.md) tool instead. It performs the entire search -> rank -> crawl -> summarize chain server-side (using Google Gemini) and returns a finished, cited answer in one call, so the small model never has to chain `web_search` and `web_fetch` itself. It requires a `GEMINI_API_KEY` and is part of the `full` tool profile.
+
 ### The model still chooses the wrong tool
 
 Use the simple profile:

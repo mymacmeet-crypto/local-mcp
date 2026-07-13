@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, fetch/browser-render/scrape pages, discover URLs, run OCR on images, parse PDFs/documents, and generate local Markdown or PDF files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, get one-shot Gemini-powered answers, fetch/browser-render/scrape pages, discover URLs, run OCR on images, parse PDFs/documents, and generate local Markdown or PDF files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -13,6 +13,7 @@ For Qwen and other smaller local models, see [`low_model_compatibility.md`](low_
 | Tool | Documentation | Main purpose |
 | --- | --- | --- |
 | `web_search` | [web_search.md](web_search.md) | Search through a SearXNG instance and return citation-ready Markdown results. |
+| `smart_search` | [smart_search.md](smart_search.md) | One-shot answer: search, let Gemini rank sources, crawl them, and return a Gemini-written cited summary. |
 | `web_search_to_file` | [web_search_to_file.md](web_search_to_file.md) | Search through SearXNG and write citation-ready results directly to a generated Markdown or PDF file. |
 | `web_fetch` | [web_fetch.md](web_fetch.md) | Fetch one page (with automatic browser fallback) and return its Markdown content as evidence. |
 | `extract_urls` | [extract_urls.md](extract_urls.md) | Discover URLs from `robots.txt`, XML sitemaps, static HTML links, and optional browser-rendered pages. |
@@ -87,12 +88,20 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_TIMEOUT_MS` | `15000` | Fetching, OCR URL fetches, browser render | Request and browser-render timeout in milliseconds. |
 | `LOCAL_MCP_USER_AGENT` | `local-mcp/1.0 (+https://github.com/your-org/local-mcp)` | Fetching | User-Agent sent to websites and image URLs. |
 | `LOCAL_MCP_URL_LIMIT` | `500` | `extract_urls` | Default maximum number of URLs returned. |
-| `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `web_fetch` | Minimum static Markdown length before browser-render fallback is attempted. |
+| `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `web_fetch`, `smart_search` | Minimum static Markdown length before browser-render fallback is attempted. |
 | `LOCAL_MCP_TOOL_PROFILE` | `full` | Tool registration | Set to `simple` for smaller models, `full` for the original tools, or `both` to expose both sets. |
 | `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search`, `web_search_to_file` | Default SearXNG base URL. |
 | `SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Comma-separated SearXNG failover list. |
 | `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Alias for `SEARXNG_URLS`. |
-| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `web_search_to_file` | SearXNG request timeout in milliseconds. |
+| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `web_search_to_file`, `smart_search` | SearXNG request timeout in milliseconds. |
+| `GEMINI_API_KEY` | required for `smart_search` | `smart_search` | Google Gemini API key. `GOOGLE_API_KEY` is accepted as an alias. |
+| `GEMINI_MODEL` | `gemini-flash-latest` | `smart_search` | Gemini model id used for source ranking and summarization. |
+| `GEMINI_API_BASE` | `https://generativelanguage.googleapis.com/v1beta` | `smart_search` | Gemini REST API base URL. |
+| `GEMINI_TIMEOUT_MS` | `120000` | `smart_search` | Per-request timeout for Gemini calls in milliseconds. |
+| `GEMINI_MAX_RETRIES` | `2` | `smart_search` | Retries for transient Gemini `5xx` errors (auth/quota/model errors are not retried). |
+| `GEMINI_RETRY_BACKOFF_S` | `2` | `smart_search` | Base backoff in seconds between Gemini retries (grows per attempt). |
+| `LOCAL_MCP_SMART_SEARCH_CANDIDATES` | `4` | `smart_search` | Candidate multiplier: search pulls `max_sources` × this many URLs (clamped 6–20) for ranking. |
+| `LOCAL_MCP_SMART_SEARCH_SOURCE_CHARS` | `16000` | `smart_search` | Maximum characters of each crawled page passed to Gemini. |
 | `TESSERACT_CMD` | auto-detected | `extract_image_text` | Path to the native Tesseract executable. |
 | `LOCAL_MCP_OCR_MAX_IMAGE_BYTES` | `20971520` | `extract_image_text` | Maximum accepted image size in bytes. |
 | `LOCAL_MCP_TESSERACT_CONFIG` | empty | `extract_image_text` | Extra config string passed to Tesseract. |

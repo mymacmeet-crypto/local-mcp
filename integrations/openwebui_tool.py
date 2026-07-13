@@ -236,6 +236,42 @@ class Tools:
         await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
 
+    async def smart_search(
+        self,
+        query: str,
+        max_sources: int = 3,
+        time_range: str = "",
+        model: str = "",
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        One-shot web answer powered by Google Gemini. Searches the web, lets Gemini
+        rank the most relevant sources, crawls them, and returns a Gemini-written
+        summary that already cites its sources. Unlike web_search (discovery only),
+        this returns a FINAL, synthesized answer plus the list of source URLs used.
+        Requires GEMINI_API_KEY to be configured on the server.
+        :param query: The question or topic to research and answer.
+        :param max_sources: Maximum number of pages to crawl and summarize. Allowed range is 1 to 10.
+        :param time_range: Optional SearXNG time range: 'day', 'month', or 'year'. Empty means any time.
+        :param model: Optional Gemini model override. Empty uses GEMINI_MODEL (default gemini-flash-latest).
+        """
+        _log("smart_search", f"query={query} max_sources={max_sources} time_range={time_range} model={model}")
+        await self._emit_status(__event_emitter__, f"Researching {query}...", False)
+
+        result = self._call(
+            "smart_search",
+            {
+                "query": query,
+                "max_sources": max_sources,
+                "time_range": time_range,
+                "model": model,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
     async def web_search_to_file(
         self,
         query: str,

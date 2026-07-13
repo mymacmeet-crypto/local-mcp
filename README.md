@@ -165,6 +165,19 @@ Parameters:
 
 `web_search` is a **discovery** tool, not an answer tool. It returns a minimal JSON envelope: `stage`, `query`, `requires_fetch`, `workflow`, `agent_guidance`, `next_action`, and a `urls` list of candidate source URLs (in SearXNG order). The URLs alone are not evidence: the intended next step is to call `web_fetch` on one or more of the `urls`, then synthesize an answer from the fetched content.
 
+### `smart_search`
+
+Parameters:
+
+- `query`: the question or topic to research and answer.
+- `max_sources`: maximum number of pages to crawl and summarize. Default: `3`. Allowed range: `1` to `10`.
+- `time_range`: optional SearXNG time range: `day`, `month`, or `year`. Empty means any time.
+- `model`: optional Gemini model override. Empty uses `GEMINI_MODEL` (default `gemini-flash-latest`).
+
+`smart_search` is a one-shot **answer** tool that runs the whole research pipeline internally: it searches SearXNG for candidate sources, asks Google Gemini to rank them by relevance, crawls the ranked pages (falling through to lower-ranked sources when a page times out or blocks the request) until `max_sources` load successfully, then asks Gemini to write a synthesized, inline-cited summary. It returns plain text — the summary followed by a numbered `Sources:` list of the URLs actually used — unlike `web_search`, which returns intermediate JSON for the model to process itself.
+
+Requires a Gemini API key. Set `GEMINI_API_KEY` in `.env` (see `.env.example`); optionally set `GEMINI_MODEL` (default `gemini-flash-latest`) and `GEMINI_TIMEOUT_MS` (default `120000`). No extra Python dependency is needed — the client calls the Gemini REST API over `httpx`.
+
 ### `web_search_to_file`
 
 Parameters:

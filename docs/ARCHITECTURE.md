@@ -1,6 +1,6 @@
 # local-mcp Architecture
 
-`local-mcp` is a Python MCP server that exposes tools for web search, web fetch/scraping, URL discovery, OCR, document parsing, and file generation.
+`local-mcp` is a Python MCP server that exposes tools for web search, one-shot Gemini-powered answers, web fetch/scraping, URL discovery, OCR, document parsing, and file generation.
 
 ## Runtime Entry Points
 
@@ -18,8 +18,9 @@ local_mcp/
   cli.py                 CLI transport selection
   __main__.py            python -m local_mcp entry point
   tools/                 MCP-facing tool handlers and parameter schemas
-  web/                   HTTP fetching, browser fallback, HTML parsing/scraping, sitemaps
+  web/                   HTTP fetching, browser fallback, HTML parsing/scraping, sitemaps, shared fetch-to-Markdown helper (content.py)
   search/                SearXNG JSON client and result parsing
+  gemini/                Google Gemini REST client (used by smart_search)
   ocr/                   Tesseract image OCR implementation
   documents/             Document loading, parser backends, formatting
   file_generation/       Local file generation helpers
@@ -70,6 +71,20 @@ MCP client
   -> result cleanup, de-duplication, limit handling
   -> collect result URLs in SearXNG order
   -> minimal JSON discovery envelope (urls, requires_fetch, agent_guidance)
+```
+
+### `smart_search`
+
+```text
+MCP client
+  -> local_mcp.tools.smart_search.smart_search
+  -> require GEMINI_API_KEY (local_mcp.gemini.client)
+  -> local_mcp.search.searxng gathers candidate URLs (max_sources x multiplier)
+  -> local_mcp.gemini.client ranks all candidates best-first
+  -> local_mcp.web.content.fetch_auto crawls ranked pages, skipping failures
+     until max_sources pages load (httpx with Crawl4AI browser fallback)
+  -> local_mcp.gemini.client summarizes the crawled evidence with inline citations
+  -> plain-text answer followed by a numbered Sources list
 ```
 
 ### `extract_image_text`
