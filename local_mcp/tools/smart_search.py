@@ -1,9 +1,10 @@
-"""MCP tool: `smart_search` — a one-shot, Gemini-powered web answer.
+"""MCP tool: `smart_search` — a one-shot, LLM-powered web answer.
 
-Pipeline: SearXNG search -> Gemini ranks and selects the most relevant URLs ->
-crawl the selected pages -> Gemini writes a cited summary -> return the summary
-plus the source list. Unlike the discovery-only `web_search`, this tool returns
-a final synthesized answer.
+Pipeline: SearXNG search -> the configured LLM ranks and selects the most
+relevant URLs -> crawl the selected pages -> the LLM writes a cited summary ->
+return the summary plus the source list. Unlike the discovery-only
+`web_search`, this tool returns a final synthesized answer. The LLM backend is
+local Ollama by default; set `LLM_PROVIDER=gemini` to use Google Gemini instead.
 """
 
 from __future__ import annotations
@@ -15,18 +16,18 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from local_mcp.gemini import client as gemini
+from local_mcp.llm import client as llm
 from local_mcp.search import searxng
 from local_mcp.shared import guidance
 from local_mcp.shared.errors import tool_error
 from local_mcp.shared.urls import normalize_url
 from local_mcp.web import content
 
-# How many candidate results to pull from search before Gemini ranks them.
+# How many candidate results to pull from search before the LLM ranks them.
 CANDIDATE_MULTIPLIER = int(os.environ.get("LOCAL_MCP_SMART_SEARCH_CANDIDATES", "4"))
 MIN_CANDIDATES = 6
 MAX_CANDIDATES = 20
-# Per-source crawl content cap (characters) fed to Gemini for summarization.
+# Per-source crawl content cap (characters) fed to the LLM for summarization.
 PER_SOURCE_MAX_CHARS = int(os.environ.get("LOCAL_MCP_SMART_SEARCH_SOURCE_CHARS", "16000"))
 
 SearchTimeRange = Literal["", "day", "month", "year"]
@@ -44,17 +45,20 @@ async def smart_search(
     ] = "",
     model: Annotated[
         str,
-        Field(description="Optional Gemini model override. Empty uses GEMINI_MODEL (default gemini-flash-latest)."),
+        Field(
+            description=(
+                "Optional model override for the configured LLM provider. Empty uses "
+                "OLLAMA_MODEL (default qwen2.5:7b) or GEMINI_MODEL if LLM_PROVIDER=gemini."
+            )
+        ),
     ] = "",
 ) -> str:
-    """Search the web, pick the best sources with Gemini, crawl them, and return a cited summary."""
+    """Search the web, pick the best sources with the configured LLM, crawl them, and return a cited summary."""
     cleaned_query = query.strip()
     if not cleaned_query:
         raise tool_error("A non-empty query is required.")
-    if not gemini.has_api_key():
-        raise tool_error(
-            "smart_search needs a Gemini API key. Set GEMINI_API_KEY in your .env file (see .env.example)."
-        )
+    if not llm.is_configured():
+        raise tool_error(llm.not_configured_message())
 
     model_override = model.strip() or None
 
@@ -72,7 +76,7 @@ async def smart_search(
     if not results:
         raise tool_error(f"No web results found for {cleaned_query!r}.")
 
-    # 2) Let Gemini rank ALL candidates best-first (fall back to search order).
+    # 2) Let the LLM rank ALL candidates best-first (fall back to search order).
     ranked = await _rank_urls(cleaned_query, results, model_override)
 
     # 3) Crawl down the ranked list until enough pages load successfully.
@@ -83,10 +87,10 @@ async def smart_search(
             "Try again or widen the query."
         )
 
-    # 4) Summarize the crawled evidence with Gemini.
+    # 4) Summarize the crawled evidence with the LLM.
     try:
         summary = await _summarize(cleaned_query, sources, model_override)
-    except gemini.GeminiError as err:
+    except llm.LLMError as err:
         raise tool_error(str(err))
 
     return _format_answer(summary, sources)
@@ -97,7 +101,7 @@ async def _rank_urls(
     results: list[searxng.SearchResult],
     model: str | None,
 ) -> list[searxng.SearchResult]:
-    """Ask Gemini to rank ALL results best-first; fall back to search order on any failure.
+    """Ask the LLM to rank ALL results best-first; fall back to search order on any failure.
 
     Returns every result reordered by relevance so the crawl step can fall through
     to lower-ranked sources when a higher-ranked page fails to load.
@@ -119,7 +123,7 @@ async def _rank_urls(
     )
 
     try:
-        raw = await gemini.generate_text(
+        raw = await llm.generate_text(
             prompt,
             model=model,
             temperature=0.0,
@@ -131,7 +135,7 @@ async def _rank_urls(
 
     if not order:
         return results
-    # Append any indexes Gemini omitted, preserving original search order.
+    # Append any indexes the LLM omitted, preserving original search order.
     seen = set(order)
     order.extend(index for index in range(len(results)) if index not in seen)
     return [results[index] for index in order]
@@ -176,7 +180,7 @@ async def _summarize(query: str, sources: list[dict[str, str]], model: str | Non
         "facts or URLs."
     )
     prompt = f"Question:\n{query}\n\nSources:\n{blocks}\n\nWrite the cited answer now."
-    return await gemini.generate_text(prompt, model=model, system=system, temperature=0.3)
+    return await llm.generate_text(prompt, model=model, system=system, temperature=0.3)
 
 
 def _format_answer(summary: str, sources: list[dict[str, str]]) -> str:

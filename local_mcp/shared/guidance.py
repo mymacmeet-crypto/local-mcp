@@ -34,16 +34,17 @@ WEB_SEARCH_DESCRIPTION = (
 )
 
 SMART_SEARCH_DESCRIPTION = (
-    "One-shot web answer: search the web, let Google Gemini pick the most "
-    "relevant sources, crawl them, and return a Gemini-written summary that "
+    "One-shot web answer: search the web, let an LLM pick the most "
+    "relevant sources, crawl them, and return an LLM-written summary that "
     "already cites its sources.\n\n"
     "Unlike `web_search` (which only DISCOVERS candidate URLs and needs a "
     "follow-up `web_fetch`), this tool runs the whole discover -> crawl -> "
     "summarize pipeline internally and returns a FINAL, synthesized answer plus "
     "the list of source URLs it used. Prefer it when you want a direct answer to "
     "a factual or research question without manually chaining tools.\n\n"
-    "Requires GEMINI_API_KEY to be configured. Returns plain text: the summary "
-    "followed by a numbered `Sources:` list."
+    "Uses a local Ollama model by default (LLM_PROVIDER=ollama); set "
+    "LLM_PROVIDER=gemini and GEMINI_API_KEY to use Google Gemini instead. "
+    "Returns plain text: the summary followed by a numbered `Sources:` list."
 )
 
 WEB_FETCH_DESCRIPTION = (

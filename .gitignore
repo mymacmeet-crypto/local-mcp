@@ -19,3 +19,4 @@ captures/
 downloads/
 .tmp/
 .python-version
+generated_files/

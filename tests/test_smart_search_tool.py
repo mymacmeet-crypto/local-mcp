@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from local_mcp.gemini.client import GeminiError
+from local_mcp.llm.client import LLMError
 from local_mcp.search.searxng import SearchResult
 from local_mcp.shared.errors import ToolError
 from local_mcp.tools import smart_search
@@ -20,13 +20,13 @@ def _result(index: int) -> SearchResult:
 class SmartSearchToolTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self._orig = {
-            "has_api_key": smart_search.gemini.has_api_key,
-            "generate_text": smart_search.gemini.generate_text,
+            "is_configured": smart_search.llm.is_configured,
+            "generate_text": smart_search.llm.generate_text,
             "search": smart_search.searxng.search,
             "fetch_auto": smart_search.content.fetch_auto,
             "page_markdown": smart_search.content.page_markdown,
         }
-        smart_search.gemini.has_api_key = lambda: True
+        smart_search.llm.is_configured = lambda: True
 
         async def fake_search(query, *, limit, time_range=None, **kwargs):
             return ("http://searxng", [_result(i) for i in range(5)], [], [])
@@ -39,8 +39,8 @@ class SmartSearchToolTests(unittest.IsolatedAsyncioTestCase):
         smart_search.content.page_markdown = lambda page: page.markdown or ""
 
     async def asyncTearDown(self):
-        smart_search.gemini.has_api_key = self._orig["has_api_key"]
-        smart_search.gemini.generate_text = self._orig["generate_text"]
+        smart_search.llm.is_configured = self._orig["is_configured"]
+        smart_search.llm.generate_text = self._orig["generate_text"]
         smart_search.searxng.search = self._orig["search"]
         smart_search.content.fetch_auto = self._orig["fetch_auto"]
         smart_search.content.page_markdown = self._orig["page_markdown"]
@@ -51,21 +51,21 @@ class SmartSearchToolTests(unittest.IsolatedAsyncioTestCase):
         async def fake_generate(prompt, *, model=None, system=None, temperature=0.2, response_mime_type=None, **kwargs):
             calls.append({"system": system, "mime": response_mime_type})
             if response_mime_type == "application/json":
-                # Gemini selects results 2 and 0 (best first).
+                # LLM selects results 2 and 0 (best first).
                 return json.dumps({"indexes": [2, 0]})
             return "Synthesized answer citing [1] and [2]."
 
-        smart_search.gemini.generate_text = fake_generate
+        smart_search.llm.generate_text = fake_generate
 
         output = await smart_search.smart_search("what is x?", max_sources=2)
 
         # Summary text is returned, followed by the Sources list.
         self.assertIn("Synthesized answer citing [1] and [2].", output)
         self.assertIn("Sources:", output)
-        # Gemini-chosen order (2 then 0) is preserved in the crawled sources.
+        # LLM-chosen order (2 then 0) is preserved in the crawled sources.
         self.assertIn("[1] https://example.com/2", output)
         self.assertIn("[2] https://example.com/0", output)
-        # Exactly two Gemini calls: one ranking (json), one summary (with system prompt).
+        # Exactly two LLM calls: one ranking (json), one summary (with system prompt).
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[0]["mime"], "application/json")
         self.assertIsNotNone(calls[1]["system"])
@@ -73,10 +73,10 @@ class SmartSearchToolTests(unittest.IsolatedAsyncioTestCase):
     async def test_ranking_failure_falls_back_to_search_order(self):
         async def fake_generate(prompt, *, model=None, system=None, temperature=0.2, response_mime_type=None, **kwargs):
             if response_mime_type == "application/json":
-                raise GeminiError("ranking failed")
+                raise LLMError("ranking failed")
             return "Fallback summary."
 
-        smart_search.gemini.generate_text = fake_generate
+        smart_search.llm.generate_text = fake_generate
 
         output = await smart_search.smart_search("topic", max_sources=2)
 
@@ -84,8 +84,8 @@ class SmartSearchToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("[1] https://example.com/0", output)
         self.assertIn("[2] https://example.com/1", output)
 
-    async def test_missing_api_key_raises_tool_error(self):
-        smart_search.gemini.has_api_key = lambda: False
+    async def test_not_configured_raises_tool_error(self):
+        smart_search.llm.is_configured = lambda: False
         with self.assertRaises(ToolError):
             await smart_search.smart_search("anything")
 

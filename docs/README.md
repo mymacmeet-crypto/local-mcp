@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, get one-shot Gemini-powered answers, fetch/browser-render/scrape pages, discover URLs, run OCR on images, parse PDFs/documents, and generate local Markdown or PDF files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, get one-shot LLM-powered answers (local Ollama by default, or Google Gemini), fetch/browser-render/scrape pages, discover URLs, run OCR on images, parse PDFs/documents, and generate local Markdown or PDF files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -13,7 +13,7 @@ For Qwen and other smaller local models, see [`low_model_compatibility.md`](low_
 | Tool | Documentation | Main purpose |
 | --- | --- | --- |
 | `web_search` | [web_search.md](web_search.md) | Search through a SearXNG instance and return citation-ready Markdown results. |
-| `smart_search` | [smart_search.md](smart_search.md) | One-shot answer: search, let Gemini rank sources, crawl them, and return a Gemini-written cited summary. |
+| `smart_search` | [smart_search.md](smart_search.md) | One-shot answer: search, let an LLM (local Ollama by default) rank sources, crawl them, and return an LLM-written cited summary. |
 | `web_search_to_file` | [web_search_to_file.md](web_search_to_file.md) | Search through SearXNG and write citation-ready results directly to a generated Markdown or PDF file. |
 | `web_fetch` | [web_fetch.md](web_fetch.md) | Fetch one page (with automatic browser fallback) and return its Markdown content as evidence. |
 | `extract_urls` | [extract_urls.md](extract_urls.md) | Discover URLs from `robots.txt`, XML sitemaps, static HTML links, and optional browser-rendered pages. |
@@ -94,14 +94,20 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Comma-separated SearXNG failover list. |
 | `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Alias for `SEARXNG_URLS`. |
 | `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `web_search_to_file`, `smart_search` | SearXNG request timeout in milliseconds. |
-| `GEMINI_API_KEY` | required for `smart_search` | `smart_search` | Google Gemini API key. `GOOGLE_API_KEY` is accepted as an alias. |
+| `LLM_PROVIDER` | `ollama` | `smart_search` | LLM backend for ranking/summarization: `ollama` (local, default) or `gemini`. |
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | `smart_search` | Local Ollama server base URL. Used when `LLM_PROVIDER=ollama`. |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | `smart_search` | Ollama model tag used for ranking and summarization. Must already be pulled. |
+| `OLLAMA_TIMEOUT_MS` | `120000` | `smart_search` | Per-request timeout for Ollama calls in milliseconds. |
+| `OLLAMA_MAX_RETRIES` | `2` | `smart_search` | Retries for transient Ollama `5xx` errors. |
+| `OLLAMA_RETRY_BACKOFF_S` | `2` | `smart_search` | Base backoff in seconds between Ollama retries (grows per attempt). |
+| `GEMINI_API_KEY` | required if `LLM_PROVIDER=gemini` | `smart_search` | Google Gemini API key. `GOOGLE_API_KEY` is accepted as an alias. |
 | `GEMINI_MODEL` | `gemini-flash-latest` | `smart_search` | Gemini model id used for source ranking and summarization. |
 | `GEMINI_API_BASE` | `https://generativelanguage.googleapis.com/v1beta` | `smart_search` | Gemini REST API base URL. |
 | `GEMINI_TIMEOUT_MS` | `120000` | `smart_search` | Per-request timeout for Gemini calls in milliseconds. |
 | `GEMINI_MAX_RETRIES` | `2` | `smart_search` | Retries for transient Gemini `5xx` errors (auth/quota/model errors are not retried). |
 | `GEMINI_RETRY_BACKOFF_S` | `2` | `smart_search` | Base backoff in seconds between Gemini retries (grows per attempt). |
 | `LOCAL_MCP_SMART_SEARCH_CANDIDATES` | `4` | `smart_search` | Candidate multiplier: search pulls `max_sources` × this many URLs (clamped 6–20) for ranking. |
-| `LOCAL_MCP_SMART_SEARCH_SOURCE_CHARS` | `16000` | `smart_search` | Maximum characters of each crawled page passed to Gemini. |
+| `LOCAL_MCP_SMART_SEARCH_SOURCE_CHARS` | `16000` | `smart_search` | Maximum characters of each crawled page passed to the LLM. |
 | `TESSERACT_CMD` | auto-detected | `extract_image_text` | Path to the native Tesseract executable. |
 | `LOCAL_MCP_OCR_MAX_IMAGE_BYTES` | `20971520` | `extract_image_text` | Maximum accepted image size in bytes. |
 | `LOCAL_MCP_TESSERACT_CONFIG` | empty | `extract_image_text` | Extra config string passed to Tesseract. |
