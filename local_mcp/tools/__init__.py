@@ -32,13 +32,14 @@ def _tools_for_profile(profile: str) -> tuple[ToolHandler, ...]:
 
 
 def _full_tools() -> tuple[ToolHandler, ...]:
-    from local_mcp.tools import documents, file_generation, ocr, search, smart_search, web
+    from local_mcp.tools import deep_research, documents, file_generation, ocr, search, smart_search, web
 
     return (
         web.web_fetch,
         web.extract_urls,
         search.web_search,
         smart_search.smart_search,
+        deep_research.deep_research,
         ocr.extract_image_text,
         documents.parse_document,
         file_generation.generate_file,

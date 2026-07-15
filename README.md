@@ -178,6 +178,21 @@ Parameters:
 
 Uses a local Ollama model by default (`LLM_PROVIDER=ollama`, `OLLAMA_MODEL=qwen2.5:7b`) — no API key needed, just a running `ollama serve` with the model pulled. Set `LLM_PROVIDER=gemini` and `GEMINI_API_KEY` in `.env` (see `.env.example`) to use Google Gemini instead. No extra Python dependency is needed for either backend — the client calls the REST API directly over `httpx`.
 
+### `deep_research`
+
+Parameters:
+
+- `query`: the research question or topic to investigate in depth.
+- `breadth`: new sources to crawl per research round. Default: `4`. Allowed range: `1` to `10`.
+- `max_iterations`: how many reflect → re-search rounds to run (research depth). Default: `2`. Allowed range: `1` to `4`.
+- `max_sources`: hard cap on total pages crawled across all rounds. Default: `12`. Allowed range: `1` to `30`.
+- `time_range`: optional SearXNG time range: `day`, `month`, or `year`. Empty means any time.
+- `verify`: run a fact-checking pass that flags report claims the sources do not support. Default: `true`.
+- `output_file`: optional relative Markdown/PDF filename. When set, the report is also written to a file and its path is returned.
+- `model`: optional model override for the configured LLM provider.
+
+`deep_research` is an iterative, deeper version of `smart_search`. It **plans** sub-questions and an outline, runs several rounds of search + crawl, takes compact per-source notes (an evidence ledger, rather than concatenating whole pages), **reflects** on what is still missing to open follow-up searches, then **synthesizes** a long-form, sectioned Markdown report with inline `[n]` citations and a claim-**verification** pass. It returns the report followed by a numbered `Sources` list, and can write it to a file. Prefer `smart_search` for a quick one-shot answer; prefer `deep_research` for broad or high-stakes questions worth reading many sources and cross-checking. It uses the same pluggable LLM backend as `smart_search`. See [`docs/deep_research.md`](docs/deep_research.md).
+
 ### `web_search_to_file`
 
 Parameters:

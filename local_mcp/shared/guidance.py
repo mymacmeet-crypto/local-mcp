@@ -47,6 +47,22 @@ SMART_SEARCH_DESCRIPTION = (
     "Returns plain text: the summary followed by a numbered `Sources:` list."
 )
 
+DEEP_RESEARCH_DESCRIPTION = (
+    "Multi-source, verified research report: an iterative, deeper version of "
+    "`smart_search`. Given a question it PLANS sub-questions, runs several rounds "
+    "of web search + crawl, takes per-source notes, REFLECTS on what is still "
+    "missing to open follow-up searches, then SYNTHESIZES a long-form, sectioned "
+    "report with inline citations and a claim-VERIFICATION pass.\n\n"
+    "Prefer `smart_search` for a quick one-shot answer; prefer `deep_research` "
+    "when the question is broad or high-stakes and worth reading many sources and "
+    "cross-checking. It runs the whole plan -> search -> crawl -> reflect -> "
+    "synthesize -> verify pipeline internally and returns a FINAL Markdown report "
+    "(optionally written to a file) followed by a numbered `Sources` list.\n\n"
+    "Costs more time and more LLM calls than `smart_search`; bounded by `breadth`, "
+    "`max_iterations`, and `max_sources`. Uses a local Ollama model by default "
+    "(LLM_PROVIDER=ollama); set LLM_PROVIDER=gemini and GEMINI_API_KEY for Gemini."
+)
+
 WEB_FETCH_DESCRIPTION = (
     "STEP 2 of web research: RETRIEVE the full content of one web page as "
     "evidence. Use it after `web_search` on the URLs it recommends, or on any "
