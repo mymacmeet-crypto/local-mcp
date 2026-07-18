@@ -273,68 +273,6 @@ class Tools:
         await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
 
-    async def web_search_to_file(
-        self,
-        query: str,
-        filename: str,
-        limit: int = 8,
-        categories: str = "general",
-        language: str = "auto",
-        pageno: int = 1,
-        safesearch: int = 0,
-        time_range: str = "",
-        engines: str = "",
-        searxng_url: str = "",
-        write_mode: str = "append",
-        overwrite: bool = False,
-        ensure_trailing_newline: bool = True,
-        file_type: str = "md",
-        __event_emitter__: EventEmitter = None,
-    ) -> str:
-        """
-        Search the web through SearXNG and write citation-ready results to a local Markdown or PDF file.
-        :param query: Search query to send to SearXNG.
-        :param filename: Output Markdown or PDF filename or relative path. The matching extension is appended when omitted.
-        :param limit: Maximum number of search results to write. Allowed range is 1 to 20.
-        :param categories: SearXNG categories, for example 'general', 'news', 'images', or 'general,news'.
-        :param language: SearXNG language code. Use 'auto' for automatic language detection.
-        :param pageno: SearXNG result page number. Allowed range is 1 to 20.
-        :param safesearch: Safe-search level, where 0 is off, 1 is moderate, and 2 is strict.
-        :param time_range: Optional SearXNG time range: 'day', 'month', or 'year'.
-        :param engines: Optional comma-separated SearXNG engines override.
-        :param searxng_url: Optional SearXNG base URL for this request.
-        :param write_mode: File write mode. Use 'append' to add a search section or 'write' to create/replace.
-        :param overwrite: Replace an existing file when write_mode is 'write'.
-        :param ensure_trailing_newline: Append a trailing newline to the generated Markdown section. Ignored for PDF output.
-        :param file_type: Output file type: md/markdown or pdf. A .pdf filename also selects PDF output.
-        """
-        _log("web_search_to_file", f"query={query} filename={filename} file_type={file_type} mode={write_mode}")
-        await self._emit_status(__event_emitter__, f"Searching and writing {query}...", False)
-
-        result = self._call(
-            "web_search_to_file",
-            {
-                "query": query,
-                "filename": filename,
-                "limit": limit,
-                "categories": categories,
-                "language": language,
-                "pageno": pageno,
-                "safesearch": safesearch,
-                "time_range": time_range,
-                "engines": engines,
-                "searxng_url": searxng_url,
-                "write_mode": write_mode,
-                "overwrite": overwrite,
-                "ensure_trailing_newline": ensure_trailing_newline,
-                "file_type": file_type,
-            },
-        )
-
-        await self._emit_status(__event_emitter__, "Done", True)
-        await self._emit_message(__event_emitter__, f"\n{result}\n")
-        return result
-
     async def extract_urls(
         self,
         url: str,
@@ -468,35 +406,59 @@ class Tools:
     async def generate_file(
         self,
         filename: str,
-        content: str,
+        content: str = "",
+        query: str = "",
+        search_mode: str = "smart",
         file_type: str = "md",
-        output_dir: str = "",
-        write_mode: str = "write",
         overwrite: bool = False,
+        write_mode: str = "write",
+        max_sources: int = 0,
+        time_range: str = "",
+        model: str = "",
+        min_words: int = 0,
         ensure_trailing_newline: bool = True,
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
-        Generate a local Markdown or PDF file from supplied content.
-        :param filename: Output Markdown or PDF filename or relative path. The extension is appended when omitted.
-        :param content: Markdown-like content to write into the generated Markdown or PDF file.
-        :param file_type: Output file type: md/markdown or pdf. A .pdf filename also selects PDF output.
-        :param output_dir: Reserved for compatibility. The server uses LOCAL_MCP_FILE_OUTPUT_DIR or LOCAL_MCP_DOWNLOAD_DIR.
-        :param write_mode: Write mode. Use 'write' for normal generation or 'append' to add this content as a chunk.
+        Generate a local md/txt/pdf/docx/pptx file from supplied content or from web research.
+        Provide exactly one of content or query. With content, the supplied text is written
+        as-is. With query, the server researches the question online first (search_mode
+        'smart' for a fast cited summary, 'deep' for an iterative research report) and
+        writes the result to the file.
+        :param filename: Output filename or relative path. The extension matching file_type is appended when omitted.
+        :param content: Ready-made Markdown-like content to write. Leave empty when using query.
+        :param query: Research question to answer and write to the file. Leave empty when using content.
+        :param search_mode: Research pipeline for query mode: 'smart' (fast summary) or 'deep' (thorough report).
+        :param file_type: Output file type: md/markdown, txt, pdf, doc/docx (Word), or ppt/pptx (PowerPoint).
         :param overwrite: Replace an existing file at the target path.
-        :param ensure_trailing_newline: Append a trailing newline to non-empty Markdown content. Ignored for PDF output.
+        :param write_mode: 'write' creates/replaces the file; 'append' adds a chunk (Markdown and text files only).
+        :param max_sources: Maximum web sources for query mode. 0 uses the search mode's default.
+        :param time_range: Optional SearXNG time range for query mode: 'day', 'month', or 'year'.
+        :param model: Optional model override for the configured LLM provider in query mode.
+        :param min_words: Minimum word count required for supplied content. 0 allows short notes.
+        :param ensure_trailing_newline: Append a trailing newline to Markdown/text output. Ignored for binary output.
         """
-        _log("generate_file", f"filename={filename} file_type={file_type} mode={write_mode} output_dir={output_dir}")
-        await self._emit_status(__event_emitter__, "Generating file...", False)
+        _log(
+            "generate_file",
+            f"filename={filename} file_type={file_type} mode={write_mode} query={query!r} search_mode={search_mode}",
+        )
+        status = f"Researching and writing {query}..." if query.strip() else "Generating file..."
+        await self._emit_status(__event_emitter__, status, False)
 
         result = self._call(
             "generate_file",
             {
                 "filename": filename,
                 "content": content,
+                "query": query,
+                "search_mode": search_mode,
                 "file_type": file_type,
                 "overwrite": overwrite,
                 "write_mode": write_mode,
+                "max_sources": max_sources,
+                "time_range": time_range,
+                "model": model,
+                "min_words": min_words,
                 "ensure_trailing_newline": ensure_trailing_newline,
             },
         )

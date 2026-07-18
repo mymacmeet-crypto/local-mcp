@@ -21,14 +21,10 @@ class PackageImportTests(unittest.TestCase):
             ocr.extract_image_text,
             documents.parse_document,
             file_generation.generate_file,
-            file_generation.web_search_to_file,
             simple.fetch_web_page,
             simple.list_page_urls,
             simple.read_document,
             simple.read_image_text,
-            simple.write_markdown_file,
-            simple.write_report_file,
-            simple.search_web_to_file,
         ):
             self.assertTrue(callable(handler))
 
@@ -40,6 +36,8 @@ class PackageImportTests(unittest.TestCase):
         both_names = [tool.__name__ for tool in _tools_for_profile("both")]
 
         self.assertIn("web_search", full_names)
+        self.assertIn("generate_file", full_names)
+        self.assertNotIn("web_search_to_file", full_names)
         self.assertNotIn("fetch_web_page", full_names)
         self.assertEqual(
             simple_names,
@@ -48,13 +46,12 @@ class PackageImportTests(unittest.TestCase):
                 "list_page_urls",
                 "read_document",
                 "read_image_text",
-                "write_markdown_file",
-                "write_report_file",
-                "search_web_to_file",
+                "generate_file",
             ],
         )
         self.assertIn("fetch_web_page", both_names)
         self.assertIn("web_search", both_names)
+        self.assertEqual(both_names.count("generate_file"), 1)
 
 
 if __name__ == "__main__":

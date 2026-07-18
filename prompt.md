@@ -16,28 +16,6 @@ Using local-mcp, search recent news for SearXNG with categories=news, time_range
 Using local-mcp, search the web for local AI tool calling with engines=duckduckgo,brave and limit=8.
 ```
 
-## `web_search_to_file`
-
-```
-Using local-mcp, search the web for OpenAI MCP protocol and write 5 results to research/mcp-search-notes.
-```
-
-```
-Using local-mcp, search recent SearXNG news with categories=news, time_range=month, limit=5, and append the results to research/search-news.
-```
-
-```
-Using local-mcp, search the web for local AI tool calling with engines=duckduckgo,brave and save the results to research/local-ai-tools with write_mode=write and overwrite=true.
-```
-
-```
-Using local-mcp, search the web for OpenAI MCP protocol and write 5 results to research/mcp-search-notes.pdf with write_mode=write.
-```
-
-```
-Using local-mcp, search recent SearXNG news with categories=news, time_range=month, limit=5, file_type=pdf, write_mode=write, overwrite=true, and save the results to research/search-news-pdf.
-```
-
 ## `extract_urls`
 
 ```
@@ -107,11 +85,29 @@ Using local-mcp, create reports/project-brief.pdf with this content: # Project B
 ```
 
 ```
-Using local-mcp, create reports/monthly-summary with file_type=pdf, write_mode=write, and overwrite=true. Content: # Monthly Summary
+Using local-mcp, create reports/project-brief.docx with this content: # Project Brief
 
-Highlights:
-- Generated as a PDF
-- Uses the configured LOCAL_MCP_FILE_OUTPUT_DIR destination
+- Owner: Local MCP
+- Status: Word-ready
+```
+
+```
+Using local-mcp, create decks/project-brief with file_type=pptx. Content: # Project Brief
+
+- Owner: Local MCP
+
+## Roadmap
+
+- MVP in Q1
+- Beta in Q2
+```
+
+```
+Using local-mcp, research the query "What is the Model Context Protocol?" with search_mode=smart and write the answer to research/mcp-protocol.pdf.
+```
+
+```
+Using local-mcp, research the query "Compare current local LLM inference runtimes" with search_mode=deep and write the report to research/local-llm-landscape.docx with overwrite=true.
 ```
 
 ```
@@ -125,6 +121,5 @@ Using local-mcp, append this next chunk to reports/large-report with write_mode=
 ```
 
 ```
-Using local-mcp, try to append to reports/monthly-summary.pdf with write_mode=append. Confirm that PDF append is rejected and explain that PDFs must be generated with write_mode=write and complete content.
+Using local-mcp, try to append to reports/monthly-summary.pdf with write_mode=append. Confirm that PDF append is rejected and explain that PDF, Word, and PowerPoint files must be generated with write_mode=write and complete content.
 ```
-

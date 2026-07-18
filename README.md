@@ -124,17 +124,15 @@ For the full explanation of these compatibility changes, see [`docs/low_model_co
 LOCAL_MCP_TOOL_PROFILE=simple
 ```
 
-The `simple` profile registers simpler wrapper tools only:
+The `simple` profile registers simpler wrapper tools plus the unified file tool:
 
 - `fetch_web_page`
 - `list_page_urls`
 - `read_document`
 - `read_image_text`
-- `write_markdown_file`
-- `write_report_file`
-- `search_web_to_file`
+- `generate_file`
 
-For PDF or Markdown reports, prefer `write_report_file`. It rejects content below its `min_words` threshold, so smaller models are forced to expand the report before a half-page PDF is written. The default is `min_words=900`, which is usually closer to a 2-3 page PDF than a short answer.
+For reports, set `min_words` on `generate_file` (for example `min_words=900`). It rejects content below the threshold, so smaller models are forced to expand the report before a half-page file is written.
 
 The default profile is `full`, which keeps the original tool surface. Use `both` only for clients and models that handle larger tool lists well.
 
@@ -193,27 +191,6 @@ Parameters:
 
 `deep_research` is an iterative, deeper version of `smart_search`. It **plans** sub-questions and an outline, runs several rounds of search + crawl, takes compact per-source notes (an evidence ledger, rather than concatenating whole pages), **reflects** on what is still missing to open follow-up searches, then **synthesizes** a long-form, sectioned Markdown report with inline `[n]` citations and a claim-**verification** pass. It returns the report followed by a numbered `Sources` list, and can write it to a file. Prefer `smart_search` for a quick one-shot answer; prefer `deep_research` for broad or high-stakes questions worth reading many sources and cross-checking. It uses the same pluggable LLM backend as `smart_search`. See [`docs/deep_research.md`](docs/deep_research.md).
 
-### `web_search_to_file`
-
-Parameters:
-
-- `query`: search query to send to SearXNG.
-- `filename`: output Markdown or PDF filename or relative path. The matching extension is appended when omitted.
-- `limit`: maximum number of search results to write. Default: `8`.
-- `categories`: SearXNG categories, for example `general`, `news`, `images`, or `general,news`. Default: `general`.
-- `language`: SearXNG language code. Default: `auto`.
-- `pageno`: SearXNG result page number. Default: `1`.
-- `safesearch`: safe-search level, where `0` is off, `1` is moderate, and `2` is strict. Default: `0`.
-- `time_range`: optional SearXNG time range: `day`, `month`, or `year`.
-- `engines`: optional comma-separated SearXNG engines override.
-- `searxng_url`: optional SearXNG base URL for this request.
-- `write_mode`: `append` adds a search section to the target file, `write` creates/replaces content. Default: `append`.
-- `overwrite`: replace an existing file when `write_mode` is `write`. Default: `false`.
-- `ensure_trailing_newline`: append a trailing newline to the generated Markdown section. Ignored for PDF output. Default: `true`.
-- `file_type`: output type. Supports `md`/`markdown` and `pdf`. A `.pdf` filename also selects PDF output. Default: `md`.
-
-This runs the search server-side and writes the formatted results directly into the generated Markdown or PDF file, so smaller models do not need to pass large search output through a `content` argument. PDF output requires `write_mode="write"` because append/chunk mode is Markdown-only.
-
 ### `web_fetch`
 
 Parameters:
@@ -258,19 +235,28 @@ The response is parsed document content. `auto` prefers PyMuPDF4LLM when install
 
 ### `generate_file`
 
+One tool, two input modes: write supplied `content`, or research a `query` online first and write the result. Supported output formats: Markdown (`md`), plain text (`txt`), `pdf`, Word (`doc`/`docx`), and PowerPoint (`ppt`/`pptx`). Legacy `doc`/`ppt` requests are written as modern `.docx`/`.pptx`, which Word and PowerPoint open natively.
+
 Parameters:
 
-- `filename`: output Markdown or PDF filename or relative path. The matching extension is appended when omitted.
-- `content`: Markdown-like content to write.
-- `file_type`: output type. Supports `md`/`markdown` and `pdf`. A `.pdf` filename also selects PDF output. Default: `md`.
+- `filename`: output filename or relative path. The extension matching `file_type` is appended when omitted.
+- `content`: ready-made Markdown-like content to write. Leave empty when using `query`.
+- `query`: research question to answer with web research; the researched answer is written to the file. Leave empty when using `content`.
+- `search_mode`: research pipeline used when `query` is set: `smart` runs a fast single-pass `smart_search` summary; `deep` runs the iterative `deep_research` report. Default: `smart`.
+- `file_type`: output type: `md`/`markdown`, `txt`, `pdf`, `doc`/`docx`, or `ppt`/`pptx`. A matching filename extension also selects the type. Default: `md`.
 - `overwrite`: replace an existing file at the target path. Default: `false`.
-- `write_mode`: `write` creates/replaces content, `append` adds the content as a chunk. Default: `write`.
-- `ensure_trailing_newline`: append a trailing newline to non-empty Markdown content. Ignored for PDF output. Default: `true`.
-- `min_words`: minimum word count required before writing. Use `700`-`1200` for 2-3 page reports, or `0` for short notes. Default: `0`.
+- `write_mode`: `write` creates/replaces content, `append` adds the content as a chunk (Markdown and text files only). Default: `write`.
+- `max_sources`: maximum web sources to use in query mode. `0` uses the search mode's default. Default: `0`.
+- `time_range`: optional SearXNG time range for query mode: `day`, `month`, or `year`.
+- `model`: optional model override for the configured LLM provider in query mode.
+- `min_words`: minimum word count required for supplied `content`. Use `700`-`1200` for 2-3 page reports, or `0` for short notes. Ignored in query mode. Default: `0`.
+- `ensure_trailing_newline`: append a trailing newline to non-empty Markdown/text content. Ignored for binary output. Default: `true`.
 
-The response reports the generated file path, write mode, byte count, character count, and whether an existing file was overwritten. PDF output is generated from Markdown-like text. `append`/chunk mode is supported for Markdown only; generate PDFs with `write_mode="write"` and the complete content.
+Provide exactly one of `content` or `query`; the tool errors when both or neither is set. Query mode requires the same LLM backend as `smart_search`/`deep_research` (local Ollama by default, or Gemini via `LLM_PROVIDER=gemini`).
 
-For large files, call `generate_file` once with `write_mode="write"` for the first chunk, then call it again with `write_mode="append"` for later chunks.
+The response reports the generated file path, write mode, byte count, character count, and whether an existing file was overwritten (plus the query and search mode in query mode). PDF, Word, and PowerPoint output are rendered from Markdown-like text. `append`/chunk mode is supported for Markdown and text only; generate binary formats with `write_mode="write"` and the complete content.
+
+For large Markdown/text files, call `generate_file` once with `write_mode="write"` for the first chunk, then call it again with `write_mode="append"` for later chunks.
 
 You must define a download location in `.env`; otherwise file-writing tools return `Download path not defined`.
 

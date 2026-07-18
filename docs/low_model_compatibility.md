@@ -32,9 +32,7 @@ The simple profile exposes fewer, clearer tools:
 | `list_page_urls` | Extract links from a page or site. |
 | `read_document` | Parse a document with safe defaults. |
 | `read_image_text` | Run OCR with default English settings. |
-| `write_markdown_file` | Write normal Markdown notes. |
-| `write_report_file` | Write a longer report and reject short content. |
-| `search_web_to_file` | Search and write results directly to a file. |
+| `generate_file` | Write a file from supplied content, or research a query and write the answer. |
 
 This reduces the number of choices the model must make.
 
@@ -59,7 +57,7 @@ Examples:
 
 - `output_format` (`parse_document`): `markdown`, `text`, `json`
 - `parser`: `auto`, `pypdf`, `pymupdf4llm`, `pdfplumber`, `docling`, `marker`, `mineru`, `text`
-- `file_type`: `md`, `markdown`, `pdf`
+- `file_type`: `md`, `markdown`, `txt`, `pdf`, `doc`, `docx`, `ppt`, `pptx`
 - `write_mode`: `write`, `append`
 
 Smaller models usually do better when valid choices are explicit.
@@ -74,13 +72,13 @@ min_words
 
 When `min_words` is greater than `0`, the tool refuses to write content that is too short. This prevents short, low-quality files from being silently generated.
 
-The simple profile also adds `write_report_file`, which defaults to a longer report requirement:
+For a full report, ask for a longer requirement explicitly:
 
 ```text
 min_words=900
 ```
 
-Use `write_markdown_file` for short notes. Use `write_report_file` only when you expect a full report.
+Use plain `generate_file` for short notes. Set `min_words` only when you expect a full report.
 
 ## Recommended Configuration
 
@@ -104,13 +102,13 @@ Using local-mcp, search the web for "local LLM MCP tool calling" and return a de
 For Markdown notes:
 
 ```text
-Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched page content, and write detailed Markdown notes with write_markdown_file named reports/mcp-tool-calling-notes.md.
+Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched page content, and write detailed Markdown notes with generate_file named reports/mcp-tool-calling-notes.md.
 ```
 
 For a long report:
 
 ```text
-Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched page content, and write a detailed report with write_report_file named reports/mcp-tool-calling-report.md with file_type=md and min_words=900.
+Using local-mcp, search the web for "local LLM MCP tool calling", use the fetched page content, and write a detailed report with generate_file named reports/mcp-tool-calling-report.md with file_type=md and min_words=900.
 ```
 
 ## How The Improved Flow Works
@@ -171,12 +169,12 @@ Then restart the MCP server.
 
 ### The generated file is still too short
 
-Use `write_report_file` or set `min_words` on `generate_file`.
+Set `min_words` on `generate_file`.
 
 Example:
 
 ```text
-Use write_report_file with min_words=900.
+Use generate_file with min_words=900.
 ```
 
 ### Browser-rendered pages are missing content

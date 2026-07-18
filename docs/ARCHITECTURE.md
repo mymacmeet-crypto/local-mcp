@@ -116,21 +116,15 @@ MCP client
 ```text
 MCP client
   -> local_mcp.tools.file_generation.generate_file
-  -> local_mcp.file_generation.write_generated_file / append_generated_file validates md/pdf settings
+  -> content mode: use the supplied Markdown-like content as-is
+     query mode: local_mcp.tools.smart_search.smart_search (search_mode=smart)
+                 or local_mcp.tools.deep_research.deep_research (search_mode=deep)
+                 produces the content
+  -> local_mcp.file_generation.write_generated_file / append_generated_file validates md/txt/pdf/docx/pptx settings
   -> resolve filename under LOCAL_MCP_FILE_OUTPUT_DIR / LOCAL_MCP_DOWNLOAD_DIR
-  -> create parent folders and write UTF-8 Markdown, append Markdown chunks, or write PDF bytes
+  -> create parent folders and write UTF-8 text, append text chunks, or render PDF/Word/PowerPoint bytes
+     (local_mcp.file_generation.pdf / word / powerpoint)
   -> Markdown response with path and write stats
-```
-
-### `web_search_to_file`
-
-```text
-MCP client
-  -> local_mcp.tools.file_generation.web_search_to_file
-  -> local_mcp.search.searxng.search returns results, answers, and suggestions
-  -> local_mcp.tools.search.format_search_response formats citation-ready Markdown
-  -> local_mcp.file_generation.write_generated_file / append_generated_file persists Markdown or PDF output
-  -> Markdown response with search count, path, and write stats
 ```
 
 ## Dependency Model

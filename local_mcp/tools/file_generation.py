@@ -1,4 +1,15 @@
-"""MCP tool handler for file generation."""
+"""MCP tool handler for unified file generation.
+
+One tool, two input modes:
+
+- `content` — write the supplied Markdown-like text to a local file.
+- `query`   — research the question online first (`smart_search` for a fast
+  cited summary, `deep_research` for an iterative long-form report) and write
+  the result to a local file.
+
+Supported output formats: Markdown (md), plain text (txt), PDF, Word
+(doc/docx), and PowerPoint (ppt/pptx).
+"""
 
 from __future__ import annotations
 
@@ -8,13 +19,18 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from local_mcp.file_generation import GeneratedFile, append_generated_file, write_generated_file
-from local_mcp.search import searxng
 from local_mcp.shared.errors import tool_error
-from local_mcp.tools.search import format_search_response
+from local_mcp.tools import deep_research, smart_search
 
-FileType = Literal["md", "markdown", "pdf"]
+FileType = Literal["md", "markdown", "txt", "pdf", "doc", "docx", "ppt", "pptx"]
+SearchMode = Literal["smart", "deep"]
 SearchTimeRange = Literal["", "day", "month", "year"]
 WriteMode = Literal["write", "append"]
+
+SMART_MAX_SOURCES_LIMIT = 10
+DEEP_MAX_SOURCES_LIMIT = 30
+
+_TYPE_LABELS = {"md": "Markdown", "txt": "Text", "pdf": "PDF", "docx": "Word", "pptx": "PowerPoint"}
 
 
 async def generate_file(
@@ -22,17 +38,40 @@ async def generate_file(
         str,
         Field(
             description=(
-                "Output Markdown or PDF filename or relative path. The extension is appended when omitted."
+                "Output filename or relative path. The extension matching file_type is appended when omitted."
             ),
         ),
     ],
     content: Annotated[
         str,
-        Field(description="Markdown-like content to write into the generated Markdown or PDF file."),
-    ],
+        Field(description="Ready-made Markdown-like content to write. Leave empty when using `query`."),
+    ] = "",
+    query: Annotated[
+        str,
+        Field(
+            description=(
+                "Research question to answer with web research; the researched answer is written to the file. "
+                "Leave empty when using `content`."
+            ),
+        ),
+    ] = "",
+    search_mode: Annotated[
+        SearchMode,
+        Field(
+            description=(
+                "Research pipeline used when `query` is set: `smart` runs a fast single-pass smart_search "
+                "summary; `deep` runs the iterative deep_research report (slower, more thorough)."
+            ),
+        ),
+    ] = "smart",
     file_type: Annotated[
         FileType,
-        Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
+        Field(
+            description=(
+                "Output file type: md/markdown, txt, pdf, doc/docx (Word), or ppt/pptx (PowerPoint). "
+                "A matching filename extension also selects the type. doc/ppt are written as modern .docx/.pptx."
+            ),
+        ),
     ] = "md",
     overwrite: Annotated[
         bool,
@@ -40,127 +79,79 @@ async def generate_file(
     ] = False,
     write_mode: Annotated[
         WriteMode,
-        Field(description="Write mode: `write` creates/replaces content, `append` adds this content as a chunk."),
+        Field(
+            description=(
+                "`write` creates/replaces the file; `append` adds this content as a chunk "
+                "(Markdown and text files only)."
+            ),
+        ),
     ] = "write",
-    ensure_trailing_newline: Annotated[
-        bool,
-        Field(description="Append a trailing newline to non-empty Markdown content. Ignored for PDF output."),
-    ] = True,
+    max_sources: Annotated[
+        int,
+        Field(
+            description="Maximum web sources to use in query mode. 0 uses the search mode's default.",
+            ge=0,
+            le=DEEP_MAX_SOURCES_LIMIT,
+        ),
+    ] = 0,
+    time_range: Annotated[
+        SearchTimeRange,
+        Field(description="Optional SearXNG time range for query mode: `day`, `month`, or `year`. Empty means any time."),
+    ] = "",
+    model: Annotated[
+        str,
+        Field(description="Optional model override for the configured LLM provider in query mode. Empty uses the provider default."),
+    ] = "",
     min_words: Annotated[
         int,
         Field(
             description=(
-                "Minimum word count required before writing. Use 700-1200 for a 2-3 page report. "
-                "Use 0 to allow short notes."
+                "Minimum word count required for supplied `content` before writing. Use 700-1200 for a "
+                "2-3 page report, 0 to allow short notes. Ignored in query mode."
             ),
             ge=0,
             le=20000,
         ),
     ] = 0,
-) -> str:
-    """Generate a local Markdown or PDF file from supplied content."""
-    try:
-        _validate_min_words(content, min_words)
-        result = _write_content_to_file(
-            filename,
-            content,
-            file_type=file_type,
-            overwrite=overwrite,
-            write_mode=write_mode,
-            ensure_trailing_newline=ensure_trailing_newline,
-        )
-    except Exception as err:
-        raise tool_error(str(err))
-
-    return _format_generated_file_result(result)
-
-
-async def web_search_to_file(
-    query: Annotated[str, Field(description="Search query to send to SearXNG.")],
-    filename: Annotated[
-        str,
-        Field(
-            description=(
-                "Output Markdown or PDF filename or relative path. The matching extension is appended when omitted."
-            ),
-        ),
-    ],
-    limit: Annotated[int, Field(description="Maximum number of search results to write.", ge=1, le=20)] = 8,
-    categories: Annotated[
-        str,
-        Field(description="SearXNG categories, for example `general`, `news`, `images`, or `general,news`."),
-    ] = "general",
-    language: Annotated[
-        str,
-        Field(description="SearXNG language code. Use `auto` for automatic language detection."),
-    ] = "auto",
-    pageno: Annotated[int, Field(description="SearXNG result page number.", ge=1, le=20)] = 1,
-    safesearch: Annotated[
-        int,
-        Field(description="SearXNG safe-search level: 0 off, 1 moderate, 2 strict.", ge=0, le=2),
-    ] = 0,
-    time_range: Annotated[
-        SearchTimeRange,
-        Field(description="Optional SearXNG time range: `day`, `month`, or `year`. Empty means any time."),
-    ] = "",
-    engines: Annotated[
-        str,
-        Field(description="Optional comma-separated SearXNG engines override. Empty uses the instance defaults."),
-    ] = "",
-    searxng_url: Annotated[
-        str,
-        Field(
-            description=(
-                "Optional SearXNG base URL for this request. Empty uses SEARXNG_URLS, "
-                "LOCAL_MCP_SEARXNG_URLS, or SEARXNG_BASE_URL."
-            )
-        ),
-    ] = "",
-    write_mode: Annotated[
-        WriteMode,
-        Field(description="File write mode: `append` adds the search section, `write` creates/replaces content."),
-    ] = "append",
-    overwrite: Annotated[
-        bool,
-        Field(description="Replace an existing file when write_mode is `write`."),
-    ] = False,
     ensure_trailing_newline: Annotated[
         bool,
-        Field(description="Append a trailing newline to the generated Markdown section. Ignored for PDF output."),
+        Field(description="Append a trailing newline to non-empty Markdown/text content. Ignored for binary output."),
     ] = True,
-    file_type: Annotated[
-        FileType,
-        Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
-    ] = "md",
 ) -> str:
-    """Search the web and write citation-ready results directly to a local Markdown or PDF file."""
-    try:
-        instance_url, results, answers, suggestions = await searxng.search(
-            query,
-            limit=limit,
-            categories=categories,
-            language=language,
-            pageno=pageno,
-            safesearch=safesearch,
-            time_range=time_range.strip() or None,
-            engines=engines.strip() or None,
-            base_url=searxng_url.strip() or None,
-        )
-    except Exception as err:
-        raise tool_error(f"SearXNG search failed: {err}")
+    """Generate a local md/txt/pdf/docx/pptx file from supplied content or from web research.
 
-    markdown = _format_search_file_section(
-        query=query,
-        instance_url=instance_url,
-        results=results,
-        answers=answers,
-        suggestions=suggestions,
-    )
+    Provide exactly one of `content` or `query`. With `content`, the supplied text is
+    written as-is. With `query`, the question is researched online first (`search_mode`
+    `smart` for a fast cited summary, `deep` for an iterative research report) and the
+    result is written to the file.
+    """
+    has_content = bool(content.strip())
+    has_query = bool(query.strip())
+    if has_content == has_query:
+        raise tool_error(
+            "Provide exactly one of `content` or `query`: use `content` to write supplied text, "
+            "or `query` to research the topic online and write the answer."
+        )
+
+    if has_query:
+        document = await _research_content(
+            query.strip(),
+            search_mode=search_mode,
+            max_sources=max_sources,
+            time_range=time_range,
+            model=model,
+        )
+    else:
+        try:
+            _validate_min_words(content, min_words)
+        except ValueError as err:
+            raise tool_error(str(err))
+        document = content
 
     try:
         result = _write_content_to_file(
             filename,
-            markdown,
+            document,
             file_type=file_type,
             overwrite=overwrite,
             write_mode=write_mode,
@@ -169,20 +160,38 @@ async def web_search_to_file(
     except Exception as err:
         raise tool_error(str(err))
 
-    return "\n".join(
-        [
-            "Web search results written to file.",
-            f"- Query: {query.strip()}",
-            f"- SearXNG instance: {instance_url}",
-            f"- Results returned: {len(results)}",
-            f"- Path: {result.path}",
-            f"- File type: {result.file_type}",
-            f"- Write mode: {result.operation}",
-            f"- Characters written: {result.characters_written}",
-            f"- Bytes written: {result.bytes_written}",
-            f"- Overwritten: {'yes' if result.overwritten else 'no'}",
-        ]
+    return _format_generated_file_result(
+        result,
+        query=query.strip() if has_query else "",
+        search_mode=search_mode if has_query else "",
     )
+
+
+async def _research_content(
+    query: str,
+    *,
+    search_mode: str,
+    max_sources: int,
+    time_range: str,
+    model: str,
+) -> str:
+    mode = _normalize_search_mode(search_mode)
+    if mode == "deep":
+        kwargs = {"max_sources": min(max_sources, DEEP_MAX_SOURCES_LIMIT)} if max_sources > 0 else {}
+        return await deep_research.deep_research(query, time_range=time_range, model=model, **kwargs)
+
+    kwargs = {"max_sources": min(max_sources, SMART_MAX_SOURCES_LIMIT)} if max_sources > 0 else {}
+    summary = await smart_search.smart_search(query, time_range=time_range, model=model, **kwargs)
+    return f"# {query}\n\n{summary}"
+
+
+def _normalize_search_mode(search_mode: str) -> str:
+    normalized = (search_mode or "smart").strip().lower().replace("-", "_")
+    if normalized in {"smart", "smart_search"}:
+        return "smart"
+    if normalized in {"deep", "deep_research", "deep_search"}:
+        return "deep"
+    raise tool_error("search_mode must be 'smart' or 'deep'.")
 
 
 def _write_content_to_file(
@@ -242,12 +251,15 @@ def _word_count(content: str) -> int:
     return len(re.findall(r"\b[\w'-]+\b", content or ""))
 
 
-def _format_generated_file_result(result: GeneratedFile) -> str:
-    label = "PDF" if result.file_type == "pdf" else "Markdown"
+def _format_generated_file_result(result: GeneratedFile, *, query: str = "", search_mode: str = "") -> str:
+    label = _TYPE_LABELS.get(result.file_type, result.file_type)
     message = f"{label} file appended." if result.operation == "append" else f"{label} file generated."
-    return "\n".join(
+    lines = [message]
+    if query:
+        lines.append(f"- Query: {query}")
+        lines.append(f"- Search mode: {search_mode}")
+    lines.extend(
         [
-            message,
             f"- Path: {result.path}",
             f"- File type: {result.file_type}",
             f"- Write mode: {result.operation}",
@@ -256,22 +268,4 @@ def _format_generated_file_result(result: GeneratedFile) -> str:
             f"- Overwritten: {'yes' if result.overwritten else 'no'}",
         ]
     )
-
-
-def _format_search_file_section(
-    *,
-    query: str,
-    instance_url: str,
-    results: list[searxng.SearchResult],
-    answers: list[str],
-    suggestions: list[str],
-) -> str:
-    title = " ".join(query.split())
-    search_markdown = format_search_response(
-        query=query,
-        instance_url=instance_url,
-        results=results,
-        answers=answers,
-        suggestions=suggestions,
-    )
-    return "\n".join([f"## Web Search: {title}", "", search_markdown])
+    return "\n".join(lines)

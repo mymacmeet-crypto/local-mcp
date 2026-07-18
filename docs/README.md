@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, get one-shot LLM-powered answers (local Ollama by default, or Google Gemini), fetch/browser-render/scrape pages, discover URLs, run OCR on images, parse PDFs/documents, and generate local Markdown or PDF files. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, get one-shot LLM-powered answers (local Ollama by default, or Google Gemini), fetch/browser-render/scrape pages, discover URLs, run OCR on images, parse PDFs/documents, and generate local Markdown, text, PDF, Word, or PowerPoint files (from supplied content or from web research). The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -14,12 +14,11 @@ For Qwen and other smaller local models, see [`low_model_compatibility.md`](low_
 | --- | --- | --- |
 | `web_search` | [web_search.md](web_search.md) | Search through a SearXNG instance and return citation-ready Markdown results. |
 | `smart_search` | [smart_search.md](smart_search.md) | One-shot answer: search, let an LLM (local Ollama by default) rank sources, crawl them, and return an LLM-written cited summary. |
-| `web_search_to_file` | [web_search_to_file.md](web_search_to_file.md) | Search through SearXNG and write citation-ready results directly to a generated Markdown or PDF file. |
 | `web_fetch` | [web_fetch.md](web_fetch.md) | Fetch one page (with automatic browser fallback) and return its Markdown content as evidence. |
 | `extract_urls` | [extract_urls.md](extract_urls.md) | Discover URLs from `robots.txt`, XML sitemaps, static HTML links, and optional browser-rendered pages. |
 | `extract_image_text` | [extract_image_text.md](extract_image_text.md) | Extract text from local, remote, data URL, or base64 image input using Tesseract OCR. |
 | `parse_document` | [parse_document.md](parse_document.md) | Parse PDFs and documents into Markdown, text, or JSON using local parser backends. |
-| `generate_file` | [generate_file.md](generate_file.md) | Generate local Markdown or PDF files from supplied content. |
+| `generate_file` | [generate_file.md](generate_file.md) | Generate local md/txt/pdf/docx/pptx files from supplied content or from a researched web query (`smart_search`/`deep_research`). |
 
 ## Shared Project Setup
 
@@ -90,10 +89,10 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_URL_LIMIT` | `500` | `extract_urls` | Default maximum number of URLs returned. |
 | `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `web_fetch`, `smart_search` | Minimum static Markdown length before browser-render fallback is attempted. |
 | `LOCAL_MCP_TOOL_PROFILE` | `full` | Tool registration | Set to `simple` for smaller models, `full` for the original tools, or `both` to expose both sets. |
-| `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search`, `web_search_to_file` | Default SearXNG base URL. |
-| `SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Comma-separated SearXNG failover list. |
-| `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Alias for `SEARXNG_URLS`. |
-| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `web_search_to_file`, `smart_search` | SearXNG request timeout in milliseconds. |
+| `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search` | Default SearXNG base URL. |
+| `SEARXNG_URLS` | unset | `web_search` | Comma-separated SearXNG failover list. |
+| `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search` | Alias for `SEARXNG_URLS`. |
+| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `smart_search` | SearXNG request timeout in milliseconds. |
 | `LLM_PROVIDER` | `ollama` | `smart_search` | LLM backend for ranking/summarization: `ollama` (local, default) or `gemini`. |
 | `OLLAMA_HOST` | `http://127.0.0.1:11434` | `smart_search` | Local Ollama server base URL. Used when `LLM_PROVIDER=ollama`. |
 | `OLLAMA_MODEL` | `qwen2.5:7b` | `smart_search` | Ollama model tag used for ranking and summarization. Must already be pulled. |
@@ -117,8 +116,8 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_MARKER_CMD` | auto-detected | `parse_document` | Optional path to the `marker_single` executable. |
 | `LOCAL_MCP_MINERU_CMD` | auto-detected | `parse_document` | Optional path to the `mineru` executable. |
 | `LOCAL_MCP_MINERU_BACKEND` | `pipeline` | `parse_document` | MinerU backend passed with `-b`; `pipeline` is CPU-friendly. |
-| `LOCAL_MCP_FILE_OUTPUT_DIR` | required | `generate_file`, `web_search_to_file` | Destination folder for generated files. |
-| `LOCAL_MCP_DOWNLOAD_DIR` | optional alias | `generate_file`, `web_search_to_file` | Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. If neither is set, file-writing tools return an error. |
+| `LOCAL_MCP_FILE_OUTPUT_DIR` | required | `generate_file` | Destination folder for generated files. |
+| `LOCAL_MCP_DOWNLOAD_DIR` | optional alias | `generate_file` | Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. If neither is set, file-writing tools return an error. |
 
 ## MCP Client Example
 

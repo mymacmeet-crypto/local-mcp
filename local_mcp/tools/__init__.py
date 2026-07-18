@@ -25,10 +25,21 @@ def _tools_for_profile(profile: str) -> tuple[ToolHandler, ...]:
     if normalized in SIMPLE_TOOL_PROFILES:
         return _simple_tools()
     if normalized in BOTH_TOOL_PROFILES:
-        return _simple_tools() + _full_tools()
+        return _dedupe_tools(_simple_tools() + _full_tools())
     if normalized not in FULL_TOOL_PROFILES:
         return _full_tools()
     return _full_tools()
+
+
+def _dedupe_tools(tools: tuple[ToolHandler, ...]) -> tuple[ToolHandler, ...]:
+    seen: set[str] = set()
+    unique: list[ToolHandler] = []
+    for tool in tools:
+        name = getattr(tool, "__name__", repr(tool))
+        if name not in seen:
+            seen.add(name)
+            unique.append(tool)
+    return tuple(unique)
 
 
 def _full_tools() -> tuple[ToolHandler, ...]:
@@ -43,19 +54,16 @@ def _full_tools() -> tuple[ToolHandler, ...]:
         ocr.extract_image_text,
         documents.parse_document,
         file_generation.generate_file,
-        file_generation.web_search_to_file,
     )
 
 
 def _simple_tools() -> tuple[ToolHandler, ...]:
-    from local_mcp.tools import simple
+    from local_mcp.tools import file_generation, simple
 
     return (
         simple.fetch_web_page,
         simple.list_page_urls,
         simple.read_document,
         simple.read_image_text,
-        simple.write_markdown_file,
-        simple.write_report_file,
-        simple.search_web_to_file,
+        file_generation.generate_file,
     )

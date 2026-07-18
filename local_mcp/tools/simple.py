@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import Field
 
-from local_mcp.tools import documents, file_generation, ocr, web
-
-ReportFileType = Literal["md", "markdown", "pdf"]
+from local_mcp.tools import documents, ocr, web
 
 
 async def fetch_web_page(
@@ -45,66 +43,3 @@ async def read_image_text(
 ) -> str:
     """Extract text from an image with default English OCR."""
     return await ocr.extract_image_text(image=image)
-
-
-async def write_markdown_file(
-    filename: Annotated[str, Field(description="Relative output Markdown filename or path.")],
-    content: Annotated[str, Field(description="Markdown content to write.")],
-    overwrite: Annotated[bool, Field(description="Replace the file if it already exists.")] = False,
-) -> str:
-    """Write Markdown content to the configured output folder."""
-    return await file_generation.generate_file(
-        filename=filename,
-        content=content,
-        file_type="md",
-        overwrite=overwrite,
-        write_mode="write",
-    )
-
-
-async def write_report_file(
-    filename: Annotated[str, Field(description="Relative output filename or path for a complete report.")],
-    content: Annotated[
-        str,
-        Field(
-            description=(
-                "Complete multi-section report content, not a short answer. Include heading, introduction, "
-                "several detailed sections, examples or bullets, and conclusion."
-            ),
-        ),
-    ],
-    file_type: Annotated[
-        ReportFileType,
-        Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
-    ] = "pdf",
-    min_words: Annotated[
-        int,
-        Field(description="Minimum words required before writing. 900 is usually about 2-3 PDF pages.", ge=300, le=5000),
-    ] = 900,
-    overwrite: Annotated[bool, Field(description="Replace the file if it already exists.")] = False,
-) -> str:
-    """Write a complete multi-page report to PDF or Markdown; rejects short content."""
-    return await file_generation.generate_file(
-        filename=filename,
-        content=content,
-        file_type=file_type,
-        overwrite=overwrite,
-        write_mode="write",
-        min_words=min_words,
-    )
-
-
-async def search_web_to_file(
-    query: Annotated[str, Field(description="Plain web search query.")],
-    filename: Annotated[str, Field(description="Relative Markdown or PDF output filename or path.")],
-    limit: Annotated[int, Field(description="Number of search results to write.", ge=1, le=10)] = 5,
-    overwrite: Annotated[bool, Field(description="Replace the file if it already exists.")] = False,
-) -> str:
-    """Search the web and write the results to a Markdown or PDF file."""
-    return await file_generation.web_search_to_file(
-        query=query,
-        filename=filename,
-        limit=limit,
-        write_mode="write",
-        overwrite=overwrite,
-    )
