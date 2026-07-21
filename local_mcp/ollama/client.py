@@ -48,7 +48,6 @@ async def generate_text(
     reply to valid JSON (useful for structured ranking output).
     """
     resolved_model = (model or DEFAULT_MODEL).strip() or DEFAULT_MODEL
-    url = f"{HOST}/api/chat"
 
     messages: list[dict[str, str]] = []
     if system:
@@ -68,6 +67,47 @@ async def generate_text(
     if response_mime_type == "application/json":
         body["format"] = "json"
 
+    data = await _request_chat(body, resolved_model)
+    return _extract_text(data, resolved_model)
+
+
+async def chat(
+    messages: list[dict[str, Any]],
+    *,
+    model: str | None = None,
+    tools: list[dict[str, Any]] | None = None,
+    temperature: float = 0.2,
+    max_output_tokens: int | None = None,
+) -> dict[str, Any]:
+    """Call ``/api/chat`` with a full message history and optional tool schemas.
+
+    Returns the raw assistant message dict. When the model wants to call a tool
+    the dict carries a ``tool_calls`` list instead of (or alongside) ``content``.
+    """
+    resolved_model = (model or DEFAULT_MODEL).strip() or DEFAULT_MODEL
+
+    options: dict[str, Any] = {"temperature": temperature}
+    if max_output_tokens:
+        options["num_predict"] = max_output_tokens
+
+    body: dict[str, Any] = {
+        "model": resolved_model,
+        "messages": messages,
+        "stream": False,
+        "options": options,
+    }
+    if tools:
+        body["tools"] = tools
+
+    data = await _request_chat(body, resolved_model)
+    message = data.get("message")
+    if not isinstance(message, dict):
+        raise OllamaError(f"Ollama model '{resolved_model}' returned no message.")
+    return message
+
+
+async def _request_chat(body: dict[str, Any], model: str) -> dict[str, Any]:
+    url = f"{HOST}/api/chat"
     last_error: OllamaError | None = None
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -80,14 +120,13 @@ async def generate_text(
         else:
             if response.status_code < 400:
                 try:
-                    data = response.json()
+                    return response.json()
                 except ValueError as err:
                     raise OllamaError("Ollama returned a non-JSON response.") from err
-                return _extract_text(data, resolved_model)
             # Non-retryable client errors (bad model, bad request) fail immediately.
             if response.status_code not in _RETRYABLE_STATUS:
-                raise OllamaError(_describe_http_error(response, resolved_model))
-            last_error = OllamaError(_describe_http_error(response, resolved_model))
+                raise OllamaError(_describe_http_error(response, model))
+            last_error = OllamaError(_describe_http_error(response, model))
 
         if attempt < MAX_RETRIES:
             await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
