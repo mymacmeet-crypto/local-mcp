@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Local Frontier — Recreating ChatGPT &amp; Claude on Your Own Qwen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBFAF6;
+    --paper-2:#F4F1EA;
+    --ink:#272530;
+    --ink-soft:#54505e;
+    --ink-faint:#857f8e;
+    --rule:#E6E1D6;
+
+    --c1:#5B57D6; /* indigo */
+    --c2:#17A398; /* teal   */
+    --c3:#F0653E; /* coral  */
+    --c4:#DD921F; /* amber  */
+    --c5:#BC4691; /* plum   */
+    --c6:#2E8FC4; /* sky    */
+
+    --measure:68ch;
+    --display:'Bricolage Grotesque', system-ui, sans-serif;
+    --body:'Newsreader', Georgia, serif;
+    --mono:'Spline Sans Mono', ui-monospace, monospace;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:19px;
+    line-height:1.66;
+    font-optical-sizing:auto;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+
+  /* reading progress */
+  .progress{
+    position:fixed;top:0;left:0;height:3px;width:0%;
+    background:linear-gradient(90deg,var(--c1),var(--c2),var(--c3),var(--c4),var(--c5),var(--c6));
+    z-index:50;transition:width .15s linear;
+  }
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  .col{max-width:var(--measure);margin-left:auto;margin-right:auto}
+
+  /* ---------- HERO ---------- */
+  header.hero{
+    position:relative;overflow:hidden;
+    padding:96px 0 64px;
+    border-bottom:1px solid var(--rule);
+  }
+  header.hero::before{
+    content:"";position:absolute;inset:-40% -10% auto -10%;height:120%;
+    background:
+      radial-gradient(40% 55% at 18% 20%, color-mix(in srgb,var(--c1) 34%, transparent), transparent 70%),
+      radial-gradient(40% 50% at 82% 12%, color-mix(in srgb,var(--c3) 30%, transparent), transparent 70%),
+      radial-gradient(45% 60% at 60% 90%, color-mix(in srgb,var(--c2) 26%, transparent), transparent 70%),
+      radial-gradient(40% 50% at 30% 95%, color-mix(in srgb,var(--c5) 22%, transparent), transparent 72%);
+    filter:blur(8px);opacity:.6;z-index:0;pointer-events:none;
+  }
+  header.hero .wrap{position:relative;z-index:1}
+  .kicker{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--c1);font-weight:600;margin:0 0 22px;
+    display:inline-flex;align-items:center;gap:10px;
+  }
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--c3);display:inline-block}
+  h1{
+    font-family:var(--display);font-weight:800;font-size:clamp(2.7rem,6.4vw,5rem);
+    line-height:1.02;letter-spacing:-.02em;margin:0 0 .35em;max-width:16ch;
+  }
+  h1 .grad{
+    background:linear-gradient(105deg,var(--c1),var(--c5) 38%,var(--c3) 70%,var(--c4));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .lede{
+    font-size:clamp(1.15rem,2.2vw,1.42rem);color:var(--ink-soft);max-width:52ch;
+    margin:0;font-weight:400;
+  }
+  .lede em{color:var(--ink);font-style:italic}
+  .byline{
+    margin-top:34px;font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);
+    letter-spacing:.02em;
+  }
+
+  /* palette legend / quick nav */
+  nav.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:42px}
+  nav.legend a{
+    font-family:var(--mono);font-size:.74rem;text-decoration:none;color:var(--ink);
+    padding:7px 13px;border-radius:999px;border:1px solid var(--rule);
+    background:color-mix(in srgb,var(--paper-2) 60%, white);
+    display:inline-flex;align-items:center;gap:8px;transition:transform .15s ease, border-color .15s ease;
+  }
+  nav.legend a::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--swatch,var(--c1))}
+  nav.legend a:hover{transform:translateY(-2px);border-color:var(--swatch,var(--c1))}
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:62px 0}
+  .eyebrow{
+    font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+    font-weight:600;margin:0 0 14px;color:var(--accent,var(--c1));
+  }
+  h2{
+    font-family:var(--display);font-weight:700;font-size:clamp(1.7rem,3.4vw,2.5rem);
+    line-height:1.08;letter-spacing:-.015em;margin:0 0 .5em;
+  }
+  h3{
+    font-family:var(--display);font-weight:600;font-size:1.28rem;letter-spacing:-.01em;
+    margin:2em 0 .4em;
+  }
+  p{margin:0 0 1.05em}
+  a{color:var(--c1);text-underline-offset:3px;text-decoration-thickness:1px}
+  a:hover{color:var(--c5)}
+  strong{font-weight:600;color:var(--ink)}
+  em{font-style:italic}
+  code{
+    font-family:var(--mono);font-size:.84em;
+    background:color-mix(in srgb,var(--accent,var(--c1)) 11%, var(--paper));
+    color:color-mix(in srgb,var(--accent,var(--c1)) 78%, var(--ink));
+    padding:.12em .42em;border-radius:6px;
+    word-break:break-word;
+  }
+  ul,ol{margin:0 0 1.15em;padding-left:0;list-style:none}
+  ul li,ol li{position:relative;padding-left:1.6em;margin:0 0 .6em}
+  ul li::before{
+    content:"";position:absolute;left:.2em;top:.62em;width:7px;height:7px;border-radius:2px;
+    background:var(--accent,var(--c1));transform:rotate(45deg);
+  }
+  ol{counter-reset:li}
+  ol li{counter-increment:li}
+  ol li::before{
+    content:counter(li);position:absolute;left:0;top:.05em;
+    font-family:var(--mono);font-size:.72em;font-weight:600;color:var(--accent,var(--c1));
+    background:color-mix(in srgb,var(--accent,var(--c1)) 13%, var(--paper));
+    width:1.5em;height:1.5em;border-radius:6px;display:grid;place-items:center;
+  }
+
+  /* TL;DR callout */
+  .callout{
+    --accent:var(--c2);
+    background:color-mix(in srgb,var(--c2) 7%, var(--paper));
+    border:1px solid color-mix(in srgb,var(--c2) 28%, var(--rule));
+    border-radius:18px;padding:30px 34px;margin:0 auto;max-width:var(--measure);
+    position:relative;
+  }
+  .callout .eyebrow{color:var(--c2)}
+  .callout p:last-child{margin-bottom:0}
+
+  /* model-fit table */
+  .tablecard{
+    max-width:var(--measure);margin:1.4em auto;border:1px solid var(--rule);border-radius:16px;
+    overflow:hidden;background:#fff;
+  }
+  table{width:100%;border-collapse:collapse;font-size:.92rem}
+  thead th{
+    font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+    text-align:left;padding:13px 16px;color:var(--ink-faint);
+    background:var(--paper-2);border-bottom:1px solid var(--rule);font-weight:600;
+  }
+  tbody td{padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.45}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:color-mix(in srgb,var(--paper-2) 40%, white)}
+  .pill{
+    display:inline-block;font-family:var(--mono);font-size:.66rem;font-weight:600;
+    padding:3px 9px;border-radius:999px;letter-spacing:.02em;white-space:nowrap;
+  }
+  .pill.ok{background:color-mix(in srgb,var(--c2) 16%,white);color:color-mix(in srgb,var(--c2) 70%,var(--ink))}
+  .pill.tight{background:color-mix(in srgb,var(--c4) 18%,white);color:color-mix(in srgb,var(--c4) 72%,var(--ink))}
+  .pill.no{background:color-mix(in srgb,var(--c3) 15%,white);color:color-mix(in srgb,var(--c3) 72%,var(--ink))}
+
+  /* ---------- CAPABILITY CARDS ---------- */
+  .cap-intro{max-width:var(--measure);margin:0 auto 36px}
+  .caps{display:grid;gap:22px;grid-template-columns:repeat(2,1fr)}
+  .cap{
+    --accent:var(--c1);
+    background:#fff;border:1px solid var(--rule);border-radius:18px;
+    padding:26px 26px 24px;position:relative;overflow:hidden;
+    box-shadow:0 1px 0 rgba(39,37,48,.02);
+  }
+  .cap::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--accent)}
+  .cap .num{
+    font-family:var(--mono);font-weight:600;font-size:.78rem;
+    color:var(--accent);background:color-mix(in srgb,var(--accent) 12%, white);
+    width:2.2em;height:2.2em;border-radius:9px;display:grid;place-items:center;margin-bottom:14px;
+  }
+  .cap h3{margin:0 0 .5em;font-size:1.24rem;color:var(--ink)}
+  .cap .tag{
+    font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:600;color:var(--accent);display:block;margin:1.1em 0 .25em;
+  }
+  .cap p{font-size:.95rem;line-height:1.55;margin:0 0 .2em;color:var(--ink-soft)}
+  .cap p strong{color:var(--ink)}
+  .cap code{font-size:.8em}
+  .cap.span2{grid-column:1 / -1}
+
+  /* host layer + reco */
+  .panel{max-width:var(--measure);margin:0 auto}
+  .stage{
+    --accent:var(--c1);
+    border-left:3px solid var(--accent);padding:4px 0 4px 24px;margin:0 auto 26px;
+    max-width:var(--measure);position:relative;
+  }
+  .stage .label{
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+    font-weight:600;color:var(--accent);margin:0 0 .35em;
+  }
+  .stage h3{margin:0 0 .5em}
+
+  .caveat{
+    --accent:var(--c4);
+    max-width:var(--measure);margin:0 auto;
+  }
+  .caveat ul li::before{background:var(--c4)}
+
+  /* footer */
+  footer{
+    border-top:1px solid var(--rule);padding:46px 0 70px;margin-top:30px;
+    color:var(--ink-faint);
+  }
+  footer .wrap{max-width:var(--measure)}
+  footer p{font-size:.86rem;margin:0 0 .5em}
+  footer .mono{font-family:var(--mono);font-size:.74rem}
+
+  :focus-visible{outline:3px solid var(--c1);outline-offset:3px;border-radius:4px}
+
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease, transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    .progress{transition:none}
+  }
+
+  @media (max-width:760px){
+    body{font-size:18px}
+    .caps{grid-template-columns:1fr}
+    .cap.span2{grid-column:auto}
+    section{padding:48px 0}
+    header.hero{padding:70px 0 48px}
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker"><span class="dot"></span> A field guide for local-AI tinkerers</p>
+    <h1>Run the <span class="grad">whole frontier</span> on one quiet machine.</h1>
+    <p class="lede">Everything ChatGPT and Claude do for you — code execution, file creation, search, research, memory, voice — is mostly <em>scaffolding around the model</em>. This is the catalogue of that scaffolding, and the open-source piece you can self-host in its place.</p>
+    <p class="byline">For a Qwen-class model on an Apple M1 Max · 32&nbsp;GB unified memory · 1&nbsp;TB SSD</p>
+    <nav class="legend" aria-label="Jump to section">
+      <a href="#tldr" style="--swatch:var(--c2)">TL;DR</a>
+      <a href="#findings" style="--swatch:var(--c1)">Key findings</a>
+      <a href="#catalog" style="--swatch:var(--c3)">The 36 capabilities</a>
+      <a href="#host" style="--swatch:var(--c6)">The host layer</a>
+      <a href="#reco" style="--swatch:var(--c5)">Staged plan</a>
+      <a href="#caveats" style="--swatch:var(--c4)">Caveats</a>
+    </nav>
+  </div>
+</header>
+
+<!-- TL;DR -->
+<section id="tldr">
+  <div class="wrap">
+    <div class="callout reveal">
+      <p class="eyebrow">The short version</p>
+      <p><strong>Nearly every frontier "product" capability can be rebuilt locally</strong> with open-source MCP servers and Python libraries. The pieces you hadn't catalogued are mostly the <em>agentic</em> ones — computer use, scheduled tasks, deep-research agents, sub-agent orchestration, "Skills" as a packaging format, voice mode, and the citation/structured-output plumbing — and almost all have a credible self-hostable equivalent.</p>
+      <p>The real ceiling <strong>isn't tooling, it's your 32&nbsp;GB of unified memory.</strong> A Qwen dense 14B or a 30B-A3B MoE at Q4 (≈9–19&nbsp;GB) leaves room for tools — but image generation, a local vision model, and a voice pipeline all <em>share</em> that memory with your LLM. Run them in sequence, not all at once, and treat heavy image/video work as a "swap the model out" task.</p>
+      <p><strong>The stack that works:</strong> serve Qwen through <code>llama.cpp</code> / Ollama / LM Studio (needed for reliable tool-calling — MLX is faster but can't call tools yet), front it with <strong>LibreChat or Open WebUI</strong> (both speak MCP natively and give you artifacts, RAG and voice), then bolt on community MCP servers for search, fetch, code, files, PDF, memory and RAG.</p>
+    </div>
+  </div>
+</section>
+
+<!-- KEY FINDINGS -->
+<section id="findings" style="background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--c1) 4%,transparent));">
+  <div class="wrap">
+    <div class="col reveal">
+      <p class="eyebrow" style="--accent:var(--c1)">Key findings</p>
+      <h2>The frontier products are agent platforms now, not chatbots.</h2>
+      <p>As of mid-2026, ChatGPT and Claude have both moved well past the categories you already had. The capabilities you hadn't explicitly listed — and which matter most — are these:</p>
+      <ol style="--accent:var(--c1)">
+        <li><strong>Computer use &amp; agentic browser control</strong> — Claude Computer Use, Claude for Chrome, Claude Cowork (autonomous access to a local folder), and OpenAI's ChatGPT Agent (formerly Operator) driving a VM with browser, terminal and APIs.</li>
+        <li><strong>Deep Research</strong> — both spend 5–30 minutes planning sub-questions, searching, reading and synthesising a cited multi-page report.</li>
+        <li><strong>Scheduled tasks / automations</strong> — ChatGPT "Tasks" and Cowork recurring jobs (cron-like).</li>
+        <li><strong>Anthropic "Skills"</strong> — folders with a <code>SKILL.md</code> (YAML frontmatter + Markdown) plus optional scripts and assets, loaded progressively so the frontmatter costs only ~100 tokens. The docx/pdf/pptx/xlsx skills that power Claude's file creation are published, and the format became an open standard in December 2025.</li>
+        <li><strong>Sub-agent orchestration</strong> — Cowork coordinates parallel sub-agents; OpenAI AgentKit is a visual multi-agent builder.</li>
+        <li><strong>Voice / realtime</strong>, <strong>inline citations</strong>, <strong>structured outputs &amp; function calling</strong>, <strong>MCP connectors</strong> (Gmail, Drive, GitHub, Slack…), and <strong>chart/diagram generation</strong> round out the list.</li>
+      </ol>
+
+      <h3 style="--accent:var(--c1)">Your model choice is fine — run it on the right engine</h3>
+      <p>The open-weight lineage as of June 2026 is <strong>Qwen3</strong> (Apr 2025), the <strong>Qwen3-2507</strong> refresh, <strong>Qwen3.5</strong> (Feb 2026, native-multimodal), and <strong>Qwen3.6</strong> (Apr 2026). The "Max / Plus" tiers are API-only — not for local use. Here's what actually fits 32&nbsp;GB at Q4 with headroom left for the OS and tools:</p>
+    </div>
+
+    <div class="tablecard reveal">
+      <table>
+        <thead><tr><th>Model</th><th>Q4 footprint</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td>Qwen3-14B (dense)</td><td>≈ 9.3 GB</td><td><span class="pill ok">safe · most headroom</span></td></tr>
+          <tr><td>Qwen3-30B-A3B (MoE)</td><td>≈ 17–19 GB</td><td><span class="pill ok">sweet spot</span></td></tr>
+          <tr><td>Qwen3.6-27B (dense vision)</td><td>≈ 16.8 GB</td><td><span class="pill ok">safe</span></td></tr>
+          <tr><td>Qwen3-32B (dense)</td><td>≈ 20 GB</td><td><span class="pill tight">tight · short context</span></td></tr>
+          <tr><td>Qwen3.5 / 3.6-35B-A3B</td><td>≈ 21 GB</td><td><span class="pill tight">tight</span></td></tr>
+          <tr><td>Qwen3-235B-A22B</td><td>≈ 142 GB</td><td><span class="pill no">won't fit</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col reveal">
+      <p><strong>The tool-calling caveat is the one to remember.</strong> Use <code>llama.cpp</code> (with <code>--jinja</code>), Ollama, or LM Studio for tool-calling agents — MLX is faster on Apple Silicon but doesn't support tool calling yet. Qwen's official chat templates have recurring tool-calling bugs, so prefer <strong>Unsloth's quants</strong> (they ship fixed templates) or community-fixed templates, and keep <code>llama.cpp</code> updated. The 30B-A3B MoE only activates ~3B parameters per token, which makes it genuinely fast on your hardware — it's the one to start with.</p>
+    </div>
+  </div>
+</section>
+
+<!-- THE CATALOG -->
+<section id="catalog">
+  <div class="wrap">
+    <div class="cap-intro reveal">
+      <p class="eyebrow" style="--accent:var(--c3)">The catalogue</p>
+      <h2>36 capabilities, and the open-source piece that replaces each.</h2>
+      <p>Each card maps one frontier capability to its self-hostable equivalent, with a note on whether it's realistic on your 32&nbsp;GB M1 Max. The numbering is the index, not a ranking — work through whichever matters to you first.</p>
+    </div>
+
+    <div class="caps">
+
+      <!-- 1 -->
+      <article class="cap reveal" style="--accent:var(--c1)">
+        <div class="num">01</div>
+        <h3>Code interpreter &amp; data analysis</h3>
+        <span class="tag">Frontier</span>
+        <p>ChatGPT's sandboxed Python (Advanced Data Analysis) and Claude's Ubuntu code sandbox — run Python/Node, make charts, accept CSV/Excel/PDF.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Open Interpreter</strong> for natural-language local execution against Ollama; <strong>llm-sandbox</strong> or <strong>microsandbox</strong> for Docker/microVM isolation; or just a constrained Docker container running a Jupyter kernel.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Trivial — Docker runs ARM containers fine, and CPU-bound Python is no problem.</p>
+      </article>
+
+      <!-- 2 -->
+      <article class="cap reveal" style="--accent:var(--c2)">
+        <div class="num">02</div>
+        <h3>File generation (docx / xlsx / pptx / pdf)</h3>
+        <span class="tag">Frontier</span>
+        <p>Claude's file creation is literally code execution plus the published office Skills; ChatGPT Canvas exports PDF/MD/DOCX.</p>
+        <span class="tag">Open source</span>
+        <p>Run inside your sandbox: <code>python-docx</code>, <code>openpyxl</code>, <code>python-pptx</code>, <code>reportlab</code> / <strong>WeasyPrint</strong> (HTML→PDF), and <code>pandoc</code>. Clone <code>anthropics/skills</code> to reuse Claude's exact workflows.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>All pure-Python — negligible memory.</p>
+      </article>
+
+      <!-- 3 -->
+      <article class="cap reveal" style="--accent:var(--c3)">
+        <div class="num">03</div>
+        <h3>PDF &amp; document parsing</h3>
+        <span class="tag">Frontier</span>
+        <p>Native PDF ingestion via combined vision + text.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Docling</strong> (structured + OCR, best for RAG), <strong>PyMuPDF4LLM</strong> (fastest on digital PDFs), <strong>Marker</strong> (deep-learning, Apple MPS support), <strong>MinerU</strong> (CJK/scientific), <code>pdfplumber</code> (table coordinates).</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Marker uses MPS; Docling/PyMuPDF run comfortably on CPU. Heavy OCR adds load — fine sequentially.</p>
+      </article>
+
+      <!-- 4 -->
+      <article class="cap reveal" style="--accent:var(--c4)">
+        <div class="num">04</div>
+        <h3>Web search</h3>
+        <span class="tag">Frontier</span>
+        <p>Built-in search with inline citations.</p>
+        <span class="tag">Open source</span>
+        <p><strong>SearXNG</strong> — self-hosted metasearch, Docker, no API key, the privacy-first default. Cheap cloud options: Tavily, Brave Search API.</p>
+        <span class="tag">MCP server</span>
+        <p><code>mcp-searxng</code> is the well-regarded bridge and supports failover replicas.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>A lightweight container — no GPU, minimal RAM.</p>
+      </article>
+
+      <!-- 5 -->
+      <article class="cap reveal" style="--accent:var(--c5)">
+        <div class="num">05</div>
+        <h3>Web fetch / browsing / scraping</h3>
+        <span class="tag">Frontier</span>
+        <p>Web fetch plus full agentic browsing (Operator / Computer Use).</p>
+        <span class="tag">Open source</span>
+        <p><strong>Playwright</strong> (the standard), readability extractors, <strong>Firecrawl</strong> (self-hostable, Markdown output) for JS-heavy pages.</p>
+        <span class="tag">MCP server</span>
+        <p><strong>Microsoft Playwright MCP</strong> — accessibility-tree based, so no vision model needed (~200–400 tokens per snapshot). Doubles as your fetch tool.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Headless Chromium keeps memory down; fine alongside a small LLM.</p>
+      </article>
+
+      <!-- 6 -->
+      <article class="cap reveal" style="--accent:var(--c6)">
+        <div class="num">06</div>
+        <h3>Image generation</h3>
+        <span class="tag">Frontier</span>
+        <p>DALL·E 3 / GPT-image in ChatGPT; Claude has none (uses code/SVG).</p>
+        <span class="tag">Open source</span>
+        <p><strong>Draw Things</strong> (native Metal, ~20% faster on Apple Silicon) or <strong>ComfyUI</strong> running <strong>SDXL</strong> or <strong>Flux.1</strong> (schnell for speed). Use GGUF-quantized models to fit memory.</p>
+        <span class="tag">On your M1 Max — the pinch point</span>
+        <p>Flux dev needs ~12&nbsp;GB+; running it <em>and</em> a 14–30B LLM at once will blow past 32&nbsp;GB. Unload the LLM first, or treat image-gen as a separate session. SDXL is more forgiving.</p>
+      </article>
+
+      <!-- 7 -->
+      <article class="cap reveal" style="--accent:var(--c1)">
+        <div class="num">07</div>
+        <h3>Vision / image understanding</h3>
+        <span class="tag">Frontier</span>
+        <p>Native vision — charts, screenshots, handwriting, PDFs.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Qwen3-VL</strong> (4B/8B/30B-A3B; OCR in 32 languages, video, GUI-agent skills), plus LLaVA, Pixtral, Gemma vision. Run via <strong>mlx-vlm</strong> (Apple-native) or <code>llama.cpp</code>.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>VL-4B/8B at 4-bit fit comfortably; 30B-A3B is tight at Q4. For vision <em>and</em> tool-calling, prefer <code>llama.cpp</code>/LM Studio over MLX.</p>
+      </article>
+
+      <!-- 8 -->
+      <article class="cap reveal" style="--accent:var(--c2)">
+        <div class="num">08</div>
+        <h3>Canvas / Artifacts</h3>
+        <span class="tag">Frontier</span>
+        <p>Live HTML / React / SVG / Mermaid preview, embeddable.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Open WebUI</strong>, <strong>LibreChat</strong> and <strong>LobeChat</strong> all render artifacts inline with persistent storage.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Pure front-end — no extra model load.</p>
+      </article>
+
+      <!-- 9 -->
+      <article class="cap reveal" style="--accent:var(--c3)">
+        <div class="num">09</div>
+        <h3>Persistent memory</h3>
+        <span class="tag">Frontier</span>
+        <p>Cross-chat and per-Project memory in both products.</p>
+        <span class="tag">Open source</span>
+        <p><strong>mem0</strong> (light bolt-on; extracts facts to a vector DB) or <strong>Letta / MemGPT</strong> (full stateful runtime with OS-style tiered memory and notably higher recall accuracy, at more overhead). Zep/Graphiti for temporal graphs.</p>
+        <span class="tag">MCP server</span>
+        <p>Official <code>server-memory</code> (knowledge-graph), plus mem0 / Qdrant-backed servers.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Light — the cost is one extra LLM call per write for fact extraction.</p>
+      </article>
+
+      <!-- 10 -->
+      <article class="cap reveal" style="--accent:var(--c4)">
+        <div class="num">10</div>
+        <h3>Custom instructions &amp; personalization</h3>
+        <span class="tag">Frontier</span>
+        <p>Custom instructions, Custom GPTs, Projects with shared setup.</p>
+        <span class="tag">Open source</span>
+        <p>System prompts and per-conversation presets in LibreChat / Open WebUI; their "Agents / Projects" wrap a model with instructions + tools + knowledge. <code>SKILL.md</code> files double as reusable personalization.</p>
+      </article>
+
+      <!-- 11 -->
+      <article class="cap reveal" style="--accent:var(--c5)">
+        <div class="num">11</div>
+        <h3>Connectors (Gmail, Drive, GitHub…)</h3>
+        <span class="tag">Frontier</span>
+        <p>Native connectors, now delivered over remote MCP.</p>
+        <span class="tag">Open source</span>
+        <p>Official reference servers (<code>filesystem</code>, <code>git</code>, <code>fetch</code>, <code>memory</code>, <code>time</code>) plus community servers for GitHub, Google Drive/Calendar, Slack, Notion, Supabase and more. Browse the official MCP Registry, PulseMCP, Glama, Smithery.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>I/O-bound API wrappers — negligible local use.</p>
+      </article>
+
+      <!-- 12 -->
+      <article class="cap reveal" style="--accent:var(--c6)">
+        <div class="num">12</div>
+        <h3>Computer use / browser agents</h3>
+        <span class="tag">Frontier</span>
+        <p>Claude Computer Use / Cowork / Chrome; ChatGPT Agent.</p>
+        <span class="tag">Open source</span>
+        <p><strong>browser-use</strong> (leading OSS browser agent), <strong>Playwright MCP</strong> for vision-free browsing, <strong>Stagehand</strong>, and self-hostable <strong>OpenClaw</strong>.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Works, but small models are weaker at long-horizon GUI tasks — expect more retries. Qwen3-VL's GUI skills help. Headline OSS benchmarks use a frontier brain; a local Qwen scores lower.</p>
+      </article>
+
+      <!-- 13 -->
+      <article class="cap reveal" style="--accent:var(--c1)">
+        <div class="num">13</div>
+        <h3>Deep research agents</h3>
+        <span class="tag">Frontier</span>
+        <p>ChatGPT / Claude Deep Research.</p>
+        <span class="tag">Open source</span>
+        <p><strong>GPT Researcher</strong> (cited multi-page reports, MCP server, works with local Ollama), <strong>LangChain Open Deep Research</strong>, and <strong>Local Deep Research</strong> (fully local with Ollama + SearXNG).</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Runs locally; quality scales with model size. A 14–30B Qwen is decent but slower and less reliable than frontier research.</p>
+      </article>
+
+      <!-- 14 -->
+      <article class="cap reveal" style="--accent:var(--c2)">
+        <div class="num">14</div>
+        <h3>Projects / knowledge bases / RAG</h3>
+        <span class="tag">Frontier</span>
+        <p>File collections with retrieval; "Company Knowledge."</p>
+        <span class="tag">Open source</span>
+        <p><strong>LanceDB</strong> or <strong>Chroma</strong> (lightest, embedded) and <strong>Qdrant</strong> (production, hybrid search, official MCP server). Pair with FastEmbed; LibreChat / Open WebUI have built-in RAG.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>LanceDB / Chroma embedded are the lightest; embeddings run on CPU/MPS.</p>
+      </article>
+
+      <!-- 15 -->
+      <article class="cap reveal" style="--accent:var(--c3)">
+        <div class="num">15</div>
+        <h3>Voice (STT / TTS / realtime)</h3>
+        <span class="tag">Frontier</span>
+        <p>Advanced Voice Mode — realtime speech-to-speech.</p>
+        <span class="tag">Open source</span>
+        <p><strong>whisper.cpp</strong> (STT, full Metal acceleration) + <strong>Kokoro</strong> or <strong>Piper</strong> (TTS). MCP servers: <code>local-stt-mcp</code>, <strong>VoiceMode</strong>.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>whisper.cpp uses Metal; TTS runs on CPU. Great for turn-based voice; true realtime alongside a big LLM is harder.</p>
+      </article>
+
+      <!-- 16 -->
+      <article class="cap reveal" style="--accent:var(--c4)">
+        <div class="num">16</div>
+        <h3>Video understanding &amp; generation</h3>
+        <span class="tag">Frontier</span>
+        <p>Sora 2 (generation); Qwen3-VL / Gemini (understanding).</p>
+        <span class="tag">Open source</span>
+        <p>Understanding via Qwen3-VL frame sampling. Generation (HunyuanVideo, Wan 2.2 in ComfyUI) is possible but heavy.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Local video <em>generation</em> needs 64&nbsp;GB+ — effectively out of scope here; treat as a separate-machine task.</p>
+      </article>
+
+      <!-- 17 -->
+      <article class="cap reveal" style="--accent:var(--c5)">
+        <div class="num">17</div>
+        <h3>Scheduled tasks &amp; automations</h3>
+        <span class="tag">Frontier</span>
+        <p>ChatGPT "Tasks"; Cowork recurring jobs.</p>
+        <span class="tag">Open source</span>
+        <p><strong>n8n</strong> (fair-code workflows, 400+ integrations, can call your local LLM + MCP), or plain <code>cron</code> / <code>launchd</code> on macOS.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Light — orchestrates "make this report every morning" flows against Ollama.</p>
+      </article>
+
+      <!-- 18 -->
+      <article class="cap reveal" style="--accent:var(--c6)">
+        <div class="num">18</div>
+        <h3>Function calling &amp; structured outputs</h3>
+        <span class="tag">Frontier</span>
+        <p>Tool calling and JSON-schema structured outputs.</p>
+        <span class="tag">Open source</span>
+        <p>Native to your engine — <code>llama.cpp</code>, Ollama, vLLM, LM Studio support <code>response_format</code> and tool-calling (mind the Qwen template caveats). Frameworks: <strong>Qwen-Agent</strong>, LangChain, LlamaIndex.</p>
+      </article>
+
+      <!-- 19 -->
+      <article class="cap reveal" style="--accent:var(--c1)">
+        <div class="num">19</div>
+        <h3>Citations &amp; source attribution</h3>
+        <span class="tag">Frontier</span>
+        <p>Inline URL citations on search and research answers.</p>
+        <span class="tag">Open source</span>
+        <p>GPT Researcher and Local Deep Research produce citation-rich reports; your RAG layer returns source chunks to cite; SearXNG / Playwright supply the URLs.</p>
+      </article>
+
+      <!-- 20 -->
+      <article class="cap reveal" style="--accent:var(--c2)">
+        <div class="num">20</div>
+        <h3>Charts, diagrams, visualization</h3>
+        <span class="tag">Frontier</span>
+        <p>matplotlib via code interpreter; Mermaid / SVG / React via artifacts.</p>
+        <span class="tag">Open source</span>
+        <p>matplotlib / plotly in your sandbox; Mermaid &amp; SVG rendered in Open WebUI / LibreChat artifacts; a Vega-Lite MCP server for data-driven visuals.</p>
+      </article>
+
+      <!-- 21 -->
+      <article class="cap reveal" style="--accent:var(--c3)">
+        <div class="num">21</div>
+        <h3>Translation, OCR &amp; utilities</h3>
+        <span class="tag">Frontier</span>
+        <p>Translation, OCR and small utility tools built in.</p>
+        <span class="tag">Open source</span>
+        <p>Qwen handles translation; OCR via Tesseract / RapidOCR / EasyOCR (bundled in Docling/Marker) or Qwen3-VL's 32-language OCR. The official <code>time</code>, <code>filesystem</code>, <code>git</code> servers and <code>pandoc</code> cover the rest.</p>
+      </article>
+
+      <!-- 22 -->
+      <article class="cap reveal" style="--accent:var(--c4)">
+        <div class="num">22</div>
+        <h3>Coding agents &amp; IDE assistants</h3>
+        <span class="tag">Frontier</span>
+        <p>Claude Code, OpenAI Codex CLI, GitHub Copilot — agents that read a repo, edit files, run tests and open PRs.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Aider</strong> (git-native pair programmer, works with Ollama), <strong>OpenHands</strong> (full autonomous dev agent), <strong>Cline / Roo Code</strong> (VS Code agents), <strong>Goose</strong> (Block's MCP-native agent), <strong>Continue.dev</strong> + <strong>Tabby</strong> for local autocomplete.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Aider + Qwen3-30B-A3B is genuinely usable for small edits; a dedicated coder quant (Qwen3-Coder class) helps. Long multi-file refactors are where local models need the most supervision.</p>
+      </article>
+
+      <!-- 23 -->
+      <article class="cap reveal" style="--accent:var(--c5)">
+        <div class="num">23</div>
+        <h3>Sub-agent orchestration / multi-agent</h3>
+        <span class="tag">Frontier</span>
+        <p>Claude Cowork's parallel sub-agents; OpenAI AgentKit; Claude Code's Agent/Workflow tools.</p>
+        <span class="tag">Open source</span>
+        <p><strong>LangGraph</strong> (graph-based control flow, the current standard), <strong>CrewAI</strong> (role-based crews), <strong>AutoGen / AG2</strong> (conversational multi-agent), and <strong>Qwen-Agent</strong> — all point at any OpenAI-compatible endpoint, so Ollama works.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Orchestration itself is free — but every sub-agent is another call into the <em>same</em> local model, so "parallel" agents serialize. Keep crews small (2–3 roles).</p>
+      </article>
+
+      <!-- 24 -->
+      <article class="cap reveal" style="--accent:var(--c6)">
+        <div class="num">24</div>
+        <h3>Skills — reusable packaged workflows</h3>
+        <span class="tag">Frontier</span>
+        <p>Anthropic Skills: a folder with <code>SKILL.md</code> (YAML frontmatter + instructions) plus optional scripts, loaded progressively. Now an open standard.</p>
+        <span class="tag">Open source</span>
+        <p>Clone <code>anthropics/skills</code> for the office-document skills; the format is plain Markdown, so any agent framework (Goose, OpenHands, your own loop) can load frontmatter cheaply and expand on demand. Write your own for recurring workflows.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Zero cost — it's a prompt-packaging convention, not a runtime. The ~100-token frontmatter trick matters <em>more</em> locally, where context is precious.</p>
+      </article>
+
+      <!-- 25 -->
+      <article class="cap reveal" style="--accent:var(--c1)">
+        <div class="num">25</div>
+        <h3>Image editing &amp; inpainting</h3>
+        <span class="tag">Frontier</span>
+        <p>GPT-image edits — "remove the person", "change the background", style transfer, targeted region edits.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Qwen-Image-Edit</strong> (GGUF quants exist) for instruction-based edits; <strong>ComfyUI</strong> inpainting/outpainting workflows with SDXL + ControlNet; <strong>Draw Things</strong> has inpainting built in with native Metal.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Same memory rules as image generation — unload the LLM first. SDXL inpainting is comfortable; instruction-edit models are heavier.</p>
+      </article>
+
+      <!-- 26 -->
+      <article class="cap reveal" style="--accent:var(--c2)">
+        <div class="num">26</div>
+        <h3>Music &amp; audio generation</h3>
+        <span class="tag">Frontier</span>
+        <p>Not in ChatGPT/Claude proper (Suno/Udio territory), but a common "can my AI do this?" ask.</p>
+        <span class="tag">Open source</span>
+        <p><strong>ACE-Step</strong> (full songs with vocals, the current local favourite), <strong>Stable Audio Open</strong> (samples/SFX), <strong>MusicGen</strong> (melody-conditioned instrumental).</p>
+        <span class="tag">On your M1 Max</span>
+        <p>MusicGen-small/medium and Stable Audio Open run fine on MPS. ACE-Step works but generate-then-chat, not both at once.</p>
+      </article>
+
+      <!-- 27 -->
+      <article class="cap reveal" style="--accent:var(--c3)">
+        <div class="num">27</div>
+        <h3>Meeting transcription &amp; diarization</h3>
+        <span class="tag">Frontier</span>
+        <p>Upload a recording, get a speaker-labelled transcript, summary and action items.</p>
+        <span class="tag">Open source</span>
+        <p><strong>WhisperX</strong> (word-level timestamps + <strong>pyannote</strong> speaker diarization), <strong>whisper.cpp</strong> for fast Metal transcription, then pipe the transcript to Qwen for summary/action items. <strong>Whishper</strong> bundles this as a self-hosted web UI.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Excellent fit — whisper.cpp is Metal-accelerated and an hour of audio transcribes in minutes. Diarization adds a pyannote pass on CPU/MPS.</p>
+      </article>
+
+      <!-- 28 -->
+      <article class="cap reveal" style="--accent:var(--c4)">
+        <div class="num">28</div>
+        <h3>Chat with databases (text-to-SQL)</h3>
+        <span class="tag">Frontier</span>
+        <p>Both products query connected databases and warehouses through connectors and analyst modes.</p>
+        <span class="tag">Open source</span>
+        <p>Official / community MCP servers for <strong>SQLite</strong>, <strong>Postgres</strong> and <strong>DuckDB</strong> (read-only modes available); <strong>Vanna</strong> for RAG-assisted text-to-SQL that learns your schema.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Light. Point DuckDB at local CSVs/Parquet and a 14–30B Qwen writes solid SQL — verify aggregates before trusting them.</p>
+      </article>
+
+      <!-- 29 -->
+      <article class="cap reveal" style="--accent:var(--c5)">
+        <div class="num">29</div>
+        <h3>Audio overviews / podcast generation</h3>
+        <span class="tag">Frontier</span>
+        <p>NotebookLM-style two-host "audio overview" of your documents — the feature everyone wants to clone.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Podcastfy</strong> (documents → two-voice conversational audio, works with local LLM + TTS) and <strong>Open Notebook</strong> (self-hosted NotebookLM alternative). Pair with <strong>Kokoro</strong> for natural local voices.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Works end-to-end locally: Qwen writes the dialogue, Kokoro speaks it. A 10-minute episode renders in a few minutes.</p>
+      </article>
+
+      <!-- 30 -->
+      <article class="cap reveal" style="--accent:var(--c6)">
+        <div class="num">30</div>
+        <h3>Fine-tuning your own custom model</h3>
+        <span class="tag">Frontier</span>
+        <p>Custom GPTs / Projects personalize with prompts — actual weight customization is API-only fine-tuning.</p>
+        <span class="tag">Open source</span>
+        <p><strong>mlx-lm LoRA</strong> (Apple-native, the easiest path on your hardware), <strong>Unsloth</strong> (fastest, needs CUDA — cloud/Colab), <strong>Axolotl</strong> for bigger jobs. Fine-tune tone, format, or domain vocabulary — not new knowledge (use RAG for that).</p>
+        <span class="tag">On your M1 Max</span>
+        <p>LoRA on a 4-bit 7–14B model is realistic overnight work with mlx-lm; 30B-class tuning wants more memory. Export the fused model back to GGUF for Ollama.</p>
+      </article>
+
+      <!-- 31 -->
+      <article class="cap reveal" style="--accent:var(--c1)">
+        <div class="num">31</div>
+        <h3>Guardrails &amp; content moderation</h3>
+        <span class="tag">Frontier</span>
+        <p>OpenAI's moderation endpoint and both vendors' built-in safety layers — filtering inputs/outputs before they reach the model or the user.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Llama Guard 3</strong> (1B/8B classifier models, run via Ollama), <strong>NeMo Guardrails</strong> (programmable rails around any LLM), <strong>LLM Guard</strong> (prompt-injection and PII scanners as a library).</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Llama Guard 1B adds ~1&nbsp;GB and one quick pass per message — cheap insurance if you expose your stack to family or the internet.</p>
+      </article>
+
+      <!-- 32 -->
+      <article class="cap reveal" style="--accent:var(--c2)">
+        <div class="num">32</div>
+        <h3>3D asset generation</h3>
+        <span class="tag">Frontier</span>
+        <p>Not shipped in ChatGPT/Claude yet, but image→3D is an emerging frontier-lab demo category.</p>
+        <span class="tag">Open source</span>
+        <p><strong>TripoSR</strong> (fast image→mesh, runs on MPS), <strong>Hunyuan3D-2</strong> and <strong>TRELLIS</strong> (higher quality, heavier), all loadable in ComfyUI workflows. Export GLB/OBJ for Blender.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>TripoSR is the realistic one — seconds-to-minutes per mesh. The bigger models want a discrete GPU; same "unload the LLM first" rule applies.</p>
+      </article>
+
+      <!-- 33 -->
+      <article class="cap reveal" style="--accent:var(--c3)">
+        <div class="num">33</div>
+        <h3>Semantic search over your own files</h3>
+        <span class="tag">Frontier</span>
+        <p>Claude Cowork reading a local folder; ChatGPT's file/Drive connectors — "find that note about X" across everything you've written.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Khoj</strong> (self-hosted "second brain" — indexes Markdown, PDFs, Notion, org-mode; chats over them with Ollama), <strong>Reor</strong> (local-first AI notes), or a DIY LanceDB index over <code>~/Documents</code> fed by your RAG stack from card 14.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Indexing is a one-time embedding pass on CPU/MPS; queries are light. Khoj + Ollama is the turnkey route.</p>
+      </article>
+
+      <!-- 34 -->
+      <article class="cap reveal" style="--accent:var(--c4)">
+        <div class="num">34</div>
+        <h3>Chat with any page (browser sidebar)</h3>
+        <span class="tag">Frontier</span>
+        <p>Claude for Chrome and ChatGPT's browser extensions — summarize, translate or question the page you're reading, in place.</p>
+        <span class="tag">Open source</span>
+        <p><strong>Page Assist</strong> (browser extension with sidebar + web-UI, talks straight to Ollama/LM Studio) and <strong>Orion-style</strong> userscripts; LibreChat/Open WebUI bookmarklets cover the rest.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Zero extra load — it's a front-end to the model you're already serving. Summarizing long pages just costs context.</p>
+      </article>
+
+      <!-- 35 -->
+      <article class="cap reveal" style="--accent:var(--c5)">
+        <div class="num">35</div>
+        <h3>Evals, benchmarking &amp; prompt testing</h3>
+        <span class="tag">Frontier</span>
+        <p>OpenAI Evals / platform playgrounds — comparing prompts, models and regressions before shipping.</p>
+        <span class="tag">Open source</span>
+        <p><strong>promptfoo</strong> (declarative prompt/model test matrix, works against Ollama), <strong>lm-evaluation-harness</strong> (academic benchmarks on your quants), and Open WebUI's built-in <strong>model arena</strong> for blind A/B votes.</p>
+        <span class="tag">On your M1 Max</span>
+        <p>Perfect fit — this is how you actually decide between 14B dense and 30B-A3B for <em>your</em> tasks instead of trusting leaderboards.</p>
+      </article>
+
+      <!-- 36 -->
+      <article class="cap reveal" style="--accent:var(--c6)">
+        <div class="num">36</div>
+        <h3>Model routing &amp; unified gateway</h3>
+        <span class="tag">Frontier</span>
+        <p>GPT-5-style auto-routing — the product silently picks a fast or deep model per request.</p>
+        <span class="tag">Open source</span>
+        <p><strong>LiteLLM</strong> (one OpenAI-compatible proxy in front of Ollama, MLX, llama.cpp <em>and</em> cloud APIs, with fallbacks and budgets), <strong>RouteLLM</strong> (learned cheap-vs-strong routing), <strong>OptiLLM</strong> (inference-time optimization proxy).</p>
+        <span class="tag">On your M1 Max</span>
+        <p>A light Python proxy. The killer local pattern: route easy turns to Qwen3-14B, hard ones to 30B-A3B — or overflow to a paid API only when you choose.</p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- HOST LAYER -->
+<section id="host" style="background:color-mix(in srgb,var(--c6) 5%,transparent)">
+  <div class="wrap">
+    <div class="panel reveal">
+      <p class="eyebrow" style="--accent:var(--c6)">The glue</p>
+      <h2>The host layer that ties it all together.</h2>
+      <h3 style="--accent:var(--c6)">MCP-capable chat UIs</h3>
+      <p style="--accent:var(--c6)"><strong>LibreChat</strong> — native MCP, Agents, Artifacts, Code Interpreter, RAG, multi-user. The most "ChatGPT-like" and the most production-ready. <strong>Open WebUI</strong> — native MCP plus the <code>mcpo</code> OpenAPI bridge, strong local-model RAG, voice and image-gen. <strong>LobeChat</strong> and <strong>AnythingLLM</strong> round out the field.</p>
+      <h3 style="--accent:var(--c6)">Model runtimes</h3>
+      <p style="--accent:var(--c6)"><strong>Ollama</strong> and <strong>LM Studio</strong> are the easiest (OpenAI-compatible, GGUF). <code>llama.cpp</code> gives the most control and the <code>--jinja</code> tool-calling you'll need. <strong>mlx-lm</strong> is the fastest on Apple Silicon — but remember it can't call tools, so keep it for plain chat, not agents.</p>
+    </div>
+  </div>
+</section>
+
+<!-- RECOMMENDATIONS -->
+<section id="reco">
+  <div class="wrap">
+    <div class="panel reveal">
+      <p class="eyebrow" style="--accent:var(--c5)">A staged plan</p>
+      <h2>Build it in three calm stages.</h2>
+    </div>
+
+    <div class="stage reveal" style="--accent:var(--c2)">
+      <p class="label">Stage 1 · Core stack — do this first</p>
+      <h3>Get a model talking to search, fetch and files.</h3>
+      <ol style="--accent:var(--c2)">
+        <li>Install <strong>Ollama</strong> (or LM Studio) and pull <strong>Qwen3-30B-A3B at Q4</strong> — or 14B for maximum headroom. Use <strong>Unsloth quants</strong> so tool-calling works.</li>
+        <li>Front it with <strong>LibreChat</strong> (or Open WebUI) — you instantly get artifacts, RAG, multi-conversation memory and native MCP.</li>
+        <li>Add three MCP servers: <code>mcp-searxng</code> (search), <strong>Playwright MCP</strong> (fetch/browse), and the official <code>filesystem</code> server.</li>
+      </ol>
+    </div>
+
+    <div class="stage reveal" style="--accent:var(--c4)">
+      <p class="label">Stage 2 · Productivity parity</p>
+      <h3>Make documents, read PDFs, remember things.</h3>
+      <ol style="--accent:var(--c4)">
+        <li>Stand up a <strong>Docker code-execution</strong> path (llm-sandbox or Open Interpreter) with <code>python-docx</code> / <code>openpyxl</code> / <code>python-pptx</code> / <strong>WeasyPrint</strong> — clone <code>anthropics/skills</code> to reuse Claude's workflows.</li>
+        <li>Add <strong>Docling</strong> (or PyMuPDF) for PDFs and a <strong>LanceDB / Chroma</strong> collection for Projects / knowledge bases.</li>
+        <li>Add <strong>mem0</strong> or the official memory server — move to <strong>Letta</strong> if recall quality matters more than overhead.</li>
+      </ol>
+    </div>
+
+    <div class="stage reveal" style="--accent:var(--c5)">
+      <p class="label">Stage 3 · Advanced &amp; agentic</p>
+      <h3>Research, voice, images, automation.</h3>
+      <ol style="--accent:var(--c5)">
+        <li>Run <strong>GPT Researcher</strong> or <strong>Local Deep Research</strong> against your Ollama + SearXNG.</li>
+        <li>Wire <strong>whisper.cpp + Kokoro/Piper</strong> for voice (via VoiceMode or local-stt-mcp).</li>
+        <li>Install <strong>Draw Things</strong> (or ComfyUI + GGUF) with SDXL / Flux schnell — but run it when the LLM is unloaded.</li>
+        <li>Try <strong>browser-use</strong> for browser automation; use <strong>n8n</strong> or <code>launchd</code> for scheduling.</li>
+      </ol>
+    </div>
+
+    <div class="panel reveal">
+      <h3 style="--accent:var(--c3)">Thresholds that change the plan</h3>
+      <ul style="--accent:var(--c3)">
+        <li>Tool-calling failing or throwing 500s → switch to <strong>Unsloth quants</strong> + updated <code>llama.cpp</code>, or community-fixed templates.</li>
+        <li>Model too slow or weak for agent chains → drop to <strong>Qwen3-14B</strong>, or accept that long-horizon agentic work is where 32&nbsp;GB most visibly trails the frontier.</li>
+        <li>Need concurrent image-gen + chat, local video, or 256K context → you'll want a <strong>second machine with a discrete GPU or 64&nbsp;GB+</strong>. These don't fit 32&nbsp;GB.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CAVEATS -->
+<section id="caveats" style="background:color-mix(in srgb,var(--c4) 6%,transparent)">
+  <div class="wrap">
+    <div class="caveat reveal">
+      <p class="eyebrow" style="--accent:var(--c4)">Before you start</p>
+      <h2>Five honest caveats.</h2>
+      <ul>
+        <li><strong>Memory is the hard limit.</strong> Image generation, vision models, voice TTS and your LLM all draw on the same 32&nbsp;GB. Plan for sequential use. Local video generation is out of scope here.</li>
+        <li><strong>Small models are weaker at long-horizon agentic tasks.</strong> Computer use, deep research and multi-step orchestration are exactly where a 14–30B Qwen trails the big models. OSS benchmark scores usually use a frontier brain — expect more supervision locally.</li>
+        <li><strong>Tool-calling template bugs are real and recurring</strong> across Qwen3/3.5/3.6 on <code>llama.cpp</code>. Budget time for the Unsloth fixes, and prefer <code>llama.cpp</code>/Ollama/LM Studio over MLX when tools matter.</li>
+        <li><strong>MCP runs inside your trust boundary.</strong> Servers can execute code and read data — only add ones you trust, prefer read-only/sandboxed configs. Open WebUI gates MCP to admins for exactly this reason.</li>
+        <li><strong>The ecosystem moves weekly.</strong> Model names, registries and benchmarks shift fast — verify current versions before committing. Some frontier feature details here are from vendor docs describing previews rather than fully shipped features.</li>
+      </ul>
+      <p style="max-width:var(--measure);margin-top:1.4em">And one reframing: <strong>Claude has no native image generation, and ChatGPT's sandbox has limited internet</strong> — so "matching them" sometimes means matching a deliberate limitation, not adding a feature.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p class="mono" style="color:var(--c1)">// end of guide</p>
+    <p>A capability-by-capability map from frontier AI products to self-hostable open source, sized for one Apple M1 Max with 32&nbsp;GB of unified memory.</p>
+    <p class="mono">Verify model versions and library benchmarks before building — this space changes weekly.</p>
+  </div>
+</footer>
+
+<script>
+  // reading progress bar
+  const bar = document.getElementById('progress');
+  const onScroll = () => {
+    const h = document.documentElement;
+    const max = h.scrollHeight - h.clientHeight;
+    bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+  };
+  document.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  // gentle reveal-on-scroll
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!prefersReduced && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+    }, {threshold:0.12, rootMargin:'0px 0px -40px 0px'});
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  } else {
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+  }
+</script>
+</body>
+</html>
