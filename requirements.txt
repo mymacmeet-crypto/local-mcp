@@ -3,6 +3,9 @@
 # a large ML stack (~600 MB) that exceeds Vercel's bundle limit and cannot
 # run a headless browser on serverless anyway. Install it locally for the
 # browser-render fallback with: pip install "local-mcp[browser]"
+# langgraph / langchain-ollama are also excluded: the agent-team engine
+# (run_agent_team) is an optional extra, not part of the serverless core.
+# Install it with: pip install "local-mcp[agents-langgraph]"
 mcp>=1.2.0
 httpx>=0.27.0
 beautifulsoup4>=4.12

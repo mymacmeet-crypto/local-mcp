@@ -33,6 +33,7 @@ The simple profile exposes fewer, clearer tools:
 | `read_document` | Parse a document with safe defaults. |
 | `read_image_text` | Run OCR with default English settings. |
 | `generate_file` | Write a file from supplied content, or research a query and write the answer. |
+| `run_agent_task` | Run a small multi-agent team (researcher + writer) on a task and return its answer. |
 
 This reduces the number of choices the model must make.
 

@@ -48,6 +48,7 @@ pip install ".[document-fast]"        # PyMuPDF4LLM + pdfplumber
 pip install ".[document-structured]"  # Docling
 pip install ".[document-deep-marker]" # Marker
 pip install ".[document-deep-mineru]" # MinerU
+pip install ".[agents-langgraph]"     # LangGraph engine for tool-using agent teams
 ```
 
 `document-deep-marker` and `document-deep-mineru` cannot be installed together in the
@@ -263,3 +264,13 @@ You must define a download location in `.env`; otherwise file-writing tools retu
 ```env
 LOCAL_MCP_FILE_OUTPUT_DIR=D:\Downloads\local-mcp
 ```
+
+### `run_agent_team`, `define_agent_team`, `list_agent_teams`, `delete_agent_team`
+
+Sub-agent orchestration: run a small team of role-based agents (2-3 roles work best on a local model) sequentially on one task. Each agent has its own system-prompt role and an optional tool allowlist (`web_search`, `web_fetch`, `extract_urls`, `parse_document`); a tool-using agent runs as a **LangGraph ReAct agent** over `ChatOllama`, reasoning and calling its allowed tools before writing a hand-off. Each agent reads the task plus the previous agents' hand-offs, and the last agent's message is the team's final answer.
+
+The LangGraph engine is an optional extra — install it with `pip install "local-mcp[agents-langgraph]"`. Without it, text-only and no-tools teams still run, but `run_agent_team` errors with that install hint for any agent that needs its tools.
+
+Two presets ship built in — `research` (researcher + writer) and `research-review` (adds a fact-checking reviewer) — and `define_agent_team` saves custom teams as JSON files under `LOCAL_MCP_AGENT_TEAM_DIR` (default `.tmp/agent_teams`). Uses the same pluggable LLM backend as `smart_search` (local Ollama by default; with `LLM_PROVIDER=gemini` agents run text-only, since tool calling requires Ollama). The simple tool profile exposes a one-call wrapper, `run_agent_task`. See [`docs/agent_teams.md`](docs/agent_teams.md).
+
+Remember: every agent is another call into the *same* local model, so agents serialize — a 3-role team costs roughly 3x (plus tool calls) the time of a single prompt.

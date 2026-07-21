@@ -43,7 +43,7 @@ def _dedupe_tools(tools: tuple[ToolHandler, ...]) -> tuple[ToolHandler, ...]:
 
 
 def _full_tools() -> tuple[ToolHandler, ...]:
-    from local_mcp.tools import deep_research, documents, file_generation, ocr, search, smart_search, web
+    from local_mcp.tools import agents, deep_research, documents, file_generation, ocr, search, smart_search, web
 
     return (
         web.web_fetch,
@@ -54,6 +54,10 @@ def _full_tools() -> tuple[ToolHandler, ...]:
         ocr.extract_image_text,
         documents.parse_document,
         file_generation.generate_file,
+        agents.define_agent_team,
+        agents.run_agent_team,
+        agents.list_agent_teams,
+        agents.delete_agent_team,
     )
 
 
@@ -66,4 +70,5 @@ def _simple_tools() -> tuple[ToolHandler, ...]:
         simple.read_document,
         simple.read_image_text,
         file_generation.generate_file,
+        simple.run_agent_task,
     )
