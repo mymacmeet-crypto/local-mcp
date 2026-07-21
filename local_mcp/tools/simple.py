@@ -2,46 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import Field
 
-from local_mcp.tools import automation, documents, file_generation, ocr, web
-
-ReportFileType = Literal["md", "markdown", "pdf"]
-
-
-async def search_web(
-    query: Annotated[str, Field(description="Plain web search query.")],
-    limit: Annotated[int, Field(description="Number of results to return.", ge=1, le=10)] = 5,
-) -> str:
-    """Search the web, fetch the top result pages, and return source summaries."""
-    return await web.web_summarize(query=query, limit=limit, summary_sentences=3, max_chars_per_page=20_000)
-
-
-async def summarize_web(
-    input_text: Annotated[
-        str,
-        Field(
-            description=(
-                "Search query or URL list. URLs may be comma/newline separated. "
-                "If URLs are present, pages are summarized directly; otherwise a web search is summarized."
-            ),
-        ),
-    ],
-    limit: Annotated[int, Field(description="Number of pages to summarize.", ge=1, le=8)] = 3,
-) -> str:
-    """Summarize web search results or supplied URLs with citations."""
-    if _contains_url(input_text):
-        return await web.web_summarize(urls=input_text, limit=limit, summary_sentences=3, max_chars_per_page=20_000)
-    return await web.web_summarize(query=input_text, limit=limit, summary_sentences=3, max_chars_per_page=20_000)
+from local_mcp.tools import automation, documents, ocr, web
 
 
 async def fetch_web_page(
     url: Annotated[str, Field(description="Page URL to fetch. Scheme-less input like example.com is allowed.")],
     max_chars: Annotated[int, Field(description="Maximum characters to return.", ge=1000, le=120000)] = 50_000,
 ) -> str:
-    """Fetch one web page as Markdown. Only provide url and optional max_chars."""
+    """Fetch one web page as evidence (JSON with the page url and Markdown content).
+
+    Read the returned content as source material, then write your own answer.
+    Do not paste the raw content back to the user. Only provide url and optional
+    max_chars.
+    """
     return await web.web_fetch(url=url, max_chars=max_chars)
 
 
@@ -66,69 +43,6 @@ async def read_image_text(
 ) -> str:
     """Extract text from an image with default English OCR."""
     return await ocr.extract_image_text(image=image)
-
-
-async def write_markdown_file(
-    filename: Annotated[str, Field(description="Relative output Markdown filename or path.")],
-    content: Annotated[str, Field(description="Markdown content to write.")],
-    overwrite: Annotated[bool, Field(description="Replace the file if it already exists.")] = False,
-) -> str:
-    """Write Markdown content to the configured output folder."""
-    return await file_generation.generate_file(
-        filename=filename,
-        content=content,
-        file_type="md",
-        overwrite=overwrite,
-        write_mode="write",
-    )
-
-
-async def write_report_file(
-    filename: Annotated[str, Field(description="Relative output filename or path for a complete report.")],
-    content: Annotated[
-        str,
-        Field(
-            description=(
-                "Complete multi-section report content, not a short answer. Include heading, introduction, "
-                "several detailed sections, examples or bullets, and conclusion."
-            ),
-        ),
-    ],
-    file_type: Annotated[
-        ReportFileType,
-        Field(description="Output file type: md/markdown or pdf. A .pdf filename also selects PDF output."),
-    ] = "pdf",
-    min_words: Annotated[
-        int,
-        Field(description="Minimum words required before writing. 900 is usually about 2-3 PDF pages.", ge=300, le=5000),
-    ] = 900,
-    overwrite: Annotated[bool, Field(description="Replace the file if it already exists.")] = False,
-) -> str:
-    """Write a complete multi-page report to PDF or Markdown; rejects short content."""
-    return await file_generation.generate_file(
-        filename=filename,
-        content=content,
-        file_type=file_type,
-        overwrite=overwrite,
-        write_mode="write",
-        min_words=min_words,
-    )
-
-
-async def search_web_to_file(
-    query: Annotated[str, Field(description="Plain web search query.")],
-    filename: Annotated[str, Field(description="Relative Markdown or PDF output filename or path.")],
-    limit: Annotated[int, Field(description="Number of search results to write.", ge=1, le=10)] = 5,
-    overwrite: Annotated[bool, Field(description="Replace the file if it already exists.")] = False,
-) -> str:
-    """Search the web and write the results to a Markdown or PDF file."""
-    return await file_generation.web_search_to_file(
-        query=query,
-        filename=filename,
-        limit=limit,
-        write_mode="write",
-        overwrite=overwrite,
-    )
 
 
 async def create_scheduled_command(
@@ -160,10 +74,3 @@ async def remove_scheduled_command(
 ) -> str:
     """Uninstall a scheduled command and delete its generated files."""
     return await automation.delete_scheduled_task(name=name, delete_files=True)
-
-
-def _contains_url(value: str) -> bool:
-    cleaned = (value or "").lower()
-    if "http://" in cleaned or "https://" in cleaned:
-        return True
-    return any(token.startswith(("www.", "localhost", "127.0.0.1")) for token in cleaned.replace(",", " ").split())

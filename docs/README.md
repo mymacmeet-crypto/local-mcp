@@ -2,7 +2,7 @@
 
 This folder documents every tool exposed by the `local-mcp` MCP server.
 
-`local-mcp` is a Python MCP server that helps AI clients search the web, fetch/browser-render/scrape pages, summarize multiple web pages, discover URLs, run OCR on images, parse PDFs/documents, generate local Markdown or PDF files, and create scheduled automation bundles. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
+`local-mcp` is a Python MCP server that helps AI clients search the web, get one-shot LLM-powered answers (local Ollama by default, or Google Gemini), fetch/browser-render/scrape pages, discover URLs, run OCR on images, parse PDFs/documents, generate local Markdown, text, PDF, Word, or PowerPoint files (from supplied content or from web research), and create scheduled local automations. The tools are registered in [`local_mcp/app.py`](../local_mcp/app.py) with FastMCP and can also be used from OpenWebUI through [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py).
 
 For the package structure and runtime flow, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
@@ -13,14 +13,13 @@ For Qwen and other smaller local models, see [`low_model_compatibility.md`](low_
 | Tool | Documentation | Main purpose |
 | --- | --- | --- |
 | `web_search` | [web_search.md](web_search.md) | Search through a SearXNG instance and return citation-ready Markdown results. |
-| `web_search_to_file` | [web_search_to_file.md](web_search_to_file.md) | Search through SearXNG and write citation-ready results directly to a generated Markdown or PDF file. |
-| `web_fetch` | [web_fetch.md](web_fetch.md) | Fetch, browser-render, or scrape pages into Markdown, text, HTML, or JSON. |
-| `web_summarize` | [web_summarize.md](web_summarize.md) | Search or fetch multiple URLs and return concise summaries instead of whole page content. |
+| `smart_search` | [smart_search.md](smart_search.md) | One-shot answer: search, let an LLM (local Ollama by default) rank sources, crawl them, and return an LLM-written cited summary. |
+| `web_fetch` | [web_fetch.md](web_fetch.md) | Fetch one page (with automatic browser fallback) and return its Markdown content as evidence. |
 | `extract_urls` | [extract_urls.md](extract_urls.md) | Discover URLs from `robots.txt`, XML sitemaps, static HTML links, and optional browser-rendered pages. |
 | `extract_image_text` | [extract_image_text.md](extract_image_text.md) | Extract text from local, remote, data URL, or base64 image input using Tesseract OCR. |
 | `parse_document` | [parse_document.md](parse_document.md) | Parse PDFs and documents into Markdown, text, or JSON using local parser backends. |
-| `generate_file` | [generate_file.md](generate_file.md) | Generate local Markdown or PDF files from supplied content. |
-| `schedule_task` | [schedule_task.md](schedule_task.md) | Create cron, launchd, or n8n automation bundles for recurring local commands. |
+| `generate_file` | [generate_file.md](generate_file.md) | Generate local md/txt/pdf/docx/pptx files from supplied content or from a researched web query (`smart_search`/`deep_research`). |
+| `schedule_task` | [schedule_task.md](schedule_task.md) | Create and install cron, systemd, launchd, or n8n schedules for recurring local commands (plus `list_scheduled_tasks`/`delete_scheduled_task`). |
 
 ## Shared Project Setup
 
@@ -89,20 +88,26 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_TIMEOUT_MS` | `15000` | Fetching, OCR URL fetches, browser render | Request and browser-render timeout in milliseconds. |
 | `LOCAL_MCP_USER_AGENT` | `local-mcp/1.0 (+https://github.com/your-org/local-mcp)` | Fetching | User-Agent sent to websites and image URLs. |
 | `LOCAL_MCP_URL_LIMIT` | `500` | `extract_urls` | Default maximum number of URLs returned. |
-| `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `web_fetch`, `web_summarize` | Minimum static Markdown/text length before browser-render fallback is attempted. |
-| `LOCAL_MCP_WEB_FETCH_LINK_LIMIT` | `100` | `web_fetch` | Maximum links included in `web_fetch` responses. |
-| `LOCAL_MCP_WEB_FETCH_IMAGE_LIMIT` | `100` | `web_fetch` | Maximum images included in `web_fetch` responses. |
-| `LOCAL_MCP_WEB_SUMMARY_CONCURRENCY` | `4` | `web_summarize` | Maximum pages fetched concurrently by `web_summarize`. |
+| `LOCAL_MCP_MIN_MARKDOWN_CHARS` | `200` | `web_fetch`, `smart_search` | Minimum static Markdown length before browser-render fallback is attempted. |
 | `LOCAL_MCP_TOOL_PROFILE` | `full` | Tool registration | Set to `simple` for smaller models, `full` for the original tools, or `both` to expose both sets. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP` | `none` | `web_search` | Set to `summarize` to fetch/summarize top search results, `fetch_first` to fetch only the top result, or `none` for search-only behavior. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_LIMIT` | `3` | `web_search` | Maximum number of search results summarized when follow-up mode is enabled. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_RENDER` | `auto` | `web_search` follow-up | Fetch mode used by automatic follow-up: `auto`, `static`, or `browser`. |
-| `LOCAL_MCP_WEB_SEARCH_FOLLOW_UP_MAX_CHARS` | `20000` or `50000` | `web_search` follow-up | Maximum page characters used by automatic summarize/fetch follow-up. |
-| `LOCAL_MCP_WEB_SEARCH_SUMMARY_SENTENCES` | `3` | `web_search` follow-up | Sentences per source summary when follow-up mode is `summarize`. |
-| `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search`, `web_search_to_file` | Default SearXNG base URL. |
-| `SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Comma-separated SearXNG failover list. |
-| `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search`, `web_search_to_file` | Alias for `SEARXNG_URLS`. |
-| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `web_search_to_file` | SearXNG request timeout in milliseconds. |
+| `SEARXNG_BASE_URL` | `http://127.0.0.1:8888` | `web_search` | Default SearXNG base URL. |
+| `SEARXNG_URLS` | unset | `web_search` | Comma-separated SearXNG failover list. |
+| `LOCAL_MCP_SEARXNG_URLS` | unset | `web_search` | Alias for `SEARXNG_URLS`. |
+| `SEARXNG_TIMEOUT_MS` | `LOCAL_MCP_TIMEOUT_MS` or `15000` | `web_search`, `smart_search` | SearXNG request timeout in milliseconds. |
+| `LLM_PROVIDER` | `ollama` | `smart_search` | LLM backend for ranking/summarization: `ollama` (local, default) or `gemini`. |
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | `smart_search` | Local Ollama server base URL. Used when `LLM_PROVIDER=ollama`. |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | `smart_search` | Ollama model tag used for ranking and summarization. Must already be pulled. |
+| `OLLAMA_TIMEOUT_MS` | `120000` | `smart_search` | Per-request timeout for Ollama calls in milliseconds. |
+| `OLLAMA_MAX_RETRIES` | `2` | `smart_search` | Retries for transient Ollama `5xx` errors. |
+| `OLLAMA_RETRY_BACKOFF_S` | `2` | `smart_search` | Base backoff in seconds between Ollama retries (grows per attempt). |
+| `GEMINI_API_KEY` | required if `LLM_PROVIDER=gemini` | `smart_search` | Google Gemini API key. `GOOGLE_API_KEY` is accepted as an alias. |
+| `GEMINI_MODEL` | `gemini-flash-latest` | `smart_search` | Gemini model id used for source ranking and summarization. |
+| `GEMINI_API_BASE` | `https://generativelanguage.googleapis.com/v1beta` | `smart_search` | Gemini REST API base URL. |
+| `GEMINI_TIMEOUT_MS` | `120000` | `smart_search` | Per-request timeout for Gemini calls in milliseconds. |
+| `GEMINI_MAX_RETRIES` | `2` | `smart_search` | Retries for transient Gemini `5xx` errors (auth/quota/model errors are not retried). |
+| `GEMINI_RETRY_BACKOFF_S` | `2` | `smart_search` | Base backoff in seconds between Gemini retries (grows per attempt). |
+| `LOCAL_MCP_SMART_SEARCH_CANDIDATES` | `4` | `smart_search` | Candidate multiplier: search pulls `max_sources` × this many URLs (clamped 6–20) for ranking. |
+| `LOCAL_MCP_SMART_SEARCH_SOURCE_CHARS` | `16000` | `smart_search` | Maximum characters of each crawled page passed to the LLM. |
 | `TESSERACT_CMD` | auto-detected | `extract_image_text` | Path to the native Tesseract executable. |
 | `LOCAL_MCP_OCR_MAX_IMAGE_BYTES` | `20971520` | `extract_image_text` | Maximum accepted image size in bytes. |
 | `LOCAL_MCP_TESSERACT_CONFIG` | empty | `extract_image_text` | Extra config string passed to Tesseract. |
@@ -112,10 +117,10 @@ Invoke-WebRequest http://127.0.0.1:3002/health
 | `LOCAL_MCP_MARKER_CMD` | auto-detected | `parse_document` | Optional path to the `marker_single` executable. |
 | `LOCAL_MCP_MINERU_CMD` | auto-detected | `parse_document` | Optional path to the `mineru` executable. |
 | `LOCAL_MCP_MINERU_BACKEND` | `pipeline` | `parse_document` | MinerU backend passed with `-b`; `pipeline` is CPU-friendly. |
-| `LOCAL_MCP_FILE_OUTPUT_DIR` | required | `generate_file`, `web_search_to_file` | Destination folder for generated files. |
-| `LOCAL_MCP_DOWNLOAD_DIR` | optional alias | `generate_file`, `web_search_to_file` | Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. If neither is set, file-writing tools return an error. |
+| `LOCAL_MCP_FILE_OUTPUT_DIR` | required | `generate_file` | Destination folder for generated files. |
+| `LOCAL_MCP_DOWNLOAD_DIR` | optional alias | `generate_file` | Used only when `LOCAL_MCP_FILE_OUTPUT_DIR` is empty. If neither is set, file-writing tools return an error. |
 | `LOCAL_MCP_AUTOMATION_DIR` | `.tmp/automations` or file output dir | `schedule_task` | Destination folder for generated automation bundles. |
-| `LOCAL_MCP_ENABLE_SCHEDULER_INSTALL` | unset | `schedule_task` | Set to `1` to let `install=true` modify cron or launchd. |
+| `LOCAL_MCP_ENABLE_SCHEDULER_INSTALL` | unset (installs allowed) | `schedule_task` | Set to `0` to disallow automatic cron/systemd/launchd changes. |
 
 ## MCP Client Example
 
@@ -132,4 +137,6 @@ For Claude Desktop or another stdio MCP client, configure this repository's Pyth
 }
 ```
 
-For OpenWebUI, run the server in HTTP mode and paste the contents of [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) into OpenWebUI's tool editor. The bridge forwards OpenWebUI tool calls to `http://localhost:3002/mcp`.
+For OpenWebUI, run the server in HTTP mode and paste the contents of [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) into OpenWebUI's tool editor. The bridge forwards OpenWebUI tool calls to `http://localhost:3002/mcp` and exposes all eight tools (`web_search`, `web_fetch`, `extract_urls`, `smart_search`, `deep_research`, `extract_image_text`, `parse_document`, `generate_file`).
+
+Each bridged call sends an MCP progress token and streams the tool's `notifications/progress` messages to OpenWebUI as live status updates, so long-running tools (`deep_research`, `smart_search`, `generate_file`) show real-time progress instead of a frozen spinner. Synthesized answers are echoed into the chat; raw source material (`web_fetch`, `extract_urls`, `parse_document` output, and the `web_search` URL list) is returned to the model only, not dumped into the chat.

@@ -1,6 +1,6 @@
 # local-mcp Architecture
 
-`local-mcp` is a Python MCP server that exposes tools for web search, web fetch/scraping, URL discovery, OCR, document parsing, file generation, and scheduled automation bundles.
+`local-mcp` is a Python MCP server that exposes tools for web search, one-shot LLM-powered answers (local Ollama by default, or Google Gemini), web fetch/scraping, URL discovery, OCR, document parsing, file generation, and scheduled local automations (cron, systemd, launchd, n8n).
 
 ## Runtime Entry Points
 
@@ -18,8 +18,11 @@ local_mcp/
   cli.py                 CLI transport selection
   __main__.py            python -m local_mcp entry point
   tools/                 MCP-facing tool handlers and parameter schemas
-  web/                   HTTP fetching, browser fallback, HTML parsing/scraping, sitemaps
+  web/                   HTTP fetching, browser fallback, HTML parsing/scraping, sitemaps, shared fetch-to-Markdown helper (content.py)
   search/                SearXNG JSON client and result parsing
+  llm/                   Provider-agnostic dispatch (LLM_PROVIDER) between ollama/ and gemini/
+  ollama/                Local Ollama chat API client (default backend for smart_search)
+  gemini/                Google Gemini REST client (optional smart_search backend)
   ocr/                   Tesseract image OCR implementation
   documents/             Document loading, parser backends, formatting
   file_generation/       Local file generation helpers
@@ -43,23 +46,10 @@ Implementation code lives under `local_mcp/`. Root files are limited to project 
 MCP client
   -> local_mcp.tools.web.web_fetch
   -> normalize input URL
-  -> httpx static fetch, Crawl4AI browser render, or auto fallback
-  -> optional CSS selector narrowing
-  -> local_mcp.web.html extracts Markdown/text/HTML, metadata, links, images
-  -> Markdown, text, HTML, or JSON response
-```
-
-### `web_summarize`
-
-```text
-MCP client
-  -> local_mcp.tools.web.web_summarize
-  -> query path calls local_mcp.search.searxng for result URLs
-  -> URL path parses explicit URLs or pasted web_search Markdown
-  -> local_mcp.web.fetcher fetches each page with httpx or Crawl4AI
-  -> local_mcp.web.html extracts readable Markdown and metadata
-  -> local extractive summarizer returns concise source summaries
-  -> Markdown response with overall summary, citations, and failures
+  -> httpx static fetch with automatic Crawl4AI browser fallback when content is thin
+  -> local_mcp.web.html extracts Markdown content
+  -> truncate to max_chars
+  -> minimal JSON evidence envelope (url, content, requires_analysis, agent_guidance)
 ```
 
 ### `extract_urls`
@@ -82,7 +72,22 @@ MCP client
   -> local_mcp.tools.search.web_search
   -> local_mcp.search.searxng calls /search?format=json
   -> result cleanup, de-duplication, limit handling
-  -> citation-ready Markdown response
+  -> collect result URLs in SearXNG order
+  -> minimal JSON discovery envelope (urls, requires_fetch, agent_guidance)
+```
+
+### `smart_search`
+
+```text
+MCP client
+  -> local_mcp.tools.smart_search.smart_search
+  -> require the configured LLM provider ready (local_mcp.llm.client, LLM_PROVIDER=ollama|gemini)
+  -> local_mcp.search.searxng gathers candidate URLs (max_sources x multiplier)
+  -> local_mcp.llm.client ranks all candidates best-first (local_mcp.ollama.client or local_mcp.gemini.client)
+  -> local_mcp.web.content.fetch_auto crawls ranked pages, skipping failures
+     until max_sources pages load (httpx with Crawl4AI browser fallback)
+  -> local_mcp.llm.client summarizes the crawled evidence with inline citations
+  -> plain-text answer followed by a numbered Sources list
 ```
 
 ### `extract_image_text`
@@ -112,21 +117,15 @@ MCP client
 ```text
 MCP client
   -> local_mcp.tools.file_generation.generate_file
-  -> local_mcp.file_generation.write_generated_file / append_generated_file validates md/pdf settings
+  -> content mode: use the supplied Markdown-like content as-is
+     query mode: local_mcp.tools.smart_search.smart_search (search_mode=smart)
+                 or local_mcp.tools.deep_research.deep_research (search_mode=deep)
+                 produces the content
+  -> local_mcp.file_generation.write_generated_file / append_generated_file validates md/txt/pdf/docx/pptx settings
   -> resolve filename under LOCAL_MCP_FILE_OUTPUT_DIR / LOCAL_MCP_DOWNLOAD_DIR
-  -> create parent folders and write UTF-8 Markdown, append Markdown chunks, or write PDF bytes
+  -> create parent folders and write UTF-8 text, append text chunks, or render PDF/Word/PowerPoint bytes
+     (local_mcp.file_generation.pdf / word / powerpoint)
   -> Markdown response with path and write stats
-```
-
-### `web_search_to_file`
-
-```text
-MCP client
-  -> local_mcp.tools.file_generation.web_search_to_file
-  -> local_mcp.search.searxng.search returns results, answers, and suggestions
-  -> local_mcp.tools.search.format_search_response formats citation-ready Markdown
-  -> local_mcp.file_generation.write_generated_file / append_generated_file persists Markdown or PDF output
-  -> Markdown response with search count, path, and write stats
 ```
 
 ### `schedule_task`
@@ -135,10 +134,14 @@ MCP client
 MCP client
   -> local_mcp.tools.automation.schedule_task
   -> local_mcp.automations.scheduler validates cron expression or schedule alias
-  -> create reviewable run.sh plus cron, launchd, or n8n artifacts
-  -> optional install path only when LOCAL_MCP_ENABLE_SCHEDULER_INSTALL=1 and install=true
-  -> Markdown response with bundle path, files, install status, and install command
+  -> create reviewable run.sh plus cron, systemd, launchd, or n8n artifacts
+  -> install by default (crontab entry, systemd user timer, or launchd agent);
+     opt out per call with install=false or globally with LOCAL_MCP_ENABLE_SCHEDULER_INSTALL=0
+  -> Markdown response stating whether the schedule is installed and active
 ```
+
+`list_scheduled_tasks` and `delete_scheduled_task` manage previously created tasks.
+
 
 ## Dependency Model
 
