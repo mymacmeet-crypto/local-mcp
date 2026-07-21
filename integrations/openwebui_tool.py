@@ -471,25 +471,26 @@ class Tools:
         name: str,
         command: str,
         schedule: str,
-        scheduler: str = "cron",
+        scheduler: str = "auto",
         description: str = "",
         working_directory: str = "",
         environment: str = "",
-        overwrite: bool = False,
-        install: bool = False,
+        overwrite: bool = True,
+        install: bool = True,
         __event_emitter__: EventEmitter = None,
     ) -> str:
         """
-        Create a cron, launchd, or n8n automation bundle for a recurring local command.
+        Create and install a cron, launchd, or n8n scheduled task for a recurring local command.
+        The schedule is installed automatically; the result says whether it is live.
         :param name: Human-readable task name.
         :param command: Shell command or script body to run on the schedule.
         :param schedule: Five-field cron expression, or alias: hourly, daily, weekdays, weekly, monthly.
-        :param scheduler: Scheduler artifact to generate: cron, launchd, or n8n.
+        :param scheduler: Scheduler to use: auto, cron, launchd, systemd, or n8n. auto picks the best available on this host.
         :param description: Optional task description written into the generated README.
         :param working_directory: Optional working directory for the generated runner script.
         :param environment: Optional environment variables as KEY=VALUE lines or comma-separated assignments.
         :param overwrite: Replace existing generated files for this task.
-        :param install: Attempt to install cron/launchd. Requires LOCAL_MCP_ENABLE_SCHEDULER_INSTALL=1.
+        :param install: Install the schedule after generating files. Default true; n8n is always manual import.
         """
         _log("schedule_task", f"name={name} schedule={schedule} scheduler={scheduler} install={install}")
         await self._emit_status(__event_emitter__, f"Generating scheduled task {name}...", False)
@@ -508,6 +509,42 @@ class Tools:
                 "install": install,
             },
         )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
+    async def list_scheduled_tasks(
+        self,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        List scheduled tasks created by schedule_task and whether each is installed.
+        """
+        _log("list_scheduled_tasks", "listing")
+        await self._emit_status(__event_emitter__, "Listing scheduled tasks...", False)
+
+        result = self._call("list_scheduled_tasks", {})
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
+    async def delete_scheduled_task(
+        self,
+        name: str,
+        delete_files: bool = True,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Uninstall a scheduled task created by schedule_task and optionally delete its files.
+        :param name: Task name or slug used when the task was created.
+        :param delete_files: Also delete the generated bundle files, not just the installed schedule.
+        """
+        _log("delete_scheduled_task", f"name={name} delete_files={delete_files}")
+        await self._emit_status(__event_emitter__, f"Removing scheduled task {name}...", False)
+
+        result = self._call("delete_scheduled_task", {"name": name, "delete_files": delete_files})
 
         await self._emit_status(__event_emitter__, "Done", True)
         await self._emit_message(__event_emitter__, f"\n{result}\n")

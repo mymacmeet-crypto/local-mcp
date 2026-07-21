@@ -18,11 +18,16 @@ from local_mcp.file_generation.markdown import DOWNLOAD_DIR_ENV, OUTPUT_DIR_ENV
 
 AUTOMATION_DIR_ENV = "LOCAL_MCP_AUTOMATION_DIR"
 SCHEDULER_INSTALL_ENV = "LOCAL_MCP_ENABLE_SCHEDULER_INSTALL"
-SUPPORTED_SCHEDULERS = {"cron", "launchd", "n8n"}
+SUPPORTED_SCHEDULERS = {"cron", "launchd", "systemd", "n8n"}
 
 _ALIASES = {
+    "every_minute": "* * * * *",
+    "minutely": "* * * * *",
     "@hourly": "0 * * * *",
     "hourly": "0 * * * *",
+    "every_hour": "0 * * * *",
+    "midnight": "0 0 * * *",
+    "nightly": "0 2 * * *",
     "@daily": "0 9 * * *",
     "daily": "0 9 * * *",
     "every_day": "0 9 * * *",
@@ -116,6 +121,29 @@ def create_automation_bundle(
         )
         files["launchd"] = launchd_path
         install_command = _launchd_install_command(launchd_path)
+    elif clean_scheduler == "systemd":
+        unit_dir = root / "systemd"
+        service_path = unit_dir / f"local-mcp-{slug}.service"
+        timer_path = unit_dir / f"local-mcp-{slug}.timer"
+        calendar = _cron_to_oncalendar(cron_expression)
+        _write_text(
+            service_path,
+            _render_systemd_service(
+                name=clean_name,
+                script_path=script_path,
+                log_path=root / "logs" / f"{slug}.log",
+                error_log_path=root / "logs" / f"{slug}.err.log",
+            ),
+            overwrite=overwrite,
+        )
+        _write_text(
+            timer_path,
+            _render_systemd_timer(name=clean_name, calendar=calendar),
+            overwrite=overwrite,
+        )
+        files["systemd_service"] = service_path
+        files["systemd_timer"] = timer_path
+        install_command = _systemd_install_command(service_path, timer_path, slug)
     else:
         workflow_path = root / "n8n" / f"{slug}.workflow.json"
         _write_text(
@@ -154,7 +182,7 @@ def create_automation_bundle(
             cron_expression=cron_expression,
             script_path=script_path,
             log_path=root / "logs" / f"{slug}.log",
-            launchd_path=files.get("launchd"),
+            files=files,
         )
 
     return AutomationBundle(
@@ -209,10 +237,23 @@ def parse_environment(environment: str) -> dict[str, str]:
 
 
 def _normalize_scheduler(scheduler: str) -> str:
-    normalized = (scheduler or "cron").strip().lower()
+    normalized = (scheduler or "auto").strip().lower()
+    if normalized in {"auto", "", "default"}:
+        return _default_scheduler()
     if normalized not in SUPPORTED_SCHEDULERS:
-        raise ValueError("scheduler must be one of: cron, launchd, n8n.")
+        raise ValueError("scheduler must be one of: auto, cron, launchd, systemd, n8n.")
     return normalized
+
+
+def _default_scheduler() -> str:
+    """Pick the scheduler most likely to install successfully on this host."""
+    if platform.system() == "Darwin":
+        return "cron" if shutil.which("crontab") else "launchd"
+    if shutil.which("crontab"):
+        return "cron"
+    if shutil.which("systemctl"):
+        return "systemd"
+    return "cron"
 
 
 def _automation_root() -> Path:
@@ -378,6 +419,106 @@ def _launchd_install_command(launchd_path: Path) -> str:
     return f"launchctl bootstrap gui/$(id -u) {quoted}"
 
 
+_WEEKDAY_NAMES = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
+
+
+def _cron_to_oncalendar(cron_expression: str) -> str:
+    """Convert a five-field cron expression to a systemd OnCalendar value."""
+    minute, hour, day, month, weekday = cron_expression.split()
+
+    def fmt(values: list[int] | None) -> str:
+        if values is None:
+            return "*"
+        return ",".join(f"{value:02d}" for value in values)
+
+    minutes = fmt(_expand_cron_field(minute, 0, 59))
+    hours = fmt(_expand_cron_field(hour, 0, 23))
+    days = fmt(_expand_cron_field(day, 1, 31))
+    months = fmt(_expand_cron_field(month, 1, 12))
+    calendar = f"*-{months}-{days} {hours}:{minutes}:00"
+
+    weekdays = _normalize_launchd_weekdays(_expand_cron_field(weekday, 0, 7))
+    if weekdays is not None:
+        names = ",".join(_WEEKDAY_NAMES[value] for value in weekdays)
+        calendar = f"{names} {calendar}"
+    return calendar
+
+
+def _render_systemd_service(*, name: str, script_path: Path, log_path: Path, error_log_path: Path) -> str:
+    return "\n".join(
+        [
+            "[Unit]",
+            f"Description=local-mcp scheduled task: {name}",
+            "",
+            "[Service]",
+            "Type=oneshot",
+            f"ExecStart=/bin/bash {script_path}",
+            f"StandardOutput=append:{log_path}",
+            f"StandardError=append:{error_log_path}",
+            "",
+        ]
+    )
+
+
+def _render_systemd_timer(*, name: str, calendar: str) -> str:
+    return "\n".join(
+        [
+            "[Unit]",
+            f"Description=local-mcp timer: {name}",
+            "",
+            "[Timer]",
+            f"OnCalendar={calendar}",
+            "Persistent=true",
+            "",
+            "[Install]",
+            "WantedBy=timers.target",
+            "",
+        ]
+    )
+
+
+def _systemd_unit_dir() -> Path:
+    return Path.home() / ".config" / "systemd" / "user"
+
+
+def _systemd_install_command(service_path: Path, timer_path: Path, slug: str) -> str:
+    unit_dir = _systemd_unit_dir()
+    return (
+        f"mkdir -p {shlex.quote(str(unit_dir))} && "
+        f"cp {shlex.quote(str(service_path))} {shlex.quote(str(timer_path))} {shlex.quote(str(unit_dir))}/ && "
+        f"systemctl --user daemon-reload && "
+        f"systemctl --user enable --now local-mcp-{slug}.timer"
+    )
+
+
+def _install_systemd(*, slug: str, files: dict[str, Path]) -> tuple[bool, str]:
+    service_path = files.get("systemd_service")
+    timer_path = files.get("systemd_timer")
+    if service_path is None or timer_path is None:
+        return False, "systemd install skipped because no unit files were generated."
+    if platform.system() != "Linux":
+        return False, "systemd install skipped because this host is not Linux."
+    if shutil.which("systemctl") is None:
+        return False, "systemctl command not found on this host."
+
+    unit_dir = _systemd_unit_dir()
+    unit_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(service_path, unit_dir / service_path.name)
+    shutil.copy2(timer_path, unit_dir / timer_path.name)
+    try:
+        subprocess.run(["systemctl", "--user", "daemon-reload"], check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["systemctl", "--user", "enable", "--now", timer_path.name],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as err:
+        detail = (err.stderr or "").strip()
+        return False, f"systemctl failed: {detail or err}"
+    return True, f"Installed and started systemd user timer {timer_path.name}."
+
+
 def _render_n8n_workflow(name: str, command: str, cron_expression: str, script_path: Path) -> str:
     workflow = {
         "name": f"local-mcp - {name}",
@@ -484,14 +625,29 @@ def _install_scheduler(
     cron_expression: str,
     script_path: Path,
     log_path: Path,
-    launchd_path: Path | None,
+    files: dict[str, Path],
 ) -> tuple[bool, str]:
-    if os.environ.get(SCHEDULER_INSTALL_ENV, "").strip() not in {"1", "true", "yes", "on"}:
-        return False, f"Install skipped. Set {SCHEDULER_INSTALL_ENV}=1 to allow local scheduler changes."
+    if not scheduler_install_allowed():
+        return False, (
+            f"Install disabled by {SCHEDULER_INSTALL_ENV}. Unset it or set it to 1 to allow local scheduler changes."
+        )
     if scheduler == "cron":
-        _install_cron(cron_expression, script_path, log_path, slug)
+        if shutil.which("crontab") is None:
+            return False, (
+                "crontab command not found on this host. Install cron first (for example "
+                "`sudo dnf install cronie` on Fedora or `sudo apt install cron` on Debian/Ubuntu), "
+                "then re-run schedule_task with overwrite=true."
+            )
+        try:
+            _install_cron(cron_expression, script_path, log_path, slug)
+        except subprocess.CalledProcessError as err:
+            detail = (err.stderr or "").strip()
+            return False, f"crontab update failed: {detail or err}"
         return True, "Installed into the current user's crontab."
+    if scheduler == "systemd":
+        return _install_systemd(slug=slug, files=files)
     if scheduler == "launchd":
+        launchd_path = files.get("launchd")
         if platform.system() != "Darwin":
             return False, "launchd install skipped because this host is not macOS."
         if launchd_path is None:
@@ -500,9 +656,121 @@ def _install_scheduler(
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(launchd_path, destination)
         subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(destination)], capture_output=True, text=True)
-        subprocess.run(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(destination)], check=True, capture_output=True, text=True)
+        try:
+            subprocess.run(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(destination)], check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as err:
+            detail = (err.stderr or "").strip()
+            return False, f"launchctl bootstrap failed: {detail or err}"
         return True, f"Installed launchd agent at {destination}."
     return False, "n8n workflows cannot be installed automatically. Import the generated workflow JSON in n8n."
+
+
+def scheduler_install_allowed() -> bool:
+    """Installs are allowed unless LOCAL_MCP_ENABLE_SCHEDULER_INSTALL is explicitly disabled."""
+    value = (os.environ.get(SCHEDULER_INSTALL_ENV) or "").strip().lower()
+    if not value:
+        return True
+    return value not in {"0", "false", "no", "off"}
+
+
+def list_automation_bundles() -> list[dict[str, object]]:
+    """List generated automation bundles and whether each is installed in cron."""
+    root = _automation_root()
+    installed = _installed_cron_slugs()
+    bundles: list[dict[str, object]] = []
+    for path in sorted(root.iterdir()):
+        if not path.is_dir() or not (path / "run.sh").is_file():
+            continue
+        slug = path.name
+        scheduler_name = next(
+            (candidate for candidate in ("cron", "launchd", "systemd", "n8n") if (path / candidate).is_dir()),
+            "unknown",
+        )
+        cron_expression = ""
+        cron_file = path / "cron" / f"{slug}.cron"
+        if cron_file.is_file():
+            for line in cron_file.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if stripped and not stripped.startswith("#"):
+                    cron_expression = " ".join(stripped.split()[:5])
+                    break
+        timer_file = path / "systemd" / f"local-mcp-{slug}.timer"
+        if not cron_expression and timer_file.is_file():
+            for line in timer_file.read_text(encoding="utf-8").splitlines():
+                if line.startswith("OnCalendar="):
+                    cron_expression = line.removeprefix("OnCalendar=")
+                    break
+        is_installed = slug in installed
+        if scheduler_name == "systemd":
+            is_installed = (_systemd_unit_dir() / f"local-mcp-{slug}.timer").is_file()
+        bundles.append(
+            {
+                "slug": slug,
+                "scheduler": scheduler_name,
+                "schedule": cron_expression,
+                "root": path,
+                "installed": is_installed,
+            }
+        )
+    return bundles
+
+
+def remove_automation(name: str, *, delete_files: bool = False) -> str:
+    """Uninstall a scheduled task by name or slug and optionally delete its bundle files."""
+    slug = _slugify(name)
+    marker = f"# local-mcp:{slug}"
+    actions: list[str] = []
+
+    if shutil.which("crontab") is not None:
+        existing = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+        if existing.returncode == 0 and marker in existing.stdout:
+            kept = [line for line in existing.stdout.splitlines() if marker not in line]
+            payload = "\n".join(kept).rstrip()
+            payload = payload + "\n" if payload else ""
+            subprocess.run(["crontab", "-"], input=payload, text=True, check=True, capture_output=True)
+            actions.append("Removed the crontab entry.")
+
+    if platform.system() == "Darwin":
+        agent = Path.home() / "Library" / "LaunchAgents" / f"local-mcp.{slug}.plist"
+        if agent.exists():
+            subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(agent)], capture_output=True, text=True)
+            agent.unlink()
+            actions.append(f"Removed launchd agent {agent}.")
+
+    unit_dir = _systemd_unit_dir()
+    timer_unit = unit_dir / f"local-mcp-{slug}.timer"
+    service_unit = unit_dir / f"local-mcp-{slug}.service"
+    if timer_unit.exists() or service_unit.exists():
+        if shutil.which("systemctl") is not None:
+            subprocess.run(
+                ["systemctl", "--user", "disable", "--now", timer_unit.name],
+                capture_output=True,
+                text=True,
+            )
+        for unit in (timer_unit, service_unit):
+            if unit.exists():
+                unit.unlink()
+        if shutil.which("systemctl") is not None:
+            subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True, text=True)
+        actions.append(f"Removed systemd user timer {timer_unit.name}.")
+
+    bundle_dir = _automation_root() / slug
+    if delete_files and bundle_dir.is_dir():
+        shutil.rmtree(bundle_dir)
+        actions.append(f"Deleted bundle directory {bundle_dir}.")
+
+    if not actions:
+        return f"No installed schedule or generated files found for '{slug}'."
+    return f"Scheduled task '{slug}' removed. " + " ".join(actions)
+
+
+def _installed_cron_slugs() -> set[str]:
+    if shutil.which("crontab") is None:
+        return set()
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    if result.returncode != 0:
+        return set()
+    return set(re.findall(r"# local-mcp:([A-Za-z0-9_.-]+)", result.stdout))
 
 
 def _install_cron(cron_expression: str, script_path: Path, log_path: Path, slug: str) -> None:

@@ -7,6 +7,9 @@ from local_mcp.automations.scheduler import (
     SCHEDULER_INSTALL_ENV,
     AutomationBundle,
     create_automation_bundle,
+    list_automation_bundles,
+    remove_automation,
+    scheduler_install_allowed,
 )
 
 __all__ = [
@@ -14,4 +17,7 @@ __all__ = [
     "SCHEDULER_INSTALL_ENV",
     "AutomationBundle",
     "create_automation_bundle",
+    "list_automation_bundles",
+    "remove_automation",
+    "scheduler_install_allowed",
 ]

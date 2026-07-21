@@ -44,6 +44,8 @@ def _full_tools() -> tuple[ToolHandler, ...]:
         file_generation.generate_file,
         file_generation.web_search_to_file,
         automation.schedule_task,
+        automation.list_scheduled_tasks,
+        automation.delete_scheduled_task,
     )
 
 
@@ -61,4 +63,6 @@ def _simple_tools() -> tuple[ToolHandler, ...]:
         simple.write_report_file,
         simple.search_web_to_file,
         simple.create_scheduled_command,
+        simple.list_scheduled_commands,
+        simple.remove_scheduled_command,
     )

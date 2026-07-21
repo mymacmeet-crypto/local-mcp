@@ -59,6 +59,8 @@ class PackageImportTests(unittest.TestCase):
                 "write_report_file",
                 "search_web_to_file",
                 "create_scheduled_command",
+                "list_scheduled_commands",
+                "remove_scheduled_command",
             ],
         )
         self.assertIn("search_web", both_names)

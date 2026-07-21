@@ -36,7 +36,9 @@ The simple profile exposes fewer, clearer tools:
 | `write_markdown_file` | Write normal Markdown notes. |
 | `write_report_file` | Write a longer report and reject short content. |
 | `search_web_to_file` | Search and write results directly to a file. |
-| `create_scheduled_command` | Create cron files for a recurring command without installing them. |
+| `create_scheduled_command` | Create and install a recurring cron command (overwrites existing files for the same name). |
+| `list_scheduled_commands` | List scheduled commands and whether each is installed. |
+| `remove_scheduled_command` | Uninstall a scheduled command and delete its generated files. |
 
 This reduces the number of choices the model must make.
 

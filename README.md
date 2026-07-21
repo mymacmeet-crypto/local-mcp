@@ -136,6 +136,8 @@ The `simple` profile registers simpler wrapper tools only:
 - `write_report_file`
 - `search_web_to_file`
 - `create_scheduled_command`
+- `list_scheduled_commands`
+- `remove_scheduled_command`
 
 For PDF or Markdown reports, prefer `write_report_file`. It rejects content below its `min_words` threshold, so smaller models are forced to expand the report before a half-page PDF is written. The default is `min_words=900`, which is usually closer to a 2-3 page PDF than a short answer.
 
@@ -304,14 +306,19 @@ Parameters:
 - `name`: human-readable task name. Used to create a safe bundle slug.
 - `command`: shell command or script body to run on the schedule.
 - `schedule`: five-field cron expression, or alias: `hourly`, `daily`, `weekdays`, `weekly`, `monthly`.
-- `scheduler`: scheduler artifact to generate: `cron`, `launchd`, or `n8n`. Default: `cron`.
+- `scheduler`: scheduler to use: `auto`, `cron`, `launchd`, `systemd`, or `n8n`. Default: `auto` (cron when `crontab` exists, otherwise systemd user timers on Linux or launchd on macOS).
 - `description`: optional task description written into the generated README.
 - `working_directory`: optional working directory for the generated runner script.
 - `environment`: optional `KEY=VALUE` assignments, newline or comma separated.
 - `overwrite`: replace existing generated files for this task. Default: `false`.
-- `install`: attempt cron/launchd installation after file generation. Requires `LOCAL_MCP_ENABLE_SCHEDULER_INSTALL=1`. Default: `false`.
+- `install`: install the schedule after generating files. Default: `true`. Set `LOCAL_MCP_ENABLE_SCHEDULER_INSTALL=0` to disallow installs and only generate reviewable files. n8n is always manual import.
 
-The tool writes a reviewable automation bundle with `run.sh`, scheduler-specific artifacts, logs directory, and README. It uses `LOCAL_MCP_AUTOMATION_DIR` when set, otherwise falls back to the configured file output directory and then `.tmp/automations`.
+The tool writes a reviewable automation bundle with `run.sh`, scheduler-specific artifacts, logs directory, and README, then installs the schedule (crontab entry, systemd user timer on Linux, or launchd agent on macOS). It uses `LOCAL_MCP_AUTOMATION_DIR` when set, otherwise falls back to the configured file output directory and then `.tmp/automations`. The response states clearly whether the schedule is live; when it is not (install disabled, missing `crontab`, n8n), it explains why and includes the manual step.
+
+Companion tools:
+
+- `list_scheduled_tasks`: list generated tasks and whether each is installed.
+- `delete_scheduled_task(name, delete_files=true)`: uninstall a task and optionally delete its bundle files.
 
 Example:
 

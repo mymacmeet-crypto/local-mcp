@@ -159,3 +159,13 @@ Using local-mcp, create a launchd scheduled task named Weekday digest that runs 
 ```
 Using local-mcp, create an n8n automation bundle named Weekly research workflow that runs "python scripts/research_digest.py" at 8 AM every Monday.
 ```
+
+## `list_scheduled_tasks` / `delete_scheduled_task`
+
+```
+Using local-mcp, list my scheduled tasks and tell me which ones are installed.
+```
+
+```
+Using local-mcp, delete the scheduled task named Morning report and its generated files.
+```

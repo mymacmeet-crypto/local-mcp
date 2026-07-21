@@ -139,14 +139,27 @@ async def create_scheduled_command(
         Field(description="Five-field cron expression or alias: hourly, daily, weekdays, weekly, monthly."),
     ],
 ) -> str:
-    """Create cron artifacts for a recurring command without installing them."""
+    """Create and install a recurring scheduled command, then report the live schedule status."""
     return await automation.schedule_task(
         name=name,
         command=command,
         schedule=schedule,
-        scheduler="cron",
-        install=False,
+        scheduler="auto",
+        overwrite=True,
+        install=True,
     )
+
+
+async def list_scheduled_commands() -> str:
+    """List scheduled commands created by this server and whether each is installed."""
+    return await automation.list_scheduled_tasks()
+
+
+async def remove_scheduled_command(
+    name: Annotated[str, Field(description="Name of the scheduled command to remove.")],
+) -> str:
+    """Uninstall a scheduled command and delete its generated files."""
+    return await automation.delete_scheduled_task(name=name, delete_files=True)
 
 
 def _contains_url(value: str) -> bool:
