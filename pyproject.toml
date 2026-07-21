@@ -1,11 +1,11 @@
 [project]
 name = "local-mcp"
 version = "1.0.0"
-description = "MCP server for SearXNG web search, web fetch/scraping, URL extraction, OCR, document parsing, and file generation"
+description = "MCP server for SearXNG web search, web fetch/scraping, URL extraction, OCR, document parsing, file generation, and multi-agent teams"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "ISC" }
-keywords = ["mcp", "crawler", "links", "sitemap", "crawl4ai", "scraping", "fetch", "ocr", "tesseract", "searxng", "search", "pdf", "documents", "markdown", "file-generation"]
+keywords = ["mcp", "crawler", "links", "sitemap", "crawl4ai", "scraping", "fetch", "ocr", "tesseract", "searxng", "search", "pdf", "documents", "markdown", "file-generation", "agents", "multi-agent"]
 dependencies = [
     "mcp>=1.2.0",
     "httpx>=0.27.0",
@@ -26,6 +26,10 @@ dependencies = [
 # Heavy (playwright + ML stack); excluded from serverless deploys. Install with:
 #   pip install "local-mcp[browser]"
 browser = ["crawl4ai>=0.5.0"]
+# Multi-agent team engine (run_agent_team). Uses Microsoft AutoGen to drive the
+# agents over a local Ollama model client; kept optional so the serverless core
+# stays light. Install with: pip install "local-mcp[agents-autogen]"
+agents-autogen = ["autogen-agentchat>=0.4", "autogen-ext[ollama]>=0.4"]
 document-fast = ["pymupdf4llm>=1.28.0", "pdfplumber>=0.11.0"]
 document-structured = ["docling>=2.107.0"]
 # marker-pdf and mineru cannot be installed together: marker-pdf pins

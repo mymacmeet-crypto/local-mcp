@@ -43,3 +43,16 @@ async def read_image_text(
 ) -> str:
     """Extract text from an image with default English OCR."""
     return await ocr.extract_image_text(image=image)
+
+
+async def run_agent_task(
+    task: Annotated[str, Field(description="The task or question for the agent team to work on.")],
+    team: Annotated[
+        str,
+        Field(description="Team to run: `research` (researcher + writer) or `research-review` (adds a reviewer)."),
+    ] = "research",
+) -> str:
+    """Run a small multi-agent team (a web researcher, then a writer) on a task and return its answer."""
+    from local_mcp.tools import agents
+
+    return await agents.run_agent_team(team=team, task=task)
