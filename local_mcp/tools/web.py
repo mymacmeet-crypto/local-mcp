@@ -6,10 +6,12 @@ import json
 import os
 from typing import Annotated
 
+from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from local_mcp.shared import guidance
 from local_mcp.shared.errors import describe_fetch_error, tool_error
+from local_mcp.shared.progress import Progress
 from local_mcp.shared.urls import (
     markdown_link_target,
     normalize_url,
@@ -28,21 +30,26 @@ async def web_fetch(
         int,
         Field(description="Maximum `content` characters before truncation. Use 0 for no truncation.", ge=0, le=500000),
     ] = 120000,
+    ctx: Context | None = None,
 ) -> str:
     """Retrieve one web page as evidence: JSON with the page url and Markdown content."""
     target = normalize_url(url)
+    progress = Progress(ctx, total=3)
+    await progress.report(f"Fetching {target}...")
 
     try:
         page = await content.fetch_auto(target)
     except Exception as err:
         raise tool_error(describe_fetch_error(err, target))
 
+    await progress.report("Extracting page content...")
     try:
         markdown = content.page_markdown(page)
     except Exception as err:
         raise tool_error(f"Could not scrape {page.final_url}: {err}")
 
     markdown, _ = _truncate(markdown, max_chars)
+    await progress.report(f"Extracted {len(markdown)} characters of evidence.")
     if not markdown:
         raise tool_error(f"No extractable content found for {target}.")
 
@@ -66,9 +73,11 @@ async def extract_urls(
         Field(description="Only return URLs under the input URL path prefix, such as /blogs and /blogs/..."),
     ] = True,
     limit: Annotated[int, Field(description="Maximum number of unique URLs to return.", ge=1, le=5000)] = DEFAULT_LIMIT,
+    ctx: Context | None = None,
 ) -> str:
     """Extract unique absolute URLs from robots/sitemaps and the given page."""
     target = normalize_url(url)
+    progress = Progress(ctx, total=4)
     route_scoped = same_path and url_route_path(target) != "/"
     urls: list[tuple[str, str]] = []
     seen: set[str] = set()
@@ -98,12 +107,14 @@ async def extract_urls(
     def add_sourced_many(values: list[tuple[str, str]]) -> int:
         return sum(1 for value, source in values if add_url(value, source))
 
+    await progress.report(f"Reading robots.txt and sitemaps for {target}...")
     try:
         mark_render_method("httpx")
         add_sourced_many(await sitemap.collect_sitemap_urls(target, limit=limit, url_filter=should_include))
     except Exception:
         pass
 
+    await progress.report(f"Fetching {target}...")
     try:
         mark_render_method("httpx")
         page = await fetcher.fetch_static(target)
@@ -114,6 +125,7 @@ async def extract_urls(
     static_added = add_many(static_links, "httpx")
 
     if len(urls) < limit and (not static_links or static_added == 0 or route_scoped):
+        await progress.report("Static HTML had few links; rendering with a browser...")
         try:
             mark_render_method("crawl4ai")
             rendered_page = await fetcher.fetch_browser(page.final_url)
@@ -121,6 +133,7 @@ async def extract_urls(
         except Exception as err:
             raise tool_error(describe_fetch_error(err, page.final_url))
 
+    await progress.report(f"Found {len(urls)} URL(s).")
     render_label = " + ".join(render_methods) or "none"
     stats_label = _format_url_stats(urls)
     if not urls:

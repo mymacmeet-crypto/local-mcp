@@ -29,6 +29,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Annotated, Literal
 
+from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from local_mcp.file_generation import write_generated_file
@@ -36,6 +37,7 @@ from local_mcp.llm import client as llm
 from local_mcp.search import searxng
 from local_mcp.shared import guidance
 from local_mcp.shared.errors import tool_error
+from local_mcp.shared.progress import Progress
 from local_mcp.shared.urls import normalize_url
 from local_mcp.web import content
 
@@ -113,6 +115,7 @@ async def deep_research(
         str,
         Field(description="Optional model override for the configured LLM provider. Empty uses the provider default."),
     ] = "",
+    ctx: Context | None = None,
 ) -> str:
     """Plan, iteratively search and read many sources, verify, and write a cited research report."""
     cleaned_query = query.strip()
@@ -126,7 +129,13 @@ async def deep_research(
     max_sources = _clamp(max_sources, 1, 30)
     notes: list[str] = []  # narrator lines describing how the run unfolded
 
+    # Rough upper bound so the client's progress bar advances sensibly; the run
+    # may finish earlier (reflection can stop rounds before the cap).
+    estimated_steps = 1 + max_iterations * (breadth + 4) + 1 + (1 if verify else 0) + (1 if output_file.strip() else 0)
+    progress = Progress(ctx, total=estimated_steps)
+
     # 1) PLAN — decompose the question into sub-questions and a report outline.
+    await progress.report(f"Planning research for {cleaned_query!r}...")
     plan = await _plan(cleaned_query, model_override)
     pending_queries = plan.subquestions or [cleaned_query]
 
@@ -137,20 +146,24 @@ async def deep_research(
         if not pending_queries or len(sources) >= max_sources:
             break
 
+        await progress.report(f"Round {iteration + 1}: searching {len(pending_queries)} query(ies)...")
         candidates = await _search_fanout(pending_queries, time, seen_urls)
         if not candidates:
             notes.append(f"Round {iteration + 1}: no new candidate sources for {pending_queries!r}.")
             break
 
+        await progress.report(f"Round {iteration + 1}: ranking {len(candidates)} candidate(s)...")
         ranked = await _rank_results(cleaned_query, candidates, model_override)
         remaining = max_sources - len(sources)
         room = min(breadth, remaining)
+        await progress.report(f"Round {iteration + 1}: crawling up to {room} new source(s)...")
         new_sources = await _crawl_new_sources(ranked, room, seen_urls, start_sid=len(sources) + 1)
         if not new_sources:
             notes.append(f"Round {iteration + 1}: found candidates but none could be crawled.")
             break
 
         # Take per-source notes tied to the question (the evidence ledger).
+        await progress.report(f"Round {iteration + 1}: taking notes on {len(new_sources)} source(s)...")
         for source in new_sources:
             source.notes = await _take_notes(cleaned_query, plan.subquestions, source, model_override)
         sources.extend(new_sources)
@@ -162,6 +175,7 @@ async def deep_research(
         # 3) REFLECT — decide whether to stop or open new queries for the next round.
         if iteration + 1 >= max_iterations or len(sources) >= max_sources:
             break
+        await progress.report(f"Round {iteration + 1}: reflecting on remaining gaps...")
         pending_queries = await _reflect(cleaned_query, sources, model_override)
         if not pending_queries:
             notes.append(f"Round {iteration + 1}: reflection found no remaining gaps; stopping early.")
@@ -174,6 +188,7 @@ async def deep_research(
         )
 
     # 4) SYNTHESIZE the report from the evidence ledger, following the outline.
+    await progress.report(f"Synthesizing the report from {len(sources)} source(s)...")
     try:
         report = await _synthesize(cleaned_query, plan.outline, sources, model_override)
     except llm.LLMError as err:
@@ -182,6 +197,7 @@ async def deep_research(
     # 5) VERIFY — flag any claims the collected evidence does not support.
     verification = ""
     if verify:
+        await progress.report("Verifying report claims against the collected evidence...")
         try:
             verification = await _verify(cleaned_query, sources, report, model_override)
         except llm.LLMError:
@@ -190,12 +206,15 @@ async def deep_research(
     document = _format_report(report, verification, sources)
 
     if output_file.strip():
+        await progress.report(f"Writing report to {output_file.strip()}...")
         try:
             written = write_generated_file(output_file.strip(), document, overwrite=True)
         except Exception as err:
             raise tool_error(f"Report generated but could not be written to a file: {err}")
+        await progress.report("Done.")
         return f"Report written to: {written.path}\n\n{document}"
 
+    await progress.report("Done.")
     return document
 
 

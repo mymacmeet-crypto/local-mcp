@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
+from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from local_mcp.documents import parse_document as parse_document_impl
 from local_mcp.shared.errors import tool_error
+from local_mcp.shared.progress import Progress
 
 DocumentOutputFormat = Literal["markdown", "text", "json"]
 DocumentParser = Literal["auto", "pypdf", "pymupdf4llm", "pdfplumber", "docling", "marker", "mineru", "text"]
@@ -42,10 +44,13 @@ async def parse_document(
         int,
         Field(description="Maximum returned content characters before truncation.", ge=1000, le=1_000_000),
     ] = 120_000,
+    ctx: Context | None = None,
 ) -> str:
     """Parse a PDF or document into Markdown, plain text, or JSON."""
+    progress = Progress(ctx, total=2)
+    await progress.report(f"Parsing document with the {parser!r} parser...")
     try:
-        return await parse_document_impl(
+        result = await parse_document_impl(
             document,
             parser=parser,
             output_format=output_format,
@@ -55,3 +60,5 @@ async def parse_document(
         )
     except Exception as err:
         raise tool_error(str(err))
+    await progress.report(f"Parsed {len(result)} characters.")
+    return result

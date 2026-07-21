@@ -134,4 +134,6 @@ For Claude Desktop or another stdio MCP client, configure this repository's Pyth
 }
 ```
 
-For OpenWebUI, run the server in HTTP mode and paste the contents of [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) into OpenWebUI's tool editor. The bridge forwards OpenWebUI tool calls to `http://localhost:3002/mcp`.
+For OpenWebUI, run the server in HTTP mode and paste the contents of [`integrations/openwebui_tool.py`](../integrations/openwebui_tool.py) into OpenWebUI's tool editor. The bridge forwards OpenWebUI tool calls to `http://localhost:3002/mcp` and exposes all eight tools (`web_search`, `web_fetch`, `extract_urls`, `smart_search`, `deep_research`, `extract_image_text`, `parse_document`, `generate_file`).
+
+Each bridged call sends an MCP progress token and streams the tool's `notifications/progress` messages to OpenWebUI as live status updates, so long-running tools (`deep_research`, `smart_search`, `generate_file`) show real-time progress instead of a frozen spinner. Synthesized answers are echoed into the chat; raw source material (`web_fetch`, `extract_urls`, `parse_document` output, and the `web_search` URL list) is returned to the model only, not dumped into the chat.

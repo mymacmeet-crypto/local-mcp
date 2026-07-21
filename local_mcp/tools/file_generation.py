@@ -16,10 +16,12 @@ from __future__ import annotations
 import re
 from typing import Annotated, Literal
 
+from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from local_mcp.file_generation import GeneratedFile, append_generated_file, write_generated_file
 from local_mcp.shared.errors import tool_error
+from local_mcp.shared.progress import Progress
 from local_mcp.tools import deep_research, smart_search
 
 FileType = Literal["md", "markdown", "txt", "pdf", "doc", "docx", "ppt", "pptx"]
@@ -117,6 +119,7 @@ async def generate_file(
         bool,
         Field(description="Append a trailing newline to non-empty Markdown/text content. Ignored for binary output."),
     ] = True,
+    ctx: Context | None = None,
 ) -> str:
     """Generate a local md/txt/pdf/docx/pptx file from supplied content or from web research.
 
@@ -133,13 +136,16 @@ async def generate_file(
             "or `query` to research the topic online and write the answer."
         )
 
+    progress = Progress(ctx)
     if has_query:
+        # The research sub-tool streams its own detailed progress via ``ctx``.
         document = await _research_content(
             query.strip(),
             search_mode=search_mode,
             max_sources=max_sources,
             time_range=time_range,
             model=model,
+            ctx=ctx,
         )
     else:
         try:
@@ -148,6 +154,7 @@ async def generate_file(
             raise tool_error(str(err))
         document = content
 
+    await progress.report(f"Writing {file_type} file to {filename}...")
     try:
         result = _write_content_to_file(
             filename,
@@ -174,14 +181,15 @@ async def _research_content(
     max_sources: int,
     time_range: str,
     model: str,
+    ctx: Context | None = None,
 ) -> str:
     mode = _normalize_search_mode(search_mode)
     if mode == "deep":
         kwargs = {"max_sources": min(max_sources, DEEP_MAX_SOURCES_LIMIT)} if max_sources > 0 else {}
-        return await deep_research.deep_research(query, time_range=time_range, model=model, **kwargs)
+        return await deep_research.deep_research(query, time_range=time_range, model=model, ctx=ctx, **kwargs)
 
     kwargs = {"max_sources": min(max_sources, SMART_MAX_SOURCES_LIMIT)} if max_sources > 0 else {}
-    summary = await smart_search.smart_search(query, time_range=time_range, model=model, **kwargs)
+    summary = await smart_search.smart_search(query, time_range=time_range, model=model, ctx=ctx, **kwargs)
     return f"# {query}\n\n{summary}"
 
 

@@ -14,12 +14,14 @@ import os
 import re
 from typing import Annotated, Literal
 
+from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from local_mcp.llm import client as llm
 from local_mcp.search import searxng
 from local_mcp.shared import guidance
 from local_mcp.shared.errors import tool_error
+from local_mcp.shared.progress import Progress
 from local_mcp.shared.urls import normalize_url
 from local_mcp.web import content
 
@@ -52,6 +54,7 @@ async def smart_search(
             )
         ),
     ] = "",
+    ctx: Context | None = None,
 ) -> str:
     """Search the web, pick the best sources with the configured LLM, crawl them, and return a cited summary."""
     cleaned_query = query.strip()
@@ -61,8 +64,11 @@ async def smart_search(
         raise tool_error(llm.not_configured_message())
 
     model_override = model.strip() or None
+    # Steps: search + rank + up to max_sources crawls + summarize.
+    progress = Progress(ctx, total=max_sources + 3)
 
     # 1) Discover candidate sources.
+    await progress.report(f"Searching the web for {cleaned_query!r}...")
     candidate_limit = _clamp(max_sources * CANDIDATE_MULTIPLIER, MIN_CANDIDATES, MAX_CANDIDATES)
     try:
         _instance_url, results, _answers, _suggestions = await searxng.search(
@@ -77,10 +83,11 @@ async def smart_search(
         raise tool_error(f"No web results found for {cleaned_query!r}.")
 
     # 2) Let the LLM rank ALL candidates best-first (fall back to search order).
+    await progress.report(f"Ranking {len(results)} candidate source(s) with the LLM...")
     ranked = await _rank_urls(cleaned_query, results, model_override)
 
     # 3) Crawl down the ranked list until enough pages load successfully.
-    sources = await _crawl_sources(ranked, max_sources)
+    sources = await _crawl_sources(ranked, max_sources, progress)
     if not sources:
         raise tool_error(
             "Found candidate URLs but could not crawl any of them. "
@@ -88,6 +95,7 @@ async def smart_search(
         )
 
     # 4) Summarize the crawled evidence with the LLM.
+    await progress.report(f"Summarizing {len(sources)} source(s) with the LLM...")
     try:
         summary = await _summarize(cleaned_query, sources, model_override)
     except llm.LLMError as err:
@@ -142,7 +150,7 @@ async def _rank_urls(
 
 
 async def _crawl_sources(
-    ranked: list[searxng.SearchResult], max_sources: int
+    ranked: list[searxng.SearchResult], max_sources: int, progress: Progress | None = None
 ) -> list[dict[str, str]]:
     """Crawl ranked results in order, keeping the first ``max_sources`` that load."""
     sources: list[dict[str, str]] = []
@@ -151,6 +159,8 @@ async def _crawl_sources(
             break
         try:
             target = normalize_url(result.url)
+            if progress is not None:
+                await progress.report(f"Crawling source {len(sources) + 1}/{max_sources}: {target}")
             page = await content.fetch_auto(target)
             markdown = content.page_markdown(page).strip()
         except Exception:
