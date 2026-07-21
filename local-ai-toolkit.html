@@ -205,6 +205,29 @@
   .cap code{font-size:.8em}
   .cap.span2{grid-column:1 / -1}
 
+  /* expandable detail per card */
+  .cap details.more{margin-top:16px;border-top:1px dashed var(--rule);padding-top:2px}
+  .cap details.more summary{
+    cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:600;color:var(--accent);padding:10px 0 2px;user-select:none;
+  }
+  .cap details.more summary::-webkit-details-marker{display:none}
+  .cap details.more summary::after{
+    content:"+";font-family:var(--mono);font-size:.95rem;line-height:1;
+    transition:transform .2s ease;
+  }
+  .cap details.more[open] summary::after{transform:rotate(45deg)}
+  .cap details.more summary:hover{color:color-mix(in srgb,var(--accent) 70%, var(--ink))}
+  .cap p.prompt{
+    font-family:var(--mono);font-size:.76rem;line-height:1.6;color:var(--ink);
+    background:color-mix(in srgb,var(--accent) 6%, var(--paper));
+    border:1px solid color-mix(in srgb,var(--accent) 22%, var(--rule));
+    border-left:3px solid var(--accent);
+    padding:11px 14px;border-radius:10px;margin:.4em 0 .2em;
+  }
+  .cap p.prompt::before{content:"❯ ";color:var(--accent);font-weight:600}
+
   /* host layer + reco */
   .panel{max-width:var(--measure);margin:0 auto}
   .stage{
@@ -330,7 +353,7 @@
     <div class="cap-intro reveal">
       <p class="eyebrow" style="--accent:var(--c3)">The catalogue</p>
       <h2>36 capabilities, and the open-source piece that replaces each.</h2>
-      <p>Each card maps one frontier capability to its self-hostable equivalent, with a note on whether it's realistic on your 32&nbsp;GB M1 Max. The numbering is the index, not a ranking — work through whichever matters to you first.</p>
+      <p>Each card maps one frontier capability to its self-hostable equivalent, with a note on whether it's realistic on your 32&nbsp;GB M1 Max. The numbering is the index, not a ranking — work through whichever matters to you first. <strong>Expand the "details" toggle on any card</strong> for how the pieces actually fit together, where the tool earns its keep, and a prompt to try on day one.</p>
     </div>
 
     <div class="caps">
@@ -345,6 +368,15 @@
         <p><strong>Open Interpreter</strong> for natural-language local execution against Ollama; <strong>llm-sandbox</strong> or <strong>microsandbox</strong> for Docker/microVM isolation; or just a constrained Docker container running a Jupyter kernel.</p>
         <span class="tag">On your M1 Max</span>
         <p>Trivial — Docker runs ARM containers fine, and CPU-bound Python is no problem.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Your chat UI hands the model a "run code" tool. The model writes Python, the sandbox executes it, and stdout / errors / saved plots flow back as tool results — so the model can see a traceback and fix its own code over several rounds. Files you upload land in the sandbox's working directory.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>CSV/Excel analysis, quick plots, batch file conversion and renaming, regex-heavy text munging — anything where "just write the script" beats explaining.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Here's sales.csv — load it, drop rows with missing totals, plot monthly revenue as a bar chart, and tell me the three strongest months and one trend I might have missed.</p>
+        </details>
       </article>
 
       <!-- 2 -->
@@ -357,6 +389,15 @@
         <p>Run inside your sandbox: <code>python-docx</code>, <code>openpyxl</code>, <code>python-pptx</code>, <code>reportlab</code> / <strong>WeasyPrint</strong> (HTML→PDF), and <code>pandoc</code>. Clone <code>anthropics/skills</code> to reuse Claude's exact workflows.</p>
         <span class="tag">On your M1 Max</span>
         <p>All pure-Python — negligible memory.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>There is no magic "make docx" model — the LLM writes <code>python-docx</code> / <code>openpyxl</code> / <code>python-pptx</code> code in the sandbox, runs it, and the UI offers the saved file for download. The Anthropic office Skills are essentially battle-tested recipes for exactly this, which is why cloning them saves you weeks of formatting bugs.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Weekly reports, invoices, formatted proposals, spreadsheets built from pasted data, slide decks from an outline.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Create a 5-slide pptx pitch for a neighborhood bakery: title, problem, solution, a pricing table, and contact. Clean minimal styling, one accent color.</p>
+        </details>
       </article>
 
       <!-- 3 -->
@@ -369,6 +410,15 @@
         <p><strong>Docling</strong> (structured + OCR, best for RAG), <strong>PyMuPDF4LLM</strong> (fastest on digital PDFs), <strong>Marker</strong> (deep-learning, Apple MPS support), <strong>MinerU</strong> (CJK/scientific), <code>pdfplumber</code> (table coordinates).</p>
         <span class="tag">On your M1 Max</span>
         <p>Marker uses MPS; Docling/PyMuPDF run comfortably on CPU. Heavy OCR adds load — fine sequentially.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>The parser converts a PDF into structured Markdown/JSON — headings, tables, reading order — falling back to OCR for scanned pages. That clean text is what actually goes into the model's context (or your RAG index); the model never "sees" the raw PDF bytes.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Contracts, research papers, scanned invoices and statements, and as the ingestion step for every knowledge base you build (card 14).</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Parse this 40-page PDF, extract every table into one xlsx (one sheet per table), and summarize section 3 in plain English with the key numbers.</p>
+        </details>
       </article>
 
       <!-- 4 -->
@@ -383,6 +433,15 @@
         <p><code>mcp-searxng</code> is the well-regarded bridge and supports failover replicas.</p>
         <span class="tag">On your M1 Max</span>
         <p>A lightweight container — no GPU, minimal RAM.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>The model calls a <code>search</code> tool; the MCP server forwards the query to your SearXNG container, which fans it out to Google/Bing/DuckDuckGo and returns deduplicated titles, snippets and URLs. The model reads the snippets, decides which pages are worth a full fetch (card 5), and answers with links.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Anything after your model's training cutoff — current versions, prices, news, error messages — plus fact-checking the model's own claims.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Search for the currently recommended llama.cpp flags for Qwen3 MoE models, compare the top three sources, and give me the consensus command with links.</p>
+        </details>
       </article>
 
       <!-- 5 -->
@@ -397,6 +456,15 @@
         <p><strong>Microsoft Playwright MCP</strong> — accessibility-tree based, so no vision model needed (~200–400 tokens per snapshot). Doubles as your fetch tool.</p>
         <span class="tag">On your M1 Max</span>
         <p>Headless Chromium keeps memory down; fine alongside a small LLM.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Playwright MCP drives a real (headless) Chromium and hands the model a compact <em>accessibility-tree</em> snapshot of the page instead of a screenshot — a few hundred tokens listing links, buttons and text. The model picks an action (click, type, navigate), gets a fresh snapshot, and loops. JS-rendered content just works because it's a real browser.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Reading JS-heavy pages that plain HTTP fetch can't, pulling clean article text, checking a dashboard, light multi-step navigation.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Open Hacker News, find today's top five stories about local LLMs, and give me a one-line take on each with the link.</p>
+        </details>
       </article>
 
       <!-- 6 -->
@@ -409,6 +477,15 @@
         <p><strong>Draw Things</strong> (native Metal, ~20% faster on Apple Silicon) or <strong>ComfyUI</strong> running <strong>SDXL</strong> or <strong>Flux.1</strong> (schnell for speed). Use GGUF-quantized models to fit memory.</p>
         <span class="tag">On your M1 Max — the pinch point</span>
         <p>Flux dev needs ~12&nbsp;GB+; running it <em>and</em> a 14–30B LLM at once will blow past 32&nbsp;GB. Unload the LLM first, or treat image-gen as a separate session. SDXL is more forgiving.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A text encoder turns your prompt into an embedding that steers a diffusion model as it denoises random latents into an image over 4–30 steps. ComfyUI exposes that pipeline as a node graph (model → sampler → VAE decode), so you can swap checkpoints, add LoRAs or control poses; Draw Things wraps the same idea in a native Mac app.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Blog headers, thumbnails, moodboards, concept art, product mockups — anywhere "good enough, private and free per-image" beats a cloud subscription.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">A cozy isometric illustration of a small home-server rack glowing at night, soft pastel palette, subtle film grain, 1024×1024.</p>
+        </details>
       </article>
 
       <!-- 7 -->
@@ -421,6 +498,15 @@
         <p><strong>Qwen3-VL</strong> (4B/8B/30B-A3B; OCR in 32 languages, video, GUI-agent skills), plus LLaVA, Pixtral, Gemma vision. Run via <strong>mlx-vlm</strong> (Apple-native) or <code>llama.cpp</code>.</p>
         <span class="tag">On your M1 Max</span>
         <p>VL-4B/8B at 4-bit fit comfortably; 30B-A3B is tight at Q4. For vision <em>and</em> tool-calling, prefer <code>llama.cpp</code>/LM Studio over MLX.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A vision encoder slices the image into patches and projects them into the same token space the LLM reads — so the model literally attends over your screenshot the way it attends over words. Higher-resolution modes cost more tokens but read small text (UI labels, receipts) far better.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Debugging from screenshots, reading charts and dashboards, receipts and forms, handwriting, "what is this thing?" photos.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Here's a screenshot of my terminal — what's actually failing, and what exact command should I run next?</p>
+        </details>
       </article>
 
       <!-- 8 -->
@@ -433,6 +519,15 @@
         <p><strong>Open WebUI</strong>, <strong>LibreChat</strong> and <strong>LobeChat</strong> all render artifacts inline with persistent storage.</p>
         <span class="tag">On your M1 Max</span>
         <p>Pure front-end — no extra model load.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>The UI watches the model's output for renderable blocks — HTML, React, SVG, Mermaid — and mounts them in a sandboxed iframe beside the chat. Ask for a change and the model rewrites the code; the preview re-renders live. The artifact persists with the conversation, so you can come back and iterate.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Prototyping small web tools, one-file games, SVG logos, architecture diagrams, interactive explainers you can hand to someone as a single file.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Build a single-file HTML pomodoro timer with a circular progress ring, keyboard shortcuts, and a subtle tick sound. Dark theme.</p>
+        </details>
       </article>
 
       <!-- 9 -->
@@ -447,6 +542,15 @@
         <p>Official <code>server-memory</code> (knowledge-graph), plus mem0 / Qdrant-backed servers.</p>
         <span class="tag">On your M1 Max</span>
         <p>Light — the cost is one extra LLM call per write for fact extraction.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>After an exchange, a small extraction call pulls out durable facts ("prefers metric", "server is called atlas"), deduplicates them against what's stored, and writes them to a vector DB or knowledge graph. At the start of each new chat, the memories most relevant to your message are retrieved and injected into the system prompt — the model doesn't "remember", it re-reads.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Preferences and house style, ongoing projects, names and context of people you mention often — anything you're tired of re-explaining.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Remember: I prefer metric units, my home server is called "atlas", and I want answers to default to bullet points. Apply this from now on.</p>
+        </details>
       </article>
 
       <!-- 10 -->
@@ -457,6 +561,15 @@
         <p>Custom instructions, Custom GPTs, Projects with shared setup.</p>
         <span class="tag">Open source</span>
         <p>System prompts and per-conversation presets in LibreChat / Open WebUI; their "Agents / Projects" wrap a model with instructions + tools + knowledge. <code>SKILL.md</code> files double as reusable personalization.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A preset is just stored text that gets prepended as the system prompt every time — but bundled with a model choice, tool list and attached knowledge files, it behaves like a Custom GPT. You pick the preset from a dropdown instead of re-pasting instructions.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>One agent per recurring role: code reviewer, email drafter, meal planner, "explain like I'm five" tutor — each with its own tone and tools.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Create an agent preset called "Reviewer": a terse senior Python reviewer who always checks error handling, suggests type hints, and ends with a one-line verdict.</p>
+        </details>
       </article>
 
       <!-- 11 -->
@@ -469,6 +582,15 @@
         <p>Official reference servers (<code>filesystem</code>, <code>git</code>, <code>fetch</code>, <code>memory</code>, <code>time</code>) plus community servers for GitHub, Google Drive/Calendar, Slack, Notion, Supabase and more. Browse the official MCP Registry, PulseMCP, Glama, Smithery.</p>
         <span class="tag">On your M1 Max</span>
         <p>I/O-bound API wrappers — negligible local use.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Each MCP server wraps one service's API and advertises its actions as tools ("list issues", "search drive", "send message"). Your chat UI lists those tools to the model; when the model calls one, the server executes it with credentials <em>you</em> configured and returns the result. Auth stays on your machine — the model only ever sees tool names and outputs.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Triaging GitHub issues and PRs, searching your Drive/Notion, posting summaries to Slack, calendar lookups — the "do it where my stuff lives" layer.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Check my GitHub notifications, group them by repo, and draft a short reply for anything that mentions me directly.</p>
+        </details>
       </article>
 
       <!-- 12 -->
@@ -481,6 +603,15 @@
         <p><strong>browser-use</strong> (leading OSS browser agent), <strong>Playwright MCP</strong> for vision-free browsing, <strong>Stagehand</strong>, and self-hostable <strong>OpenClaw</strong>.</p>
         <span class="tag">On your M1 Max</span>
         <p>Works, but small models are weaker at long-horizon GUI tasks — expect more retries. Qwen3-VL's GUI skills help. Headline OSS benchmarks use a frontier brain; a local Qwen scores lower.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>An observe-act loop: the agent takes a snapshot of the page (accessibility tree, or a screenshot for vision models), the model chooses one action — click, type, scroll, navigate — the browser executes it, and a fresh snapshot comes back. Repeat until the goal is met or a step budget runs out. Guardrails like allowed-domain lists keep it from wandering.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Form filling, repetitive web chores (renewals, downloads, status checks), smoke-testing your own web apps.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Go to my library's website, renew every book due this week, and tell me the new due dates. Stop and ask me before anything that costs money.</p>
+        </details>
       </article>
 
       <!-- 13 -->
@@ -493,6 +624,15 @@
         <p><strong>GPT Researcher</strong> (cited multi-page reports, MCP server, works with local Ollama), <strong>LangChain Open Deep Research</strong>, and <strong>Local Deep Research</strong> (fully local with Ollama + SearXNG).</p>
         <span class="tag">On your M1 Max</span>
         <p>Runs locally; quality scales with model size. A 14–30B Qwen is decent but slower and less reliable than frontier research.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A planner call breaks your question into sub-questions; each one triggers search (card 4) and fetch (card 5), and the findings are written to a running set of notes. The loop checks coverage — "what's still unanswered?" — and searches again until satisfied, then a final writer pass turns the notes into a structured, cited report. Expect 10–40 minutes locally.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Buying decisions, technology comparisons, "state of X in 2026" surveys, literature scans — questions too broad for one search.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Research e-ink tablets under $400: compare note-taking latency, ecosystem lock-in and battery life, cite every claim, and end with one recommendation for a heavy note-taker.</p>
+        </details>
       </article>
 
       <!-- 14 -->
@@ -505,6 +645,15 @@
         <p><strong>LanceDB</strong> or <strong>Chroma</strong> (lightest, embedded) and <strong>Qdrant</strong> (production, hybrid search, official MCP server). Pair with FastEmbed; LibreChat / Open WebUI have built-in RAG.</p>
         <span class="tag">On your M1 Max</span>
         <p>LanceDB / Chroma embedded are the lightest; embeddings run on CPU/MPS.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Ingestion chunks each document (~300–800 tokens), embeds every chunk into a vector, and stores them. At question time your query is embedded too, the top-k nearest chunks are pulled (often combined with keyword search — "hybrid"), and those chunks are pasted into the model's context with instructions to answer from them and cite. Good chunking + reranking matters more than the vector DB brand.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Product manuals, your own notes and wikis, codebases, past invoices — private corpora too big for one context window.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Using my "home-lab" knowledge base: how did I configure the reverse proxy last time, which ports did I map, and what did I say I'd do differently?</p>
+        </details>
       </article>
 
       <!-- 15 -->
@@ -517,6 +666,15 @@
         <p><strong>whisper.cpp</strong> (STT, full Metal acceleration) + <strong>Kokoro</strong> or <strong>Piper</strong> (TTS). MCP servers: <code>local-stt-mcp</code>, <strong>VoiceMode</strong>.</p>
         <span class="tag">On your M1 Max</span>
         <p>whisper.cpp uses Metal; TTS runs on CPU. Great for turn-based voice; true realtime alongside a big LLM is harder.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A three-stage pipeline: whisper.cpp streams your mic audio to text, the LLM generates a reply, and Kokoro/Piper synthesizes speech — with the TTS starting on the first sentence while the LLM is still writing the rest, which is what makes it feel responsive. Open WebUI has this wired in; VoiceMode does it over MCP.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Hands-free capture (cooking, driving, workshop), dictating notes and drafts, language pronunciation practice, accessibility.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">(spoken) Take a voice memo: three ideas for Saturday's newsletter. Then read them back to me as a numbered checklist.</p>
+        </details>
       </article>
 
       <!-- 16 -->
@@ -529,6 +687,15 @@
         <p>Understanding via Qwen3-VL frame sampling. Generation (HunyuanVideo, Wan 2.2 in ComfyUI) is possible but heavy.</p>
         <span class="tag">On your M1 Max</span>
         <p>Local video <em>generation</em> needs 64&nbsp;GB+ — effectively out of scope here; treat as a separate-machine task.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>For understanding, frames are sampled every 1–2 seconds and fed to the vision model as an image sequence while whisper transcribes the audio track; the model reasons over both. That's why long videos work at all — it's really "many screenshots plus a transcript", not a video codec in the model.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Summarizing lectures and recorded meetings, finding the moment something happens in a screen recording, cataloguing clips.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Here's a 20-minute screen recording of me setting up the NAS — list each step I performed with timestamps, and point out where I wasted the most time.</p>
+        </details>
       </article>
 
       <!-- 17 -->
@@ -541,6 +708,15 @@
         <p><strong>n8n</strong> (fair-code workflows, 400+ integrations, can call your local LLM + MCP), or plain <code>cron</code> / <code>launchd</code> on macOS.</p>
         <span class="tag">On your M1 Max</span>
         <p>Light — orchestrates "make this report every morning" flows against Ollama.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A trigger (cron expression, webhook, file change) fires a workflow that calls your local model with a fixed prompt plus fresh inputs — search results, RSS items, yesterday's files — and delivers the output somewhere useful: a folder, an email, a Telegram/Slack message. n8n gives you this as drag-and-drop nodes; <code>launchd</code> + a shell script is the zero-dependency version.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Morning news digests, weekly report drafts, backup-log summaries, "tell me when this page changes" watchers.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">(as a workflow) Every weekday at 8am: search my RSS feeds for local-AI news, pick the 5 most substantive items, and write a bullet digest to ~/briefings/today.md.</p>
+        </details>
       </article>
 
       <!-- 18 -->
@@ -551,6 +727,15 @@
         <p>Tool calling and JSON-schema structured outputs.</p>
         <span class="tag">Open source</span>
         <p>Native to your engine — <code>llama.cpp</code>, Ollama, vLLM, LM Studio support <code>response_format</code> and tool-calling (mind the Qwen template caveats). Frameworks: <strong>Qwen-Agent</strong>, LangChain, LlamaIndex.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Tool definitions (name, description, JSON schema) are formatted into the prompt by the chat template; the model emits a structured call, your code executes it and feeds the result back. For structured <em>outputs</em>, llama.cpp goes further: it constrains sampling with a grammar built from your schema, so invalid JSON is literally impossible to generate — the single most underrated local feature.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Every agent in this guide runs on this; also bulk data extraction — turning messy text into rows you can load into a spreadsheet or database.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Extract vendor, date, currency, total and line items from this receipt text. Return only JSON matching: {vendor, date, currency, total, items:[{name, qty, price}]}.</p>
+        </details>
       </article>
 
       <!-- 19 -->
@@ -561,6 +746,15 @@
         <p>Inline URL citations on search and research answers.</p>
         <span class="tag">Open source</span>
         <p>GPT Researcher and Local Deep Research produce citation-rich reports; your RAG layer returns source chunks to cite; SearXNG / Playwright supply the URLs.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Citations are plumbing, not intelligence: every search result and RAG chunk carries its URL or document ID through the pipeline, and the model is instructed to tag claims with <code>[n]</code> markers pointing back at them. The UI turns markers into links. If the source IDs aren't threaded through, the model will happily invent plausible-looking references — so this is about your pipeline, not your prompt.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Anything you'll act on or share — research reports, medical/financial lookups, "prove it" answers from your own document base.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">What changed in the latest Ollama release? Answer with inline [n] citations after each claim and a numbered source list with URLs at the end.</p>
+        </details>
       </article>
 
       <!-- 20 -->
@@ -571,6 +765,15 @@
         <p>matplotlib via code interpreter; Mermaid / SVG / React via artifacts.</p>
         <span class="tag">Open source</span>
         <p>matplotlib / plotly in your sandbox; Mermaid &amp; SVG rendered in Open WebUI / LibreChat artifacts; a Vega-Lite MCP server for data-driven visuals.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Two routes: for data, the model writes matplotlib/plotly code that runs in the sandbox (card 1) and returns a PNG or interactive HTML; for structure, it writes Mermaid or SVG markup that the artifact pane (card 8) renders directly — no execution needed. Diagrams-as-text means you can ask for revisions conversationally.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Exploring a dataset visually, one-off charts for docs and slides, flowcharts and architecture diagrams from a verbal description.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">From this CSV, plot price vs. mileage as a scatter colored by year. Then draw a Mermaid flowchart of the ETL steps I just described.</p>
+        </details>
       </article>
 
       <!-- 21 -->
@@ -581,6 +784,15 @@
         <p>Translation, OCR and small utility tools built in.</p>
         <span class="tag">Open source</span>
         <p>Qwen handles translation; OCR via Tesseract / RapidOCR / EasyOCR (bundled in Docling/Marker) or Qwen3-VL's 32-language OCR. The official <code>time</code>, <code>filesystem</code>, <code>git</code> servers and <code>pandoc</code> cover the rest.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>OCR engines return raw text plus layout boxes; the LLM then does what OCR alone can't — fixes recognition errors from context, restores paragraph structure, and translates while keeping formatting. For clean photos, a vision model (card 7) can do the whole read-and-translate step in one pass.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Foreign-language letters and forms, menu and sign photos, digitizing old scanned documents, quick format conversions via pandoc.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">OCR this scanned German letter, fix any recognition errors from context, and translate it to English keeping the original paragraph structure. Flag anything you're unsure about.</p>
+        </details>
       </article>
 
       <!-- 22 -->
@@ -593,6 +805,15 @@
         <p><strong>Aider</strong> (git-native pair programmer, works with Ollama), <strong>OpenHands</strong> (full autonomous dev agent), <strong>Cline / Roo Code</strong> (VS Code agents), <strong>Goose</strong> (Block's MCP-native agent), <strong>Continue.dev</strong> + <strong>Tabby</strong> for local autocomplete.</p>
         <span class="tag">On your M1 Max</span>
         <p>Aider + Qwen3-30B-A3B is genuinely usable for small edits; a dedicated coder quant (Qwen3-Coder class) helps. Long multi-file refactors are where local models need the most supervision.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>The agent builds a "repo map" (files, signatures, imports) so the model can orient without reading everything, then proposes edits as diffs, applies them, and runs your tests or linter. Failures go back into context and it retries. Aider commits each change to git automatically — your undo button is <code>git revert</code>.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Small features and bug fixes, writing tests, mechanical refactors, and "explain how X works in this codebase" on projects you didn't write.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Add a --json flag to cli.py that switches all output to JSON, update the argument parser and README, and extend the existing CLI tests to cover it.</p>
+        </details>
       </article>
 
       <!-- 23 -->
@@ -605,6 +826,15 @@
         <p><strong>LangGraph</strong> (graph-based control flow, the current standard), <strong>CrewAI</strong> (role-based crews), <strong>AutoGen / AG2</strong> (conversational multi-agent), and <strong>Qwen-Agent</strong> — all point at any OpenAI-compatible endpoint, so Ollama works.</p>
         <span class="tag">On your M1 Max</span>
         <p>Orchestration itself is free — but every sub-agent is another call into the <em>same</em> local model, so "parallel" agents serialize. Keep crews small (2–3 roles).</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Each "agent" is the same LLM called with a different system prompt, tool set and slice of shared state. A graph (LangGraph) or crew definition decides who runs when and what they can see; a supervisor node routes work and judges when it's done. The win isn't parallelism locally — it's <em>focus</em>: a dedicated critic with a narrow prompt catches things a single do-everything prompt misses.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Draft→critique→revise writing loops, code-with-reviewer generation, research pipelines where gathering and synthesis want different instructions.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Set up two agents: a writer that drafts a blog post from my notes, and an editor that critiques it for clarity and cuts 20%. Run one round-trip and show both versions.</p>
+        </details>
       </article>
 
       <!-- 24 -->
@@ -617,6 +847,15 @@
         <p>Clone <code>anthropics/skills</code> for the office-document skills; the format is plain Markdown, so any agent framework (Goose, OpenHands, your own loop) can load frontmatter cheaply and expand on demand. Write your own for recurring workflows.</p>
         <span class="tag">On your M1 Max</span>
         <p>Zero cost — it's a prompt-packaging convention, not a runtime. The ~100-token frontmatter trick matters <em>more</em> locally, where context is precious.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>At startup the agent reads only each skill's YAML frontmatter — a name and a "use when…" line, ~100 tokens each. When a task matches, it loads that skill's full <code>SKILL.md</code> instructions into context and runs any bundled scripts in the sandbox. Progressive disclosure is the whole trick: you can have 50 skills installed and pay for one.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Anything you do the same way twice — invoice generation, weekly reports in your format, brand-styled documents, personal checklists.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Use my "weekly-report" skill on the files in ~/reports/inbox and produce the usual docx — same sections and tone as always.</p>
+        </details>
       </article>
 
       <!-- 25 -->
@@ -629,6 +868,15 @@
         <p><strong>Qwen-Image-Edit</strong> (GGUF quants exist) for instruction-based edits; <strong>ComfyUI</strong> inpainting/outpainting workflows with SDXL + ControlNet; <strong>Draw Things</strong> has inpainting built in with native Metal.</p>
         <span class="tag">On your M1 Max</span>
         <p>Same memory rules as image generation — unload the LLM first. SDXL inpainting is comfortable; instruction-edit models are heavier.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Inpainting re-runs diffusion only inside a mask you paint, blending the new region with the untouched pixels around it — that's object removal and background swaps. Instruction-edit models (Qwen-Image-Edit) skip the mask: they condition on the original image plus your sentence and regenerate the whole frame with just the requested change.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Removing clutter and photobombers, swapping backgrounds for product shots, extending crops (outpainting), quick style passes.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Remove the power cables and the trash bin from this photo, extend the sky naturally where they were, and keep everything else pixel-identical.</p>
+        </details>
       </article>
 
       <!-- 26 -->
@@ -641,6 +889,15 @@
         <p><strong>ACE-Step</strong> (full songs with vocals, the current local favourite), <strong>Stable Audio Open</strong> (samples/SFX), <strong>MusicGen</strong> (melody-conditioned instrumental).</p>
         <span class="tag">On your M1 Max</span>
         <p>MusicGen-small/medium and Stable Audio Open run fine on MPS. ACE-Step works but generate-then-chat, not both at once.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Your text prompt (genre, mood, BPM, instrumentation) conditions an audio model that generates compressed audio tokens or a spectrogram, decoded back to a waveform. MusicGen can additionally take a hummed melody as guidance; ACE-Step handles full song structure with vocals. Generation is seconds-to-minutes per clip, and iteration is the workflow — generate four, keep one.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Podcast intros and stingers, background loops for videos and games, placeholder scores, sound-effect sketches.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">A 30-second lo-fi hip-hop loop at 80 BPM — warm vinyl crackle, soft Rhodes chords, ends on a clean loop point.</p>
+        </details>
       </article>
 
       <!-- 27 -->
@@ -653,6 +910,15 @@
         <p><strong>WhisperX</strong> (word-level timestamps + <strong>pyannote</strong> speaker diarization), <strong>whisper.cpp</strong> for fast Metal transcription, then pipe the transcript to Qwen for summary/action items. <strong>Whishper</strong> bundles this as a self-hosted web UI.</p>
         <span class="tag">On your M1 Max</span>
         <p>Excellent fit — whisper.cpp is Metal-accelerated and an hour of audio transcribes in minutes. Diarization adds a pyannote pass on CPU/MPS.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Whisper transcribes with word-level timestamps; pyannote separately embeds short audio windows and clusters them by voice ("speaker 0, speaker 1…"); WhisperX aligns the two streams into a speaker-labelled transcript. You then rename speakers once ("speaker 0 is Priya") and hand the transcript to your LLM for minutes, decisions and action items.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Standups and client calls, interviews, lectures, podcast episodes you want notes from — everything you'd otherwise pay Fathom-style tools for.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Transcribe meeting.m4a with speaker labels, then give me: decisions made, action items with owners and dates, and open questions. Speaker 0 is me.</p>
+        </details>
       </article>
 
       <!-- 28 -->
@@ -665,6 +931,15 @@
         <p>Official / community MCP servers for <strong>SQLite</strong>, <strong>Postgres</strong> and <strong>DuckDB</strong> (read-only modes available); <strong>Vanna</strong> for RAG-assisted text-to-SQL that learns your schema.</p>
         <span class="tag">On your M1 Max</span>
         <p>Light. Point DuckDB at local CSVs/Parquet and a 14–30B Qwen writes solid SQL — verify aggregates before trusting them.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>The MCP server introspects your database and gives the model the schema — table names, columns, types. The model writes SQL, the server executes it (use read-only mode) and returns rows, which the model explains or reshapes. Vanna adds a memory of past correct question→SQL pairs so accuracy improves on <em>your</em> schema over time.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Ad-hoc questions against exports and logs without writing pandas, exploring an unfamiliar database, letting non-SQL people self-serve.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Against my DuckDB of bank exports: total spend by category per month this year, and flag any category that grew more than 30% month-over-month. Show the SQL you ran.</p>
+        </details>
       </article>
 
       <!-- 29 -->
@@ -677,6 +952,15 @@
         <p><strong>Podcastfy</strong> (documents → two-voice conversational audio, works with local LLM + TTS) and <strong>Open Notebook</strong> (self-hosted NotebookLM alternative). Pair with <strong>Kokoro</strong> for natural local voices.</p>
         <span class="tag">On your M1 Max</span>
         <p>Works end-to-end locally: Qwen writes the dialogue, Kokoro speaks it. A 10-minute episode renders in a few minutes.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>The LLM reads your documents and writes a two-host dialogue script — questions, pushback, analogies — because conversation is easier to absorb than narration. Each line is synthesized with a distinct TTS voice, then the clips are stitched with pauses into one audio file. Podcastfy handles the whole chain against Ollama + Kokoro.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Digesting papers and long reports on a commute or run, turning your own notes into revision audio, making dense material stick.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Turn these three PDFs into a 10-minute two-host podcast: one host explains, the other pushes back with the obvious objections. End with the three takeaways that matter.</p>
+        </details>
       </article>
 
       <!-- 30 -->
@@ -689,6 +973,15 @@
         <p><strong>mlx-lm LoRA</strong> (Apple-native, the easiest path on your hardware), <strong>Unsloth</strong> (fastest, needs CUDA — cloud/Colab), <strong>Axolotl</strong> for bigger jobs. Fine-tune tone, format, or domain vocabulary — not new knowledge (use RAG for that).</p>
         <span class="tag">On your M1 Max</span>
         <p>LoRA on a 4-bit 7–14B model is realistic overnight work with mlx-lm; 30B-class tuning wants more memory. Export the fused model back to GGUF for Ollama.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>LoRA freezes the base model and trains small low-rank adapter matrices on a few hundred to a few thousand prompt→response pairs (JSONL). Because only the adapters train, it fits in consumer memory. Afterwards you fuse the adapters into the weights and re-quantize to GGUF so Ollama serves it like any other model. Rule of thumb: fine-tune for <em>style and format</em>, use RAG (card 14) for <em>knowledge</em>.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Making drafts sound like you, enforcing a strict output format, domain jargon, high-volume classification where prompting is too slow.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">(the goal) Fine-tune an 8B model on my 500 past support replies so drafted answers match my tone and structure — then A/B it against the base model on 20 held-out tickets.</p>
+        </details>
       </article>
 
       <!-- 31 -->
@@ -701,6 +994,15 @@
         <p><strong>Llama Guard 3</strong> (1B/8B classifier models, run via Ollama), <strong>NeMo Guardrails</strong> (programmable rails around any LLM), <strong>LLM Guard</strong> (prompt-injection and PII scanners as a library).</p>
         <span class="tag">On your M1 Max</span>
         <p>Llama Guard 1B adds ~1&nbsp;GB and one quick pass per message — cheap insurance if you expose your stack to family or the internet.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A small classifier model sits in front of (and after) your main model: every user message and every reply gets a fast safe/unsafe verdict against a category taxonomy before it's allowed through. NeMo Guardrails goes further with programmable "rails" — topic boundaries, forced tool checks, canned refusals — defined in a config file, not in the prompt where users can talk their way around it.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>A kid-safe family assistant, anything exposed beyond localhost, and agents with powerful tools where you want a second opinion before actions run.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">(rails config, not chat) Block medical dosage advice and personal-data extraction; route "delete/send/pay" tool calls through a confirmation step; log every refusal to guardrails.log.</p>
+        </details>
       </article>
 
       <!-- 32 -->
@@ -713,6 +1015,15 @@
         <p><strong>TripoSR</strong> (fast image→mesh, runs on MPS), <strong>Hunyuan3D-2</strong> and <strong>TRELLIS</strong> (higher quality, heavier), all loadable in ComfyUI workflows. Export GLB/OBJ for Blender.</p>
         <span class="tag">On your M1 Max</span>
         <p>TripoSR is the realistic one — seconds-to-minutes per mesh. The bigger models want a discrete GPU; same "unload the LLM first" rule applies.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>Image-to-3D networks take a single picture and predict full geometry plus texture — the model has learned shape priors, so it hallucinates the unseen back of the object plausibly. The natural pipeline chains card 6 into this: generate a clean product-shot-style image on a plain background, feed it in, export GLB/OBJ, and clean up in Blender.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Game-prototype props, 3D-print drafts, AR experiments, filling a scene with placeholder assets fast.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Generate a low-poly stylized cottage on a plain white background, then convert it to a GLB mesh I can open in Blender.</p>
+        </details>
       </article>
 
       <!-- 33 -->
@@ -725,6 +1036,15 @@
         <p><strong>Khoj</strong> (self-hosted "second brain" — indexes Markdown, PDFs, Notion, org-mode; chats over them with Ollama), <strong>Reor</strong> (local-first AI notes), or a DIY LanceDB index over <code>~/Documents</code> fed by your RAG stack from card 14.</p>
         <span class="tag">On your M1 Max</span>
         <p>Indexing is a one-time embedding pass on CPU/MPS; queries are light. Khoj + Ollama is the turnkey route.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>A watcher indexes your chosen folders — Markdown, PDFs, org files — into embeddings, updating incrementally as files change. Your natural-language question retrieves the nearest chunks and the LLM answers from them, citing file paths. It's card 14's RAG pointed at your life instead of a project, searching by <em>meaning</em> ("that note about mesh networking") rather than filename.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Resurfacing old decisions and how-tos, journals, meeting notes — the "I know I wrote this down somewhere" problem.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Find where I documented my Tailscale setup, summarize the steps, and tell me which machines I listed — include the file paths so I can open them.</p>
+        </details>
       </article>
 
       <!-- 34 -->
@@ -737,6 +1057,15 @@
         <p><strong>Page Assist</strong> (browser extension with sidebar + web-UI, talks straight to Ollama/LM Studio) and <strong>Orion-style</strong> userscripts; LibreChat/Open WebUI bookmarklets cover the rest.</p>
         <span class="tag">On your M1 Max</span>
         <p>Zero extra load — it's a front-end to the model you're already serving. Summarizing long pages just costs context.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>The extension extracts the current page's readable text (or just your selection), prepends it to your question, and streams the answer from your local endpoint into a sidebar. Nothing leaves your machine — which is exactly the point when the page is a contract, a medical result, or anything else you'd hesitate to paste into a cloud chatbot.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Long articles and documentation, translating foreign pages in place, YouTube transcript summaries, "explain this section" while reading.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">Summarize this page in five bullets, then explain the paragraph I've highlighted like I'm completely new to the topic.</p>
+        </details>
       </article>
 
       <!-- 35 -->
@@ -749,6 +1078,15 @@
         <p><strong>promptfoo</strong> (declarative prompt/model test matrix, works against Ollama), <strong>lm-evaluation-harness</strong> (academic benchmarks on your quants), and Open WebUI's built-in <strong>model arena</strong> for blind A/B votes.</p>
         <span class="tag">On your M1 Max</span>
         <p>Perfect fit — this is how you actually decide between 14B dense and 30B-A3B for <em>your</em> tasks instead of trusting leaderboards.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>You write a YAML file of test cases — prompts, the models to compare, and assertions (contains X, matches regex, valid JSON, or "LLM-as-judge" grading). promptfoo runs the full matrix against your endpoints and renders a pass/fail grid, so a system-prompt tweak that silently breaks case #7 is caught before you ship it to your daily driver.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Choosing between models and quants on <em>your</em> real tasks, regression-testing system prompts, verifying a fine-tune actually improved things.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">(promptfoo config) Compare qwen3:14b vs qwen3:30b-a3b on my 20 receipt-extraction cases — assert the output is valid JSON and totals match the expected values.</p>
+        </details>
       </article>
 
       <!-- 36 -->
@@ -761,6 +1099,15 @@
         <p><strong>LiteLLM</strong> (one OpenAI-compatible proxy in front of Ollama, MLX, llama.cpp <em>and</em> cloud APIs, with fallbacks and budgets), <strong>RouteLLM</strong> (learned cheap-vs-strong routing), <strong>OptiLLM</strong> (inference-time optimization proxy).</p>
         <span class="tag">On your M1 Max</span>
         <p>A light Python proxy. The killer local pattern: route easy turns to Qwen3-14B, hard ones to 30B-A3B — or overflow to a paid API only when you choose.</p>
+        <details class="more">
+          <summary>details &amp; example prompt</summary>
+          <span class="tag">How it works</span>
+          <p>LiteLLM exposes one OpenAI-compatible endpoint and maps model names to real backends — Ollama, llama.cpp, MLX, or cloud APIs — with per-route fallbacks, retries and budget caps in a YAML config. Every app you own points at the proxy once; behind it you can swap models, add a fallback, or cap costs without touching a single client. RouteLLM adds a learned classifier that sends easy queries to the cheap model automatically.</p>
+          <span class="tag">Where it's most useful</span>
+          <p>Running fast + deep local models side by side, surviving one backend being down, and controlled overflow to a paid API for the rare too-hard task.</p>
+          <span class="tag">Try this prompt</span>
+          <p class="prompt">(gateway config) Route chats under 1k tokens to qwen3:14b and code or long-context requests to qwen3:30b-a3b; on timeout, fall back to the other; hard-cap cloud spend at $5/month.</p>
+        </details>
       </article>
 
     </div>
