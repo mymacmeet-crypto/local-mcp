@@ -1,0 +1,31 @@
+# NOTE: Safeguard generated this workflow, but the configured GitHub token
+# lacks the 'workflow' scope, so it could not be written to .github/workflows/.
+# Move this file to .github/workflows/ (and grant the token the 'workflow' scope)
+# to activate it.
+
+# Build provenance & commit signing (added by Safeguard auto-remediation)
+#
+# REQUIRES a preceding build job named "build" that produces your release
+# artifacts and exposes their base64-encoded sha256 digests as an output named
+# "digests" (referenced below as needs.build.outputs.digests). Wire your build
+# job in and add it to the provenance job's "needs:" before relying on this.
+name: SLSA Provenance
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.digests }}"
