@@ -1,0 +1,47 @@
+# NOTE: Safeguard generated this workflow, but the configured GitHub token
+# lacks the 'workflow' scope, so it could not be written to .github/workflows/.
+# Move this file to .github/workflows/ (and grant the token the 'workflow' scope)
+# to activate it.
+
+# SBOM generation + attestation (added by Safeguard auto-remediation)
+#
+# This default emits an SBOM and signed SBOM/build-provenance attestations.
+# Keyless artifact signing (cosign) can additionally be enabled by adding a
+# cosign sign-blob step; see the commented block below.
+name: SBOM Attestation
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom-attest:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+      - name: Attest SBOM
+        uses: actions/attest-sbom@v1
+        with:
+          subject-path: "."
+          sbom-path: sbom.cdx.json
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: sbom.cdx.json
+      # To enable keyless artifact signing, install cosign and sign your build
+      # artifacts, e.g.:
+      #   - uses: sigstore/cosign-installer@v3
+      #   - run: cosign sign-blob --yes <artifact>
