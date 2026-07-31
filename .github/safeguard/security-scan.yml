@@ -1,0 +1,26 @@
+# NOTE: Safeguard generated this workflow, but the configured GitHub token
+# lacks the 'workflow' scope, so it could not be written to .github/workflows/.
+# Move this file to .github/workflows/ (and grant the token the 'workflow' scope)
+# to activate it.
+
+# Continuous security scanning (added by Safeguard auto-remediation)
+name: Security Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/analyze@v3
