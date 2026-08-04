@@ -403,6 +403,107 @@ class Tools:
         await self._emit_message(__event_emitter__, f"\n{result}\n")
         return result
 
+    async def define_agent_team(
+        self,
+        name: str,
+        agents: str,
+        description: str = "",
+        overwrite: bool = False,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Define (or update) a reusable multi-agent team that run_agent_team can execute.
+        :param name: Team name, used as its slug. Reuse a name with overwrite=true to update it.
+        :param agents: JSON list of agents, in run order. Each agent is an object with: `name` (unique), `role` (its system prompt), optional `tools` (list drawn from: web_search, web_fetch, extract_urls, parse_document), and optional `model` override. Example: [{"name": "researcher", "role": "Find facts with sources.", "tools": ["web_search", "web_fetch"]}, {"name": "writer", "role": "Write the final answer from the findings."}]. Keep teams small: 2-3 agents run best on local models.
+        :param description: Optional one-line description of what the team is for.
+        :param overwrite: Replace an existing team with the same name.
+        """
+        _log("define_agent_team", f"name={name} overwrite={overwrite}")
+        await self._emit_status(__event_emitter__, f"Saving agent team {name}...", False)
+
+        result = self._call(
+            "define_agent_team",
+            {
+                "name": name,
+                "agents": agents,
+                "description": description,
+                "overwrite": overwrite,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
+    async def run_agent_team(
+        self,
+        team: str,
+        task: str,
+        model: str = "",
+        max_tool_calls: int = 6,
+        include_transcript: bool = False,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Run a multi-agent team on a task: agents work in sequence, using tools, and the last agent answers.
+        :param team: Name of a defined team, or a built-in preset: research, research-review.
+        :param task: The task or question the team should work on.
+        :param model: Optional model override for every agent. Empty uses the provider default.
+        :param max_tool_calls: Maximum tool calls each agent may make before it must answer. Allowed range is 0 to 20.
+        :param include_transcript: Include every agent's full hand-off message and tool calls, not just the final answer.
+        """
+        _log("run_agent_team", f"team={team} task={task[:80]} model={model}")
+        await self._emit_status(__event_emitter__, f"Running agent team {team}...", False)
+
+        result = self._call(
+            "run_agent_team",
+            {
+                "team": team,
+                "task": task,
+                "model": model,
+                "max_tool_calls": max_tool_calls,
+                "include_transcript": include_transcript,
+            },
+        )
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
+    async def list_agent_teams(
+        self,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        List defined agent teams and built-in presets, with their agents and tools.
+        """
+        _log("list_agent_teams", "listing teams")
+        await self._emit_status(__event_emitter__, "Listing agent teams...", False)
+
+        result = self._call("list_agent_teams", {})
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
+    async def delete_agent_team(
+        self,
+        name: str,
+        __event_emitter__: EventEmitter = None,
+    ) -> str:
+        """
+        Delete a saved agent team. Built-in presets cannot be deleted.
+        :param name: Name or slug of the saved team to delete.
+        """
+        _log("delete_agent_team", f"name={name}")
+        await self._emit_status(__event_emitter__, f"Deleting agent team {name}...", False)
+
+        result = self._call("delete_agent_team", {"name": name})
+
+        await self._emit_status(__event_emitter__, "Done", True)
+        await self._emit_message(__event_emitter__, f"\n{result}\n")
+        return result
+
     async def generate_file(
         self,
         filename: str,
