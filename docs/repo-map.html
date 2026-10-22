@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repo map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --panel2:#f6f5f2; --ink:#1e1e1e; --ink2:#495057; --ink3:#868e96; --line:#e7e5e0; --grid:#d9d6cf;
+  --accent:#6965db; --accent-soft:#ecebff;
+  --hand:'Patrick Hand','Virgil','Comic Sans MS','Segoe Print',cursive;
+  --ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 8px 28px rgba(0,0,0,.08);
+  --entry:#ffd8a8; --screen:#a5d8ff; --brain:#d0bfff; --hands:#b2f2bb; --safety:#ffc9c9; --translator:#ffec99; --memory:#99e9f2; --docs:#e9ecef; --ext:#ffffff;
+  --done:#2f9e44; --partial:#e8590c; --missing:#e03131; --design:#868e96;
+  --feature:#2f9e44; --fix:#e8590c; --docsk:#1c7ed6; --refactor:#868e96; --ux:#7048e8; --config:#0c8599; --other:#adb5bd;
+  --stroke:#1e1e1e; --fillop:1; --edge:#495057;
+}
+[data-theme=dark]{
+  --bg:#121212; --panel:#1c1c1e; --panel2:#232326; --ink:#ececec; --ink2:#c1c2c5; --ink3:#8a8f98; --line:#2e2e32; --grid:#2c2c2c;
+  --accent:#a8a5ff; --accent-soft:#2b2a45; --stroke:#d0d0d0; --fillop:.32; --ext:#1c1c1e; --edge:#9aa0a6;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 28px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+kbd{font-family:var(--mono);font-size:11px;padding:1px 6px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--panel2);color:var(--ink2)}
+code{font-family:var(--mono);font-size:12px;background:var(--panel2);padding:1px 5px;border-radius:4px}
+a{color:var(--accent)}
+
+/* ---------- top bar ---------- */
+header{position:fixed;top:12px;left:12px;right:12px;height:52px;display:flex;align-items:center;gap:10px;z-index:30;pointer-events:none}
+.island{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:4px;padding:5px}
+.brand{padding:4px 12px 4px 8px;gap:10px}
+.brand .logo{width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-family:var(--hand);font-size:20px}
+.brand b{font-family:var(--hand);font-size:22px;font-weight:400;letter-spacing:.3px}
+.brand span{color:var(--ink3);font-size:12px}
+.tabs button{border:0;background:transparent;padding:8px 14px;border-radius:8px;font-weight:500;color:var(--ink2);display:flex;gap:7px;align-items:center}
+.tabs button:hover{background:var(--panel2)}
+.tabs button.on{background:var(--accent-soft);color:var(--accent)}
+.tabs .n{font-size:10px;color:var(--ink3);font-family:var(--mono)}
+.search{flex:1;max-width:340px;margin-left:auto}
+.search input{border:0;outline:0;background:transparent;width:100%;padding:8px 6px;color:var(--ink)}
+.search svg{flex:none;margin-left:6px;opacity:.5}
+.iconbtn{border:0;background:transparent;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;color:var(--ink2)}
+.iconbtn:hover{background:var(--panel2)}
+.iconbtn.on{background:var(--accent-soft);color:var(--accent)}
+
+/* ---------- views ---------- */
+.view{position:fixed;inset:0;display:none}
+.view.on{display:block}
+.scroll{position:absolute;inset:0;overflow:auto;padding:88px 24px 60px}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:var(--hand);font-weight:400;margin:0}
+h1{font-size:40px;line-height:1.1}
+h2{font-size:28px}
+h3{font-size:21px}
+.lede{color:var(--ink2);font-size:15px;max-width:760px;line-height:1.6;margin:8px 0 0}
+.muted{color:var(--ink3)}
+
+/* ---------- map ---------- */
+#map{position:absolute;inset:0;background-color:var(--bg);background-image:radial-gradient(var(--grid) 1.1px,transparent 1.2px);cursor:grab;touch-action:none;user-select:none}
+#map.panning{cursor:grabbing}
+#map svg{width:100%;height:100%;display:block}
+.node{cursor:pointer;transition:opacity .25s}
+.node .fill{fill-opacity:var(--fillop)}
+.node .stroke{fill:none;stroke:var(--stroke);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.node.ext .stroke{stroke-dasharray:7 6}
+.node .t1{font-family:var(--hand);font-size:23px;fill:var(--ink)}
+.node .t2{font-family:var(--ui);font-size:11.5px;fill:var(--ink2)}
+.node .t3{font-family:var(--mono);font-size:10.5px;fill:var(--ink3)}
+.node .bar{fill:var(--stroke);opacity:.18}
+.node .barfill{fill:var(--stroke);opacity:.55}
+.node:hover .stroke{stroke-width:2.4}
+.node.ghost{opacity:.13}
+.node.ghost .stroke{stroke-dasharray:3 6}
+.node .ring{fill:none;stroke:var(--accent);stroke-width:3;opacity:0}
+.node.touched .ring{opacity:1;animation:pulse 1.4s ease-in-out infinite}
+.node.sel .ring{opacity:1;stroke-dasharray:none;animation:none}
+@keyframes pulse{0%,100%{stroke-opacity:.9;stroke-width:3}50%{stroke-opacity:.25;stroke-width:7}}
+.edge{transition:opacity .25s}
+.edge path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.edge.imp path{stroke:var(--edge);stroke-width:1.3;opacity:.55}
+.edge.run path{stroke:var(--accent);stroke-width:1.7;stroke-dasharray:6 6}
+.edge .lbl{font-family:var(--hand);font-size:15px;fill:var(--accent)}
+.edge .lblbg{fill:var(--bg)}
+svg.focus .node:not(.hl){opacity:.14}
+svg.focus .edge:not(.hl){opacity:.05}
+svg.focus .edge.hl path{opacity:1;stroke-width:2.2}
+svg.tour .node:not(.hl){opacity:.18}
+svg.tour .edge{opacity:.06}
+.flowpath{fill:none;stroke:var(--accent);stroke-width:3.2;stroke-linecap:round;stroke-dasharray:10 8;animation:dash 1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-36}}
+.flowdot{fill:var(--accent);filter:drop-shadow(0 0 6px var(--accent))}
+
+.float{position:fixed;z-index:20;pointer-events:auto}
+.legend{left:12px;top:78px;width:236px;padding:12px 14px;flex-direction:column;align-items:stretch;gap:6px}
+.legend h4{margin:0 0 2px;font-family:var(--hand);font-weight:400;font-size:19px}
+.lg{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink2);padding:2px 4px;border-radius:6px;cursor:pointer}
+.lg:hover{background:var(--panel2)}
+.lg i{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--stroke);flex:none}
+.lg em{font-style:normal;color:var(--ink3);margin-left:auto;font-size:11px}
+.seg{display:flex;background:var(--panel2);border-radius:8px;padding:3px;gap:2px;margin-top:2px}
+.seg button{flex:1;border:0;background:transparent;border-radius:6px;padding:5px 4px;font-size:11.5px;color:var(--ink2)}
+.seg button.on{background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.12);color:var(--ink)}
+.lgsep{height:1px;background:var(--line);margin:6px 0}
+.small{font-size:11.5px;color:var(--ink3);line-height:1.45}
+.zoom{left:12px;bottom:16px}
+.zoom span{font-family:var(--mono);font-size:11px;width:46px;text-align:center;color:var(--ink2)}
+.tourbtn{right:12px;bottom:16px;padding:6px}
+.tourbtn button{border:0;background:var(--accent);color:#fff;border-radius:9px;padding:10px 16px;font-weight:600;display:flex;gap:8px;align-items:center}
+.tourbtn button:hover{filter:brightness(1.08)}
+.scrub{left:50%;transform:translateX(-50%);bottom:16px;width:min(760px,calc(100vw - 580px));padding:10px 14px;flex-direction:column;align-items:stretch;gap:6px}
+.scrub .row{display:flex;align-items:center;gap:10px}
+.scrub input[type=range]{flex:1;accent-color:var(--accent)}
+.scrub .meta{font-size:12.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scrub .meta b{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--panel2);color:var(--ink2);white-space:nowrap}
+.pbtn{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;display:inline-flex;gap:6px;align-items:center}
+.pbtn:hover{border-color:var(--accent);color:var(--accent)}
+.pbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pbtn.primary:hover{color:#fff;filter:brightness(1.08)}
+
+.caption{left:50%;transform:translateX(-50%);bottom:16px;width:min(620px,calc(100vw - 40px));padding:16px 18px;flex-direction:column;align-items:stretch;gap:8px;display:none;border:2px solid var(--accent)}
+.caption.on{display:flex}
+.caption .top{display:flex;align-items:center;gap:10px}
+.caption .num{font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:600}
+.caption h3{font-size:24px}
+.caption p{margin:0;color:var(--ink2);line-height:1.55}
+.caption .kitchen{font-family:var(--hand);font-size:17px;color:var(--ink3)}
+.caption .ctl{display:flex;gap:6px;align-items:center;margin-top:4px}
+.dots{display:flex;gap:4px;margin-left:auto}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--accent)}
+
+/* ---------- drawer ---------- */
+#drawer{position:fixed;top:76px;right:12px;bottom:12px;width:430px;max-width:calc(100vw - 24px);background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);z-index:40;transform:translateX(calc(100% + 24px));transition:transform .28s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column}
+#drawer.on{transform:none}
+#drawer .hd{padding:18px 20px 12px;border-bottom:1px solid var(--line);position:relative}
+#drawer .hd .x{position:absolute;right:10px;top:10px}
+#drawer .bd{padding:14px 20px 24px;overflow:auto;flex:1}
+.swatch{display:inline-block;width:14px;height:14px;border-radius:4px;border:1.5px solid var(--stroke);vertical-align:-2px;margin-right:6px}
+.kitchen-tag{font-family:var(--hand);font-size:18px;color:var(--ink2)}
+.sec{margin-top:16px}
+.sec h5{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+.sec p{margin:0;line-height:1.6;color:var(--ink)}
+.sec ul{margin:0;padding-left:18px;line-height:1.6}
+.sec li{margin:2px 0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.stat{background:var(--panel2);border-radius:10px;padding:10px}
+.stat b{display:block;font-size:18px;font-family:var(--mono)}
+.stat span{font-size:11px;color:var(--ink3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+button.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip i{width:9px;height:9px;border-radius:3px;border:1px solid var(--stroke)}
+.clist{display:flex;flex-direction:column;gap:2px}
+.crow{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:baseline;padding:7px 8px;border-radius:8px;text-align:left;border:0;background:transparent;width:100%}
+.crow:hover{background:var(--panel2)}
+.crow .h{font-family:var(--mono);font-size:11px;color:var(--accent)}
+.crow .s{font-size:12.5px;line-height:1.4;color:var(--ink)}
+.crow .d{font-family:var(--mono);font-size:10.5px;color:var(--ink3);white-space:nowrap}
+.plus{color:var(--done)} .minus{color:var(--missing)}
+
+/* ---------- timeline ---------- */
+.chartbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 16px 8px;margin-top:20px;box-shadow:var(--shadow);position:relative}
+.chartbox .lg2{display:flex;gap:16px;font-size:12px;color:var(--ink2);flex-wrap:wrap}
+.chartbox .lg2 i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#chart{width:100%;height:260px;display:block;cursor:crosshair}
+#chart text{font-family:var(--ui);font-size:10.5px;fill:var(--ink3)}
+#chart .ph{font-family:var(--hand);font-size:14px;fill:var(--ink2)}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:10px;padding:10px 12px;font-size:12px;max-width:300px;display:none;z-index:5;line-height:1.45}
+.tip b{font-family:var(--mono)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 8px;align-items:center}
+.fbtn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;font-size:12.5px;display:inline-flex;gap:7px;align-items:center;font-weight:500}
+.fbtn i{width:9px;height:9px;border-radius:50%}
+.fbtn.on{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.fbtn .c{font-family:var(--mono);font-size:10.5px;opacity:.7}
+select.fsel{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--ink)}
+.phase{margin-top:34px;position:relative}
+.phase-hd{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-bottom:10px;border-bottom:2px dashed var(--line);margin-bottom:14px}
+.phase-hd .tag{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.phase-hd p{margin:0;color:var(--ink2);flex-basis:100%;font-size:13.5px}
+.cards{position:relative;padding-left:26px}
+.cards:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line);border-radius:2px}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;transition:border-color .2s,box-shadow .2s;cursor:pointer}
+.card:hover{border-color:var(--ink3);box-shadow:var(--shadow)}
+.card:before{content:"";position:absolute;left:-23px;top:16px;width:12px;height:12px;border-radius:50%;background:var(--k);border:2px solid var(--bg);box-shadow:0 0 0 1.5px var(--k)}
+.card.flash{animation:flash 1.6s ease}
+@keyframes flash{0%,40%{box-shadow:0 0 0 4px var(--accent)}100%{box-shadow:none}}
+.card .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.card .h{font-family:var(--mono);font-size:11.5px;color:var(--accent);font-weight:600}
+.card .dt{font-size:12px;color:var(--ink3)}
+.card .kind{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--k)}
+.card .who{margin-left:auto;font-size:11.5px;color:var(--ink3);display:flex;gap:6px;align-items:center}
+.av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;font-weight:700;color:#fff}
+.card .plain{margin:7px 0 4px;font-size:14px;line-height:1.55}
+.card .orig{font-size:12px;color:var(--ink3);font-style:italic}
+.card .foot{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.delta{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px}
+.dbar{display:flex;height:6px;width:90px;border-radius:3px;overflow:hidden;background:var(--panel2)}
+.dbar i{display:block;height:100%}
+.card .more{display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:12px}
+.card.open .more{display:block}
+.card pre{white-space:pre-wrap;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--ink2);background:var(--panel2);padding:12px;border-radius:8px;margin:0 0 10px;max-height:420px;overflow:auto}
+.files{font-family:var(--mono);font-size:11px;color:var(--ink3);columns:2;column-gap:20px;margin-bottom:10px}
+.empty{padding:40px;text-align:center;color:var(--ink3);font-family:var(--hand);font-size:20px}
+
+/* ---------- progress ---------- */
+.prog-top{display:grid;grid-template-columns:300px 1fr;gap:20px;margin-top:22px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.ring{display:grid;place-items:center;position:relative}
+.ring .big{position:absolute;text-align:center}
+.ring .big b{font-family:var(--hand);font-size:54px;font-weight:400;display:block;line-height:1}
+.ring .big span{font-size:12px;color:var(--ink3)}
+.counts{display:flex;justify-content:center;gap:14px;margin-top:12px;font-size:12px}
+.counts span{display:flex;gap:5px;align-items:center}
+.counts i{width:10px;height:10px;border-radius:50%}
+.catbars{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px 22px}
+.cb{cursor:pointer;padding:6px 8px;border-radius:8px}
+.cb:hover{background:var(--panel2)}
+.cb .l{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+.cb .l b{font-weight:600}
+.cb .l span{font-family:var(--mono);font-size:11.5px;color:var(--ink3)}
+.track{height:9px;border-radius:5px;background:var(--panel2);overflow:hidden;display:flex}
+.track i{height:100%;display:block}
+.numgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:20px}
+.num{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.num b{display:block;font-family:var(--hand);font-size:34px;font-weight:400;line-height:1}
+.num span{font-size:12px;color:var(--ink3)}
+.checkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;margin-top:20px}
+.cat h3{display:flex;align-items:center;gap:10px}
+.cat h3 small{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-left:auto}
+.item{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:8px 4px;border-top:1px dashed var(--line);align-items:start}
+.item:first-of-type{border-top:0}
+.st{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;margin-top:1px}
+.item b{font-weight:600;font-size:13.5px}
+.item p{margin:2px 0 0;font-size:12.5px;color:var(--ink2);line-height:1.45}
+.where{display:flex;flex-direction:column;gap:6px}
+.wrow{display:grid;grid-template-columns:110px 1fr 70px;gap:10px;align-items:center;font-size:12.5px;cursor:pointer;padding:3px 6px;border-radius:6px}
+.wrow:hover{background:var(--panel2)}
+.wrow .b{height:14px;border-radius:4px;border:1.5px solid var(--stroke)}
+.wrow span:last-child{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right}
+.brand .home{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;color:var(--ink3);text-decoration:none;font-size:16px;margin-right:-2px}
+.brand .home:hover{background:var(--panel2);color:var(--ink)}
+.ahero{display:flex;gap:18px;align-items:center;margin-bottom:18px}
+.alogo{flex:none;width:72px;height:72px;border-radius:20px;background:var(--accent);color:#fff;display:grid;place-items:center;font:400 40px var(--hand);transform:rotate(-4deg)}
+.agrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.agrid .wide{grid-column:1/-1}
+.agrid p{line-height:1.65;color:var(--ink2);margin:8px 0 0}
+.agrid h3{font-size:24px}
+.agrid .an{background:var(--accent-soft)}
+.stack{display:grid;gap:8px;margin-top:10px}.stack div{display:grid;grid-template-columns:150px 1fr;gap:10px;font-size:13.5px}.stack span{color:var(--ink2)}
+.run{margin:10px 0 6px;padding-left:20px;line-height:1.6;color:var(--ink2)}.run li{margin:4px 0}
+.status{display:flex;gap:20px;align-items:flex-start}
+.mring{flex:none;width:118px;height:118px;border-radius:50%;border:10px solid var(--done);background:var(--panel);display:grid;place-content:center;text-align:center}
+.mring b{font:400 30px var(--hand)}.mring span{font-size:11px;color:var(--ink3);max-width:80px;line-height:1.2}
+.pgrp{margin-top:10px}.pgrp .chips{margin-top:6px}
+.ago{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 10px}
+@media (max-width:820px){.agrid{grid-template-columns:1fr}.status{flex-direction:column}}
+.note{font-size:12.5px;color:var(--ink2);background:var(--accent-soft);border-radius:10px;padding:10px 14px;margin-top:14px;line-height:1.55}
+
+/* ---------- glossary ---------- */
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:22px}
+.term{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;position:relative}
+.term h3{font-size:22px;display:flex;align-items:center;gap:8px}
+.term p{margin:6px 0 0;line-height:1.55;font-size:13.5px;color:var(--ink2)}
+.term .k{font-family:var(--hand);font-size:16px;color:var(--ink3);margin-top:6px}
+.term button{margin-top:10px}
+
+/* ---------- overlays ---------- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60;display:none;place-items:center;padding:20px}
+.modal.on{display:grid}
+.modal .box{max-width:560px;width:100%;position:relative}
+.modal h2{margin-bottom:6px}
+.modal ol{padding-left:20px;line-height:1.7;color:var(--ink2)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;margin-top:10px;align-items:center}
+.toast{position:fixed;left:50%;top:76px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:12.5px;z-index:70;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.on{opacity:1}
+body.touring .scrub{display:none}
+@media (max-width:900px){
+  .legend{display:none}.brand span{display:none}.tabs .n{display:none}
+  .prog-top{grid-template-columns:1fr}
+  .scrub{width:calc(100vw - 24px);left:12px;transform:none;bottom:70px}
+  .zoom{bottom:16px}
+}
+</style>
+</head>
+<body>
+<noscript><div style="position:fixed;inset:0;z-index:100;background:#fbfaf7;display:grid;place-items:center;font:16px system-ui;padding:20px;text-align:center">This page needs JavaScript. The viewer you opened it in has it switched off.<br>Open it in a normal browser instead: <code>xdg-open</code> on this file</div></noscript>
+
+<header>
+  <div class="island brand"><a class="home" href="index.html" title="All repos">⌂</a><div class="logo" id="logo"></div><div><b id="bName"></b><br><span id="bSub"></span></div></div>
+  <div class="island tabs" id="tabs">
+    <button data-v="about" class="on">📘 About <span class="n">1</span></button>
+    <button data-v="map">🗺️ Map <span class="n">2</span></button>
+    <button data-v="timeline">🕑 Timeline <span class="n">3</span></button>
+    <button data-v="progress">📊 Progress <span class="n">4</span></button>
+    <button data-v="glossary">📖 Words <span class="n">5</span></button>
+  </div>
+  <div class="island search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Search parts, commits, words…  ( / )"></div>
+  <div class="island">
+    <button class="iconbtn" id="sketchBtn" title="Hand-drawn style (S)">✏️</button>
+    <button class="iconbtn" id="themeBtn" title="Dark / light (T)">🌙</button>
+    <button class="iconbtn" id="helpBtn" title="Help (?)">?</button>
+  </div>
+</header>
+
+<!-- ================= MAP ================= -->
+<section class="view on" id="v-about"><div class="scroll"><div class="wrap" id="aboutBody"></div></div></section>
+
+<section class="view" id="v-map">
+  <div id="map"><svg id="svg"><g id="vp"><g id="gEdges"></g><g id="gNodes"></g><g id="gFlow"></g></g></svg></div>
+
+  <div class="float island legend" id="legend">
+    <h4>How to read this</h4>
+    <div class="small">Each box is one part of the code. Click a box to learn what it does. Drag boxes around; drag the paper to move; scroll to zoom.</div>
+    <div class="lgsep"></div>
+    <div id="lgGroups"></div>
+    <div class="lgsep"></div>
+    <div class="small"><b style="color:var(--ink2)">Lines</b>: grey arrow = "uses" (A → B means A calls code in B). Purple dashed = "talks to" something outside the program.</div>
+    <div class="seg" id="edgeSeg"><button data-e="key" class="on">Key links</button><button data-e="all">All</button><button data-e="none">None</button></div>
+    <label class="lg" style="margin-top:4px"><input type="checkbox" id="runChk" checked> Show "talks to" lines</label>
+  </div>
+
+  <div class="float island tourbtn"><button id="tourStart"></button></div>
+
+  <div class="float island zoom">
+    <button class="iconbtn" id="zOut" title="Zoom out">−</button><span id="zLbl">100%</span><button class="iconbtn" id="zIn" title="Zoom in">+</button>
+    <button class="iconbtn" id="zFit" title="Fit to screen (F)">⤢</button>
+    <button class="iconbtn" id="zReset" title="Reset box positions">↺</button>
+  </div>
+
+  <div class="float island scrub" id="scrub">
+    <div class="row">
+      <button class="pbtn" id="histPlay">▶ Replay history</button>
+      <input type="range" id="slider" min="0" max="63" value="63">
+      <button class="pbtn" id="histNow">Today</button>
+    </div>
+    <div class="meta" id="scrubMeta"></div>
+  </div>
+
+  <div class="float island caption" id="caption">
+    <div class="top"><span class="num" id="capNum"></span><div class="dots" id="capDots"></div><button class="iconbtn" id="capX" title="Close (Esc)">✕</button></div>
+    <h3 id="capTitle"></h3>
+    <p id="capText"></p>
+    <div class="kitchen" id="capKitchen"></div>
+    <div class="ctl"><button class="pbtn" id="capPrev">← Back</button><button class="pbtn primary" id="capNext">Next →</button><button class="pbtn" id="capAuto">Auto-play</button><span class="small" style="margin-left:auto">← → keys work too</span></div>
+  </div>
+</section>
+
+<!-- ================= TIMELINE ================= -->
+<section class="view" id="v-timeline"><div class="scroll"><div class="wrap">
+  <h1>Every commit, in plain words</h1>
+  <p class="lede"><span id="tlLede"></span> The chart shows how many lines existed after each commit. Hover it to see the commit; click to jump to it. Click any card to read the original commit message and see which files changed.</p>
+  <div class="chartbox">
+    <div class="lg2"><span><i style="background:#9775fa"></i>Code &amp; config</span><span><i style="background:#69db7c"></i>Tests</span><span><i style="background:#74c0fc"></i>Docs &amp; lessons</span><span class="muted" style="margin-left:auto">x-axis: commit number (many commits share a date)</span></div>
+    <svg id="chart"></svg>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="filters" id="filters"></div>
+  <div id="phases"></div>
+</div></div></section>
+
+<!-- ================= PROGRESS ================= -->
+<section class="view" id="v-progress"><div class="scroll"><div class="wrap">
+  <h1>How complete is it?</h1>
+  <p class="lede" id="progLede"></p>
+  <div class="prog-top">
+    <div class="box"><div class="ring" id="ring"></div><div class="counts" id="counts"></div></div>
+    <div class="box"><h3 style="margin-bottom:10px">By area</h3><div class="catbars" id="catbars"></div></div>
+  </div>
+  <div class="numgrid" id="numgrid"></div>
+  <div class="checkgrid" id="checkgrid"></div>
+  <div class="box" style="margin-top:20px">
+    <h3>Where the code lives</h3>
+    <p class="small" style="margin:4px 0 12px">Lines per folder today, including tests. Click a row to see it on the map.</p>
+    <div class="where" id="where"></div>
+  </div>
+  <div class="note" id="progNote"></div>
+</div></div></section>
+
+<!-- ================= GLOSSARY ================= -->
+<section class="view" id="v-glossary"><div class="scroll"><div class="wrap">
+  <h1>Every word, in plain English</h1>
+  <p class="lede">Each word comes with an everyday picture (<span id="glAn"></span>). Click "see it on the map" to jump to the code that does it.</p>
+  <div class="gloss" id="gloss"></div>
+</div></div></section>
+
+<aside id="drawer"><div class="hd" id="dHd"></div><div class="bd" id="dBd"></div></aside>
+
+<div class="modal" id="help"><div class="box">
+  <button class="iconbtn" style="position:absolute;right:10px;top:10px" onclick="closeHelp()">✕</button>
+  <h2>Welcome 👋</h2>
+  <p class="lede" style="margin-top:0" id="helpLede"></p>
+  <ol>
+    <li><b>About</b>: what the project is, in plain words. <b>Map</b>: every part of the code as a box. Click one to learn what it does, in plain words.</li>
+    <li>Press <b class="tourName"></b> to watch one request travel through the whole system, step by step.</li>
+    <li>Drag the <b>history slider</b> at the bottom to watch the project grow commit by commit. Boxes appear as they're built, and the boxes a commit touched glow.</li>
+    <li><b>Timeline</b>: every commit explained. <b>Progress</b>: how complete it is. <b>Words</b>: every term explained.</li>
+  </ol>
+  <div class="keys">
+    <kbd>1</kbd><span>–<kbd>5</kbd> switch tabs</span>
+    <kbd>/</kbd><span>search</span>
+    <kbd>P</kbd><span>play the walkthrough (on the map)</span>
+    <kbd>F</kbd><span>fit map to screen</span>
+    <kbd>S</kbd><span>hand-drawn / clean style</span>
+    <kbd>T</kbd><span>dark / light</span>
+    <kbd>Esc</kbd><span>close panels</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:18px"><button class="pbtn primary tourName" onclick="closeHelp();startTour()"></button><button class="pbtn" onclick="closeHelp()">Explore on my own</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+window.addEventListener('error',e=>{let b=document.getElementById('errbar');if(!b){b=document.createElement('div');b.id='errbar';b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:99;background:#e03131;color:#fff;padding:10px 14px;border-radius:10px;font:13px system-ui';document.body.appendChild(b)}b.textContent='Something broke: '+e.message+' (line '+e.lineno+'). Try opening the file directly in Chrome or Firefox.'});
+/* =====================================================================
+   DATA
+   ===================================================================== */
+const D = {"repo": "local-mcp", "name": "local-mcp", "logo": "LM", "emoji": "📰", "analogy": "a newsroom", "tagline": "A Python MCP server that gives an AI app web search, page reading, research reports, OCR, PDF parsing and file writing, all run on your own machine.", "about": {"what": "local-mcp is a small Python program that an AI chat app (Claude Desktop, OpenWebUI, or any other MCP client) can plug into. It is an MCP server: a helper program that offers a list of tools the AI model is allowed to call. The model cannot browse the web or read files by itself. It can only write text. local-mcp does those jobs for it and hands back the results.\n\nIn its default setup it offers eight tools. web_search asks a self-hosted search engine (SearXNG) for links. web_fetch downloads one page and turns it into Markdown. extract_urls lists every link on a site, using robots.txt, sitemaps and the page itself. extract_image_text reads text out of a picture (OCR). parse_document turns a PDF or other document into text. generate_file writes Markdown, text, PDF, Word or PowerPoint files into one chosen folder.\n\nTwo tools do more than fetch. smart_search runs a whole mini research job inside the server: search, ask a language model to rank the results, read the best pages, and ask the model for a cited summary. deep_research does the same in several rounds: it plans sub-questions, takes notes per source, looks for gaps, writes a long report, and then fact-checks it. Both use a local Ollama model by default, or Google Gemini if you set it up.", "why": "Chat apps powered by local open-source models (Qwen, Llama and others) have no built-in web access. This project gives them private web search and research without paying for a search API: SearXNG runs in Docker on your own computer, and the default model runs in Ollama on your own computer. A lot of the later commits are about making small local models behave: they kept stopping after a search or pasting raw page text, so the server now embeds instructions in tool outputs and offers a smaller 'simple' tool set.\n\nThe repo belongs to the GitHub account mymacmeet-crypto. Most commits are by shadab15github / Shadab Khan, with some by 'sam' and two by 'nayan-dey' (the SearXNG search tool and the web_fetch tool). It started life under the name 'claw-site' and was renamed to local-mcp on Jul 1.", "analogy": "Think of local-mcp as a newsroom. The AI chat app is the editor-in-chief: it gets a question from a reader and sends an assignment slip to the newsroom. The front desk (app.py) takes the slip, and the assignment board (tools/__init__.py) says which desks are open today. Legwork reporters (web_search, web_fetch, extract_urls) phone the news wire (SearXNG) for leads and go out to read pages. Archive clerks read old PDFs and photos. The investigations desk (smart_search, deep_research) runs a whole story by itself: it gathers leads, sends runners out, and hires a writer (Ollama or Gemini) to rank sources and write a cited article. The print shop (generate_file) prints the finished story as a PDF, Word file or slide deck and puts it on one shelf (the output folder). A style guide (shared/guidance.py) reminds every reporter that leads are not facts until someone reads the source.", "stack": [["Python 3.10+", "the programming language the whole project is written in"], ["MCP (Model Context Protocol)", "a standard way for AI apps to discover and call tools in a separate program"], ["FastMCP (mcp package)", "the official Python library that turns plain async functions into MCP tools and runs the server"], ["Pydantic Field + Annotated", "used to attach a description and limits (like 1 to 20) to each tool parameter, so the model sees them"], ["httpx", "an async HTTP library used for every web request: pages, SearXNG, Ollama, Gemini"], ["BeautifulSoup + lxml + markdownify", "HTML parsing and HTML-to-Markdown conversion"], ["Crawl4AI (optional)", "drives a hidden Chrome-like browser (via Playwright) for pages that need JavaScript"], ["SearXNG", "a free, self-hosted search engine that asks Google, Bing and others for you; run in Docker"], ["Ollama / Google Gemini", "the two language-model backends used by smart_search and deep_research"], ["Pillow + pytesseract + Tesseract", "image loading plus the OCR engine that reads text from pictures"], ["pypdf (+ optional PyMuPDF4LLM, pdfplumber, Docling, Marker, MinerU)", "PDF and document parsers, from light and fast to heavy and AI-based"], ["python-docx, python-pptx", "write Word and PowerPoint files; the PDF writer is hand-written with no library"], ["unittest", "Python's built-in test runner, used for the tests/ folder"]], "run": ["Install Python 3.10 or newer. Create a virtual environment: `python -m venv .venv`, activate it, then `pip install -r requirements.txt`. Optional browser fallback: `pip install \"local-mcp[browser]\"` then `crawl4ai-setup`.", "Or use the menu: `python setup_and_run.py`. It shows 12 options (install core, install extras, show tool status, run tests, run the server, restart SearXNG in Docker).", "Start SearXNG with JSON output enabled. Menu option 12 does it, or `docker run -d --name local-searxng -p 8888:8080 -v <repo>/searxng-settings.yml:/etc/searxng/settings.yml:ro searxng/searxng:latest`. The default address is http://127.0.0.1:8888 (override with SEARXNG_BASE_URL).", "Copy .env.example to .env and set LOCAL_MCP_FILE_OUTPUT_DIR (file tools refuse to work without it). For smart_search and deep_research, run `ollama serve` and `ollama pull qwen2.5:7b`, or set LLM_PROVIDER=gemini and GEMINI_API_KEY.", "For OCR, install the Tesseract program with your system package manager (or set TESSERACT_CMD).", "Run the server: `python -m local_mcp` (stdio, for Claude Desktop) or `python -m local_mcp --http` (listens on http://127.0.0.1:3002/mcp, health check at /health).", "Connect a client: add it to Claude Desktop's mcpServers config, or paste integrations/openwebui_tool.py into OpenWebUI's Tools page. For small models set LOCAL_MCP_TOOL_PROFILE=simple.", "Tests: `python -m unittest discover -s tests` (they do not touch the network)."], "status": "It works as a feature-rich personal tool and the structure is clean: a thin tools/ layer over separate web, search, LLM, document, OCR and file-writing packages, with 59 offline unit tests. The research tools are thoughtful (fallback to search order if the model returns bad JSON, skip pages that fail, notes per source, a fact-check pass). The rough parts: the HTTP mode has no login or token and turns off DNS-rebinding protection; fetch tools will download any http/https URL, including local network addresses; robots.txt is read for sitemaps but not obeyed. There is no CI, some docs are out of date (prompt.md and docs/README.md still describe older web_search behaviour and omit deep_research), shared/summarize.py is now only used by its own tests, and the history shows a lot of back-and-forth on web_search (summaries added, then removed). Version says 1.0.0 but it reads more like a fast-moving team prototype.", "facts": [["Started", "Jun 8, 2026"], ["Last commit", "Jul 21, 2026"], ["Commits", "40 (4 merges)"], ["Authors", "shadab15github / Shadab Khan, sam, nayan-dey"], ["Main language", "Python"], ["Version", "1.0.0 (pyproject.toml)"], ["License", "ISC (declared in pyproject.toml)"], ["Old name", "claw-site"]]}, "groups": {"entry": {"name": "Front door", "color": "entry"}, "brain": {"name": "Thinking desks", "color": "brain"}, "hands": {"name": "Legwork", "color": "hands"}, "translator": {"name": "Model translators", "color": "translator"}, "memory": {"name": "Shared toolkit", "color": "memory"}, "docs": {"name": "Docs, setup and tests", "color": "docs"}, "ext": {"name": "Outside the program", "color": "ext"}}, "nodes": [{"id": "user", "label": "You", "group": "ext", "ext": true, "x": 340, "y": 20, "role": "The reader with a question", "what": "The person typing into a chat app. You never talk to local-mcp directly; your AI app does."}, {"id": "client", "label": "AI chat app (MCP client)", "group": "ext", "ext": true, "x": 620, "y": 20, "role": "The editor-in-chief", "what": "Claude Desktop, OpenWebUI or any MCP client. It runs the language model, shows it the tool list, and forwards the model's tool calls to local-mcp over stdio or HTTP."}, {"id": "openwebui", "label": "integrations/openwebui_tool.py", "group": "entry", "x": 900, "y": 20, "role": "The courier to OpenWebUI", "path": "integrations/", "paths": ["integrations/"], "what": "A single file you paste into OpenWebUI's Tools page. It is a small hand-written MCP client: OpenWebUI calls its Python methods, and it forwards each call to the local-mcp HTTP server and streams live progress back into the chat.", "how": ["Defines a Tools class with one async method per server tool (web_search, smart_search, deep_research, web_fetch, extract_urls, extract_image_text, parse_document, generate_file).", "Opens an MCP session with an initialize request and remembers the mcp-session-id header; if the server restarts it starts a new session.", "Sends tools/call with a progress token and reads the reply as a Server-Sent Events stream.", "Turns each notifications/progress message into an OpenWebUI status line, so long jobs show 'Crawling source 2/3...' instead of a frozen spinner.", "Echoes final answers (smart_search, deep_research, generate_file, OCR) into the chat, but keeps raw evidence (web_fetch, parse_document) for the model only."], "ideas": ["It talks raw JSON-RPC over HTTP with httpx instead of using an MCP SDK, because OpenWebUI tools must be one self-contained file.", "Server URL is hard-coded to http://localhost:3002/mcp at the top of the file."], "files": ["integrations/openwebui_tool.py: the whole bridge (562 lines)"]}, {"id": "app", "label": "app.py, cli.py", "group": "entry", "x": 620, "y": 170, "w": 230, "role": "The newsroom front desk", "path": "local_mcp/app.py, cli.py, __main__.py", "paths": ["local_mcp/app.py", "local_mcp/cli.py", "local_mcp/__main__.py", "local_mcp/__init__.py"], "what": "Creates the FastMCP server called 'local-mcp', loads .env, registers the tools and adds a /health web route. cli.py picks how clients connect: stdio (default) or Streamable HTTP with --http.", "how": ["load_dotenv() runs first so every module sees settings from .env.", "FastMCP('local-mcp', host=127.0.0.1, port=3002) is built with a lifespan hook that closes the shared headless browser on shutdown.", "register_tools(mcp) hands the server the tool functions for the chosen profile.", "A GET /health route returns {status: ok, server: local-mcp}.", "app = mcp.streamable_http_app() exposes the server for ASGI hosts like uvicorn or Vercel.", "cli.main() reads --http / --stdio or MCP_TRANSPORT and calls mcp.run()."], "ideas": ["DNS-rebinding protection is switched off on purpose so the server can run behind a public domain; on a laptop that removes a safety check.", "There is no auth token on the HTTP endpoint."], "files": ["local_mcp/app.py: builds the FastMCP server and health route", "local_mcp/cli.py: chooses stdio or HTTP transport", "local_mcp/__main__.py: makes `python -m local_mcp` work"]}, {"id": "setup", "label": "setup_and_run.py + config", "group": "docs", "x": 1180, "y": 170, "role": "The building manager", "path": "setup_and_run.py, pyproject.toml, requirements.txt, .env.example, searxng-settings.yml", "paths": ["setup_and_run.py", "pyproject.toml", "requirements.txt", ".env.example", "searxng-settings.yml", ".gitignore"], "what": "Everything needed to install and start the project: a coloured terminal menu, the package definition with optional extras, the example settings file and a SearXNG config that turns on JSON output.", "how": ["setup_and_run.py shows a menu of 12 choices before installing anything, creates .venv if needed and runs pip inside it.", "Option 10 checks which optional parsers, Crawl4AI, Tesseract and Docker are present.", "Option 12 removes and re-creates the local-searxng Docker container on port 8888.", "pyproject.toml defines extras: browser, document-fast, document-structured, document-deep-marker, document-deep-mineru.", ".env.example lists every setting: output folder, LLM provider, Ollama/Gemini models, deep_research limits, tool profile."], "ideas": ["Marker and MinerU are separate extras because they need incompatible Pillow versions.", "crawl4ai is kept out of requirements.txt because it is about 600 MB and breaks serverless deploys."], "files": ["setup_and_run.py: interactive setup and run menu", "pyproject.toml: package metadata, dependencies, extras, `local-mcp` command", ".env.example: every environment setting with comments", "searxng-settings.yml: enables JSON search results in SearXNG"]}, {"id": "registry", "label": "tools/__init__.py, simple.py", "group": "brain", "x": 620, "y": 320, "role": "The assignment board", "path": "local_mcp/tools/__init__.py, tools/simple.py", "paths": ["local_mcp/tools/__init__.py", "local_mcp/tools/simple.py"], "what": "Decides which tools the AI app gets to see. LOCAL_MCP_TOOL_PROFILE picks the 'full' set of 8 tools, a 'simple' set of 5 easier tools for small models, or 'both'.", "how": ["register_tools() reads the profile and calls mcp.tool() on each function; FastMCP turns the function's name, docstring and typed parameters into the tool's schema.", "Profile names have aliases: simple, basic, low, qwen; both, compat, all; anything unknown falls back to full.", "simple.py wraps the real tools with fewer parameters and safe defaults: fetch_web_page, list_page_urls, read_document, read_image_text.", "'both' merges the two lists and removes duplicates by function name (generate_file is in both)."], "ideas": ["Fewer tools and fewer optional parameters make small local models pick the right tool more often (see docs/low_model_compatibility.md).", "The simple profile has no search tool at all, only page fetching, so a small model on that profile cannot discover sources by itself."], "files": ["local_mcp/tools/__init__.py: profile logic and registration", "local_mcp/tools/simple.py: four thin wrappers for weaker models"]}, {"id": "docs", "label": "README, docs/, prompt.md", "group": "docs", "x": 1180, "y": 320, "role": "The staff handbook", "path": "README.md, docs/, prompt.md", "paths": ["README.md", "docs/", "prompt.md"], "what": "The README, an architecture guide, one long page per tool, a guide on small-model compatibility, and a list of test prompts to paste into Claude Desktop.", "how": ["docs/ARCHITECTURE.md shows the package layout and a text flow chart for each tool.", "docs/low_model_compatibility.md explains why Qwen-class models failed and what was changed.", "docs/deep_research.md and docs/smart_search.md describe the research pipelines.", "prompt.md has example prompts per tool."], "ideas": ["Some pages lag behind the code: prompt.md still asks web_search for categories and engines it no longer accepts, and docs/README.md omits deep_research."], "files": ["README.md: setup, run, every tool's parameters", "docs/ARCHITECTURE.md: layout and request flows", "docs/low_model_compatibility.md: tuning for small models"]}, {"id": "readers", "label": "documents/, ocr/", "group": "hands", "x": 60, "y": 470, "role": "The archive clerks", "path": "local_mcp/documents/, local_mcp/ocr/, tools/documents.py, tools/ocr.py", "paths": ["local_mcp/documents/", "local_mcp/ocr/", "local_mcp/tools/documents.py", "local_mcp/tools/ocr.py"], "what": "Two reading tools. parse_document turns a PDF or text document into Markdown, plain text or JSON. extract_image_text reads the words in a picture using Tesseract OCR.", "how": ["Both accept many input shapes: a local path, file:// URI, http(s) URL, data URL or raw base64; shared/files.py helps sort them out.", "documents/source.py downloads or decodes into a temp file, capped at 100 MB by default.", "documents/parsers.py picks a backend: 'auto' prefers PyMuPDF4LLM, then pypdf, pdfplumber, Docling for PDFs; Marker and MinerU run as separate command-line programs.", "Parsing runs in a worker thread (asyncio.to_thread) so the server stays responsive.", "ocr/tesseract.py fixes photo rotation with Pillow, converts to RGB, then calls pytesseract; image size capped at 20 MB."], "ideas": ["Optional parsers are detected at runtime, and a missing one returns an install hint instead of crashing.", "Any local file path the model names can be read, which is powerful but means the model can read your files."], "files": ["local_mcp/documents/parsers.py: all parser backends and page-range parsing", "local_mcp/documents/source.py: loads paths, URLs, data URLs, base64", "local_mcp/ocr/tesseract.py: image loading and Tesseract call", "local_mcp/tools/documents.py: the parse_document tool"]}, {"id": "webtools", "label": "tools/web.py, tools/search.py", "group": "hands", "x": 340, "y": 470, "role": "The legwork reporters", "path": "local_mcp/tools/web.py, local_mcp/tools/search.py", "paths": ["local_mcp/tools/web.py", "local_mcp/tools/search.py"], "what": "Three basic web tools. web_search returns candidate links from SearXNG. web_fetch returns one page as Markdown. extract_urls lists a site's links with counts per source.", "how": ["web_search returns a JSON 'discovery' envelope: urls, requires_fetch: true, and instructions telling the model to fetch before answering.", "web_fetch normalises the URL, calls web/content.fetch_auto, converts to Markdown, cuts to max_chars (120,000 by default) and wraps it in an 'evidence' envelope.", "extract_urls collects links from robots.txt and sitemaps first, then the page's own HTML, and only renders with a browser when static HTML found few or none.", "Each URL is labelled with where it came from (robots.txt, sitemap.xml, httpx, Crawl4AI) and stats are printed at the top.", "Every tool sends progress messages through shared/progress.py."], "ideas": ["Discovery vs evidence: the tool output itself tells a small model what to do next, not just the tool description.", "The tool docstrings are replaced at import time with long guidance text from shared/guidance.py."], "files": ["local_mcp/tools/web.py: web_fetch and extract_urls", "local_mcp/tools/search.py: web_search"]}, {"id": "research", "label": "smart_search, deep_research", "group": "brain", "x": 620, "y": 470, "w": 230, "role": "The investigations desk", "path": "local_mcp/tools/smart_search.py, tools/deep_research.py", "paths": ["local_mcp/tools/smart_search.py", "local_mcp/tools/deep_research.py"], "what": "The two tools that do a full research job inside the server and return a finished, cited answer. smart_search is one quick pass; deep_research runs several rounds and writes a long report with a fact-check section.", "how": ["smart_search: search SearXNG for max_sources x 4 candidates (between 6 and 20), ask the LLM to rank them as JSON, crawl down the ranked list until max_sources pages load, then ask the LLM for a summary citing [1], [2].", "deep_research step 1, plan: the LLM splits the question into 3-6 sub-questions and a report outline.", "Each round: one search per open query at the same time (asyncio.gather), merge and dedupe, rank, crawl up to 'breadth' new pages, then take short notes per page tagged with its source number.", "Reflect: the LLM reads the notes and returns {done, gaps, queries}; new queries start the next round, up to max_iterations (2 by default) and max_sources (12).", "Synthesize a Markdown report from the notes following the outline, then verify: a second LLM call lists claims the notes do not support.", "Can also write the report to a file through file_generation."], "ideas": ["The 'evidence ledger': deep_research feeds the writer short notes per source, not whole pages, so a small 7B model can cope and citations stay honest.", "Every LLM step has a fallback: bad ranking JSON keeps search order, a failed plan uses the question itself, a failed verify is skipped.", "Failed page loads are skipped and the next-ranked source is tried."], "files": ["local_mcp/tools/smart_search.py: one-pass search, rank, crawl, summarize", "local_mcp/tools/deep_research.py: plan, rounds, notes, reflect, synthesize, verify"]}, {"id": "filegen", "label": "generate_file + file_generation/", "group": "hands", "x": 900, "y": 470, "role": "The print shop", "path": "local_mcp/tools/file_generation.py, local_mcp/file_generation/", "paths": ["local_mcp/tools/file_generation.py", "local_mcp/file_generation/"], "what": "One tool, generate_file, that writes md, txt, pdf, docx or pptx files into a single configured folder. It either writes text you give it, or researches a query first with smart_search or deep_research and writes that.", "how": ["Requires exactly one of content or query; errors if both or neither.", "min_words can reject content that is too short, which pushes small models to write a fuller report.", "markdown.py resolves the filename inside LOCAL_MCP_FILE_OUTPUT_DIR, refuses absolute paths and '..', and checks the final path stays inside the folder.", "pdf.py builds a PDF by hand (page layout, word wrap, PDF objects) with no PDF library; word.py and powerpoint.py use python-docx and python-pptx.", "Append mode adds chunks to md/txt files only; binary formats must be written in one go."], "ideas": ["A sandboxed output folder: the model can only write where you allowed it.", "Legacy .doc and .ppt requests are silently written as .docx and .pptx."], "files": ["local_mcp/tools/file_generation.py: the generate_file tool", "local_mcp/file_generation/markdown.py: path rules, write and append", "local_mcp/file_generation/pdf.py: hand-built PDF renderer", "local_mcp/file_generation/powerpoint.py: one slide per heading"]}, {"id": "tests", "label": "tests/", "group": "docs", "x": 1180, "y": 470, "role": "The fact-check drills", "path": "tests/", "paths": ["tests/"], "what": "59 unit tests using Python's built-in unittest. They fake the network and the LLM so they run offline.", "how": ["test_file_generation.py (25 tests) covers paths, formats, append mode and query mode.", "test_smart_search_tool.py and test_deep_research_tool.py replace search, fetch and LLM calls with fakes and check the pipeline logic.", "test_compatibility_imports.py checks the tool profiles register the right tools.", "Helpers for URLs, HTML, sitemaps, SearXNG parsing and documents have small tests."], "ideas": ["No CI workflow is in the repo, so tests only run when someone runs them by hand (or via menu option 11)."], "files": ["tests/test_file_generation.py: largest test file", "tests/test_deep_research_tool.py: pipeline with fake LLM", "tests/test_compatibility_imports.py: tool profiles"]}, {"id": "web", "label": "web/", "group": "hands", "x": 60, "y": 620, "role": "The field runners", "path": "local_mcp/web/", "paths": ["local_mcp/web/"], "what": "Fetches web pages and turns HTML into Markdown or link lists. Tries a fast plain download first and only starts a hidden browser if the page looks empty.", "how": ["fetcher.fetch_static: one httpx GET with a 15-second timeout and a local-mcp user agent; follows redirects.", "fetcher.fetch_browser: one shared Crawl4AI headless browser, started lazily behind a lock, waits for network idle.", "content.fetch_auto: if static Markdown is under 200 characters, try the browser and keep whichever is longer.", "html.py strips scripts, styles and forms, makes links absolute and converts to Markdown with markdownify.", "sitemap.py reads robots.txt for Sitemap: lines, then parses sitemap XML (including gzipped and nested sitemaps)."], "ideas": ["Lazy, shared browser: the heavy browser starts only when first needed and is closed when the server stops.", "If crawl4ai is not installed, the browser step fails with a clear install message and the static result is used."], "files": ["local_mcp/web/fetcher.py: httpx and Crawl4AI fetching", "local_mcp/web/content.py: static-first with browser fallback", "local_mcp/web/html.py: HTML cleanup, links, Markdown", "local_mcp/web/sitemap.py: robots.txt and sitemap parsing"]}, {"id": "search", "label": "search/searxng.py", "group": "hands", "x": 340, "y": 620, "role": "The news-wire operator", "path": "local_mcp/search/", "paths": ["local_mcp/search/"], "what": "A small client for SearXNG's JSON search API. Returns clean, de-duplicated results with title, URL and snippet.", "how": ["Calls <instance>/search?q=...&format=json with optional time_range.", "Tries each instance in SEARXNG_URLS (comma list) in order until one works: simple failover.", "A 403 reply gets a friendly hint to enable JSON in settings.yml.", "Drops results without a title or URL and repeats, and stops at the limit."], "ideas": ["Self-hosted search means no API key and no per-search bill."], "files": ["local_mcp/search/searxng.py: the whole client"]}, {"id": "llm", "label": "llm/client.py", "group": "brain", "x": 620, "y": 620, "role": "The switchboard to the writer", "path": "local_mcp/llm/", "paths": ["local_mcp/llm/"], "what": "One generate_text() function that the research tools call. It forwards to Ollama or Gemini depending on LLM_PROVIDER, so the tools never care which one is behind it.", "how": ["PROVIDER is read once from LLM_PROVIDER (default ollama).", "is_configured() and not_configured_message() let tools fail early with a helpful message.", "Both backends share the same arguments: prompt, system, temperature, max tokens, and a JSON-mode flag.", "Backend-specific errors are wrapped into one LLMError."], "ideas": ["A tiny adapter layer: swapping or adding a model provider touches one file."], "files": ["local_mcp/llm/client.py: provider dispatch (62 lines)"]}, {"id": "shared", "label": "shared/", "group": "memory", "x": 1180, "y": 620, "role": "The style guide and toolkit", "path": "local_mcp/shared/", "paths": ["local_mcp/shared/"], "what": "Small helpers used everywhere: the guidance text that steers the model, live progress messages, friendly error messages, URL cleanup and input-file helpers.", "how": ["guidance.py holds the workflow line 'web_search -> web_fetch -> analyze -> write a cited answer' and all tool descriptions.", "progress.py wraps the MCP Context and sends notifications/progress tagged with the current request id; it never raises.", "errors.py turns httpx errors (404, 403, 429, timeouts) into readable sentences.", "urls.py adds https:// when missing, allows only http/https, and checks same host / same path.", "summarize.py is an extractive summariser left over from an older web_fetch; only its tests use it now."], "ideas": ["Progress tagged with related_request_id rides the same HTTP response stream as the result, which is the stream OpenWebUI reads (explained in a long comment).", "One source of truth for prompt-like guidance text."], "files": ["local_mcp/shared/guidance.py: instructions for the model", "local_mcp/shared/progress.py: live progress notifications", "local_mcp/shared/urls.py: URL normalising and filters"]}, {"id": "internet", "label": "Websites", "group": "ext", "ext": true, "x": 60, "y": 770, "role": "The outside world", "what": "Any web page, sitemap, PDF or image URL the tools download. Fetched with httpx, or with a headless browser when JavaScript is needed."}, {"id": "searxng", "label": "SearXNG (Docker)", "group": "ext", "ext": true, "x": 340, "y": 770, "role": "The news wire", "what": "A self-hosted meta search engine, usually running in Docker on port 8888. It queries public search engines and returns JSON results."}, {"id": "providers", "label": "ollama/, gemini/", "group": "translator", "x": 620, "y": 770, "role": "The two hired writers' agents", "path": "local_mcp/ollama/, local_mcp/gemini/", "paths": ["local_mcp/ollama/", "local_mcp/gemini/"], "what": "Two thin REST clients written by hand with httpx, no vendor SDK. One talks to a local Ollama server, the other to Google's Gemini API.", "how": ["Ollama: POST {OLLAMA_HOST}/api/chat with stream false; JSON mode sets format: json. Default model qwen2.5:7b.", "Gemini: POST models/{model}:generateContent with GEMINI_API_KEY. Default model gemini-flash-latest.", "Both retry 500/502/503/504 up to 2 times with growing waits; other errors fail at once.", "A 404 from Ollama becomes 'pull it first with ollama pull <model>'.", "Empty replies raise an error instead of returning blank text."], "ideas": ["Writing the REST calls directly avoids a heavy SDK dependency (stated in the Gemini client docstring)."], "files": ["local_mcp/ollama/client.py: local Ollama chat client", "local_mcp/gemini/client.py: Gemini REST client"]}, {"id": "disk", "label": "Your disk", "group": "ext", "ext": true, "x": 900, "y": 770, "role": "The newsstand shelf", "what": "Your computer's files. generate_file writes only inside LOCAL_MCP_FILE_OUTPUT_DIR; the document and OCR tools can read local files you name."}, {"id": "llmsrv", "label": "Ollama or Gemini", "group": "ext", "ext": true, "x": 620, "y": 920, "role": "The freelance writer", "what": "The language model that ranks sources, takes notes and writes summaries: a local Ollama server (default) or Google's Gemini API in the cloud."}], "imports": {"app": ["registry", "web"], "registry": ["webtools", "research", "filegen", "readers"], "webtools": ["web", "search", "shared"], "research": ["search", "web", "llm", "shared", "filegen"], "filegen": ["research", "shared"], "readers": ["shared", "web"], "web": ["shared"], "llm": ["providers"], "tests": ["app", "registry", "webtools", "research", "filegen", "readers", "web", "search", "llm", "shared"]}, "key": ["app>registry", "registry>webtools", "registry>research", "registry>filegen", "webtools>web", "webtools>search", "research>search", "research>web", "research>llm", "llm>providers", "filegen>research"], "runtime": [["user", "client", "asks a question"], ["client", "app", "MCP over stdio/HTTP"], ["client", "openwebui", "calls tool method"], ["openwebui", "app", "POST /mcp + SSE"], ["search", "searxng", "GET /search JSON"], ["web", "internet", "httpx or browser"], ["readers", "internet", "download file"], ["readers", "disk", "read local file"], ["providers", "llmsrv", "chat request"], ["filegen", "disk", "write report"], ["setup", "searxng", "docker run"]], "tour": {"button": "Play one research-to-PDF job", "steps": [{"a": "user", "b": "client", "t": "A question arrives", "x": "You type: 'Make me a PDF on how solar panels are recycled.' The model in your chat app sees local-mcp's tool list and decides to call generate_file.", "k": "A reader writes to the paper; the editor-in-chief decides to commission a printed report."}, {"a": "client", "b": "app", "t": "Tool call sent", "x": "The app sends an MCP tools/call: generate_file with filename 'solar-recycling', file_type 'pdf', query 'how are solar panels recycled'. It travels over stdio, or HTTP to 127.0.0.1:3002/mcp.", "k": "The editor drops an assignment slip on the newsroom front desk."}, {"a": "app", "b": "registry", "t": "Find the tool", "x": "FastMCP looks up generate_file among the tools registered at startup. Its typed parameters were turned into a schema, so the arguments are checked (for example file_type must be one of md, txt, pdf, docx, pptx).", "k": "The front desk checks the assignment board to see which desk handles printed reports."}, {"a": "registry", "b": "filegen", "t": "generate_file starts", "x": "generate_file sees a query and no content, so it is query mode. search_mode defaults to 'smart', so it will call smart_search and pass along the request context for progress.", "k": "The print shop gets the job, but first needs a story written."}, {"a": "filegen", "b": "research", "t": "Hand off to research", "x": "smart_search checks the LLM is configured, then plans max_sources + 3 progress steps (6 for the default 3 sources).", "k": "The print shop asks the investigations desk to write the article."}, {"a": "research", "b": "shared", "t": "Live progress", "x": "Progress.report('Searching the web for ...') sends an MCP notifications/progress message. OpenWebUI shows it as a status line; if the client sent no progress token, nothing is sent.", "k": "The desk calls the editor: 'We're on it, phoning the wire now.'"}, {"a": "research", "b": "search", "t": "Ask for leads", "x": "It asks for 3 x 4 = 12 candidate results (kept between 6 and 20) from the SearXNG client.", "k": "A reporter rings the news-wire operator for leads."}, {"a": "search", "b": "searxng", "t": "Search the wire", "x": "GET http://127.0.0.1:8888/search?q=...&format=json. If that instance fails, the next one in SEARXNG_URLS is tried. Results come back cleaned and de-duplicated.", "k": "The wire service sends back a list of headlines and where to find them."}, {"a": "research", "b": "llm", "t": "Rank the leads", "x": "The 12 titles, URLs and snippets go into a prompt asking for JSON like {\"indexes\": [4, 0, 7, ...]}. If the reply is not valid JSON, the code pulls numbers out of the text or keeps the search order.", "k": "The desk asks the writer which leads look most trustworthy."}, {"a": "llm", "b": "providers", "t": "Pick the backend", "x": "LLM_PROVIDER is 'ollama' by default, so the Ollama client builds a /api/chat request with format: json and temperature 0.", "k": "The switchboard connects to whichever writer is on shift today."}, {"a": "providers", "b": "llmsrv", "t": "The model answers", "x": "Ollama running qwen2.5:7b on your machine replies with the ranked list. Server errors are retried twice with a short wait.", "k": "The freelance writer phones back with a ranked list."}, {"a": "research", "b": "web", "t": "Read the best pages", "x": "Going down the ranked list, each URL is fetched until 3 pages load with real content. A page that times out or blocks is skipped and the next one is tried.", "k": "Runners go out to the top leads; if a door is locked they move to the next address."}, {"a": "web", "b": "internet", "t": "Fetch, then render if empty", "x": "httpx downloads the HTML. If the Markdown is under 200 characters (a JavaScript-heavy page), a headless Crawl4AI browser renders it instead. Each page is cut to 16,000 characters.", "k": "If a shop window is dark, the runner goes inside with a torch."}, {"a": "research", "b": "llm", "t": "Write the cited summary", "x": "The three pages go to the model with a system prompt: answer only from these sources and cite [1], [2], [3]. The result is the summary plus a numbered 'Sources:' list.", "k": "The writer drafts the article using only the runners' notes, with footnotes."}, {"a": "filegen", "b": "disk", "t": "Print the PDF", "x": "The answer gets a '# query' heading. markdown.py resolves solar-recycling.pdf inside LOCAL_MCP_FILE_OUTPUT_DIR, refuses anything outside it, and pdf.py renders the pages by hand.", "k": "The print shop prints the article and puts it on the one shelf it is allowed to use."}, {"a": "filegen", "b": "client", "t": "Report back", "x": "The tool returns 'PDF file generated.' with path, bytes, characters and whether a file was overwritten. The model tells you where the file is.", "k": "The desk hands the editor a receipt saying where the printed copy sits."}]}, "gloss": [["MCP (Model Context Protocol)", "An open standard for how an AI app finds and calls tools that live in another program. The app is the client, the tool program is the server.", "The standard assignment-slip format every newsroom agrees to use.", "app"], ["MCP server", "The program that offers tools. local-mcp is one.", "The newsroom that takes assignments.", "app"], ["MCP client", "The AI app that connects to servers and forwards the model's tool calls, e.g. Claude Desktop or OpenWebUI.", "The editor-in-chief sending slips.", "openwebui"], ["Tool", "A named function the model may call, with described parameters. Here, a Python async function registered with FastMCP.", "One desk's job, like 'fetch this page'.", "registry"], ["FastMCP", "Part of the official MCP Python package. It reads a function's name, docstring and type hints and turns them into a tool definition.", "A clerk who turns each desk's job description into a printed menu.", "app"], ["stdio transport", "The client starts the server as a child program and they talk through its standard input and output. Used by Claude Desktop.", "Passing slips through a hatch in the wall.", "app"], ["Streamable HTTP", "MCP over normal web requests to /mcp; long replies can stream back as Server-Sent Events.", "Sending slips by courier to the newsroom's street address.", "app"], ["Server-Sent Events (SSE)", "A way for a server to keep a web response open and push several messages down it, one after another.", "A runner who keeps phoning back updates on the same call.", "openwebui"], ["Progress notification", "An MCP message (notifications/progress) a server sends during a long tool call to say how far along it is.", "'Crawling source 2 of 3' shouted across the room.", "shared"], ["Progress token", "An id the client attaches to a request to say 'yes, send me progress for this one'.", "A ticket number the editor gives so updates reach the right desk.", "shared"], ["Tool profile", "LOCAL_MCP_TOOL_PROFILE: full (8 tools), simple (5 easier tools) or both.", "Which desks are open today.", "registry"], ["Discovery vs evidence", "The project's rule: search results are only leads (discovery); fetched page text is evidence; the final answer must be the model's own summary of evidence.", "A headline is a lead; a reporter must read the source before printing.", "webtools"], ["Agent guidance", "Instruction text embedded inside a tool's output (e.g. 'call web_fetch next, do not paste this') to steer weaker models.", "A sticky note on every file saying what to do with it.", "shared"], ["SearXNG", "A free, self-hosted 'meta' search engine that asks other engines and merges results; can return JSON.", "The news wire service.", "search"], ["Failover", "If the first SearXNG address fails, try the next one in the list.", "If one wire line is dead, call the backup line.", "search"], ["httpx", "A Python library for making web requests, with async support.", "The runner's bicycle.", "web"], ["Headless browser", "A real web browser running with no window, controlled by code, so JavaScript-built pages appear fully.", "A runner who goes inside with a torch when the window is dark.", "web"], ["Crawl4AI", "An optional library that drives a headless browser and returns page Markdown.", "The torch kit, only bought if needed.", "web"], ["Markdown", "Plain text with light marks like # for headings and - for bullets. Easy for models to read.", "The newsroom's standard typed-up notes format.", "web"], ["robots.txt", "A file at a site's root with rules for crawlers and often the address of its sitemap.", "The sign on the door listing where the building directory is.", "web"], ["Sitemap", "An XML file listing a site's pages.", "The building directory in the lobby.", "web"], ["LLM (large language model)", "The AI text model. Here it ranks sources, takes notes and writes summaries inside the research tools.", "The hired writer.", "llm"], ["Ollama", "A program that runs open-source language models on your own computer and offers a local HTTP API.", "A writer who works in-house, free, on your premises.", "providers"], ["Gemini", "Google's hosted language model, reached with an API key.", "A writer from an outside agency, billed per job.", "providers"], ["JSON mode", "Asking the model to reply only with valid JSON, used for rankings, plans and reflections.", "Asking the writer to fill in a form, not write prose.", "providers"], ["Evidence ledger", "deep_research's list of short notes per source, tagged [n], used instead of whole pages when writing the report.", "The index cards on the investigations desk.", "research"], ["Reflection", "A step where the model reads the notes so far and says what is missing, producing new search queries.", "The desk asks 'what don't we know yet?' before sending runners out again.", "research"], ["Verification pass", "A final model call that lists claims in the report the notes do not support.", "The fact-checker reading the draft against the cards.", "research"], ["Inline citation", "A marker like [2] in the text pointing to a numbered source.", "A footnote number.", "research"], ["OCR", "Optical character recognition: reading text from an image.", "A clerk who types up a photographed page.", "readers"], ["Tesseract", "A free OCR program that must be installed separately; pytesseract calls it from Python.", "The clerk's magnifying reader machine.", "readers"], ["Parser backend", "The library that pulls text out of a document: pypdf, PyMuPDF4LLM, pdfplumber, Docling, Marker, MinerU or plain text.", "Different archive clerks, some fast, some very thorough.", "readers"], ["Base64 / data URL", "Ways to send a file's bytes as plain text inside a request.", "A document read aloud over the phone instead of mailed.", "readers"], ["Output folder sandbox", "generate_file writes only inside LOCAL_MCP_FILE_OUTPUT_DIR and refuses absolute paths or '..'.", "The print shop may only use one shelf.", "filegen"], ["Append mode", "Adding text to an existing md/txt file in chunks instead of writing it all at once.", "Printing a long story one page at a time.", "filegen"], ["OpenWebUI", "A self-hosted chat web app for local models that can run pasted-in Python 'tools'.", "A partner paper that sends assignments by courier.", "openwebui"], ["ASGI", "The Python standard for async web servers; app.py exposes an 'app' object any ASGI host can run.", "The standard loading dock any delivery company can use.", "app"], ["DNS rebinding protection", "A check that rejects requests whose Host header is not localhost, blocking tricks from malicious websites. Disabled here.", "A guard who checks the courier really came from inside the building.", "app"], ["Virtual environment (venv)", "A private folder of Python packages for one project.", "The newsroom's own supply cupboard.", "setup"], ["Extras", "Optional dependency groups in pyproject.toml, installed with pip install \".[name]\".", "Optional equipment you can order for a desk.", "setup"], ["Environment variable / .env", "Settings read from the environment; python-dotenv loads them from a .env file.", "The notice board of house rules.", "setup"], ["async / await", "Python's way of waiting for slow things like web requests without blocking everything else.", "Reporters wait for phone calls while others keep working.", "research"]], "check": {"against": "a production-ready local MCP research server", "lede": "Built by reading the code, README and docs, measured against what a safe, maintained MCP tool server for daily use would need. It is my checklist, not the authors'.", "cats": [{"cat": "Protocol and transport", "node": "app", "items": [["stdio transport", "done", "cli.py runs mcp.run(transport='stdio') by default"], ["HTTP transport", "done", "--http runs Streamable HTTP on 127.0.0.1:3002/mcp"], ["Health check", "done", "GET /health returns {status: ok}"], ["Auth on HTTP port", "missing", "no token or login on /mcp"], ["DNS-rebinding protection", "missing", "explicitly disabled in app.py for remote deploys"], ["Clean shutdown", "done", "lifespan hook closes the shared browser"]]}, {"cat": "Web search and fetch", "node": "webtools", "items": [["Search without API keys", "done", "self-hosted SearXNG JSON API"], ["Search failover", "done", "SEARXNG_URLS comma list tried in order"], ["JavaScript page support", "done", "Crawl4AI fallback when Markdown < 200 chars"], ["Obeys robots.txt rules", "missing", "robots.txt is only read to find sitemaps"], ["Blocks private/local addresses", "missing", "normalize_url only checks http/https scheme"], ["Caching or rate limiting", "missing", "every call fetches fresh; Crawl4AI cache bypassed"]]}, {"cat": "LLM research", "node": "research", "items": [["One-shot cited answer", "done", "smart_search"], ["Iterative research report", "done", "deep_research with plan, rounds, reflect"], ["Fact-check pass", "done", "_verify lists unsupported claims"], ["Robust to bad model output", "done", "fallbacks on every JSON parse"], ["Pluggable model provider", "done", "llm/client.py: Ollama or Gemini"], ["Overall time budget", "partial", "bounded by breadth, rounds and sources, but no total timeout"]]}, {"cat": "Documents and OCR", "node": "readers", "items": [["PDF to Markdown", "done", "pypdf by default, faster/better parsers optional"], ["Page ranges", "done", "pages='1-3,5'"], ["Size limits", "done", "100 MB documents, 20 MB images by default"], ["Image OCR", "done", "Tesseract via pytesseract, any language code"], ["Restrict which local files can be read", "missing", "any path the model names is opened"]]}, {"cat": "File output", "node": "filegen", "items": [["Multiple formats", "done", "md, txt, pdf, docx, pptx"], ["Write only inside one folder", "done", "path checks in markdown.py"], ["No silent overwrite", "done", "overwrite defaults to false"], ["Chunked writing for long files", "partial", "append works for md/txt only"], ["Rich PDF layout", "partial", "hand-made text PDF; no images or tables"]]}, {"cat": "Small-model support", "node": "registry", "items": [["Reduced tool set", "done", "LOCAL_MCP_TOOL_PROFILE=simple"], ["Guidance inside outputs", "done", "discovery and evidence envelopes"], ["Minimum length guard", "done", "min_words on generate_file"], ["Search in simple profile", "missing", "simple set has fetch but no web_search"]]}, {"cat": "Quality and maintenance", "node": "tests", "items": [["Unit tests", "done", "59 offline unittest cases"], ["CI pipeline", "missing", "no .github or other CI config"], ["Live integration tests", "missing", "by design tests avoid the network"], ["Dead code cleanup", "partial", "shared/summarize.py only used by its tests"]]}, {"cat": "Documentation", "node": "docs", "items": [["README with setup and every tool", "done", "265-line README"], ["Architecture guide", "done", "docs/ARCHITECTURE.md"], ["Per-tool docs", "done", "one page per tool in docs/"], ["Docs match the code", "partial", "prompt.md and docs/README.md describe older web_search; deep_research missing from index"]]}], "note": "This is an outside checklist. The repo has no TODO list or roadmap. Its own docs frame it as a local tool for Claude Desktop and OpenWebUI, so some 'missing' items (auth, address blocking) matter mainly if you expose the HTTP port or let an untrusted model drive it."}, "design": [["No vendor LLM SDK", "The Gemini client calls the REST API with httpx 'rather than the heavy google-generativeai SDK to avoid adding a dependency' (gemini/client.py)."], ["Crawl4AI not in core requirements", "It pulls in Playwright and about 600 MB of ML packages, which exceeds Vercel's bundle limit and cannot run on serverless anyway (requirements.txt comment)."], ["Marker and MinerU as separate extras", "marker-pdf needs Pillow < 11 and mineru needs Pillow >= 11, so they cannot be installed together (pyproject.toml)."], ["web_search does not summarise", "It is kept discovery-only so small models must fetch real pages before answering; earlier versions that summarised (web_summarize, an 'overall summary') were removed."], ["DNS-rebinding protection off", "Public ASGI hosts use their own domain as Host and FastMCP's check would reject them (app.py comment)."], ["Offline tests only", "ARCHITECTURE.md says default validation is 'intentionally local and non-networked'."]], "numbers": [["8", "tools in the full profile"], ["5", "tools in the simple profile"], ["7", "document parser backends"], ["5", "output file formats"], ["2", "LLM backends (Ollama, Gemini)"], ["59", "unit tests"], ["12", "setup menu options"]], "phases": [{"id": "p1", "name": "claw-site: one-file crawler", "dates": "Jun 8 - Jun 17", "goal": "A single server.py MCP server that lists a site's URLs, then grows OCR, readable-content extraction, a Vercel-friendly build and an OpenWebUI bridge."}, {"id": "p2", "name": "Search, rename, documents", "dates": "Jun 30 - Jul 1", "goal": "Add SearXNG web search, rename the project from claw-site to local-mcp, write per-tool docs and add PDF/document parsing."}, {"id": "p3", "name": "Package refactor", "dates": "Jul 1 - Jul 3", "goal": "Move flat root files into the local_mcp/ package with tools/, web/, search/, documents/ layers, add tests, a setup menu and Docker SearXNG management, then delete the old root files."}, {"id": "p4", "name": "Fetch and file output", "dates": "Jul 2 - Jul 5", "goal": "Add web_fetch, the generate_file tool, a search-to-file tool and a hand-made PDF writer, plus a Mac PDF-parser fix."}, {"id": "p5", "name": "Taming small models", "dates": "Jul 5 - Jul 13", "goal": "Make Qwen-class local models use the tools properly: simple tool profile, min_words, discovery/evidence envelopes, many experiments with summarising search that were later stripped back."}, {"id": "p6", "name": "LLM research tools", "dates": "Jul 13 - Jul 15", "goal": "Add smart_search (Gemini first, then local Ollama by default) and the multi-round deep_research tool."}, {"id": "p7", "name": "Unify and polish", "dates": "Jul 18 - Jul 21", "goal": "Merge all file tools into one generate_file with md/txt/pdf/docx/pptx and query mode, and add live progress reporting through to OpenWebUI."}], "commits": {"a4ef270": ["feature", "p1", "First version under the name claw-site: a flat server.py with one MCP tool, extract_urls, that reads robots.txt and sitemaps, fetches the page with httpx and falls back to crawl4ai for links. Also errors.py, fetcher.py, sitemap.py and a prompt list."], "76e95c6": ["feature", "p1", "Adds extract_image_text: a 221-line ocr.py that loads images from paths, URLs, data URLs or base64 and runs Tesseract through pytesseract, registered as a second tool."], "91ddb76": ["feature", "p1", "extract_urls gains a same_path option so asking for example.com/blogs only returns /blogs and /blogs/... links; sitemap collection gets a URL filter."], "b64e5b7": ["feature", "p1", "extract_urls now labels each URL with where it came from (robots.txt, sitemap.xml, httpx, Crawl4AI) and prints count stats at the top."], "8cd3dc3": ["fix", "p1", "Adds a module-level app = mcp.streamable_http_app() so Vercel's Python runtime can find and serve the server."], "cdfe72c": ["fix", "p1", "Makes crawl4ai optional: the import is guarded with a clear install message, and it moves out of requirements.txt into a 'browser' extra because it is too large for serverless."], "90ab5e4": ["config", "p1", "Turns off FastMCP's DNS-rebinding protection so the server accepts requests addressed to a public deployment domain. Convenient for hosting, weaker for localhost."], "279c20b": ["feature", "p1", "Despite the message 'Fixed Some Issue', this adds openwebui_tool.py: a 230-line OpenWebUI tool that speaks MCP over HTTP to the server."], "7f721c6": ["feature", "p1", "Adds an extract_content tool that turns a page into readable Markdown (httpx then HTML-to-Markdown, crawl4ai Markdown for JS pages). It later becomes web_fetch."], "b3e14a2": ["refactor", "p1", "Reworks the OpenWebUI bridge: better docstrings, error handling and a method for the new extract_content tool."], "198511e": ["feature", "p2", "By nayan-dey: adds the SearXNG web_search tool (searxng.py client with failover), a SearXNG settings file enabling JSON, and the matching OpenWebUI method."], "f39351a": ["fix", "p2", "Changes the default SearXNG address from port 8080 to 8888 (the Docker mapping) so search works on Mac, and adjusts the OpenWebUI bridge."], "328390f": ["docs", "p2", "Renames claw-site to local-mcp everywhere (env prefix becomes LOCAL_MCP_*) and adds a docs/ folder with long pages for each tool."], "0ad17b2": ["feature", "p2", "Adds parse_document: a 756-line document_parser.py supporting pypdf, PyMuPDF4LLM, pdfplumber, Docling, Marker, MinerU and plain text, plus optional extras in pyproject.toml."], "18f5445": ["refactor", "p3", "The big restructure: code moves into the local_mcp/ package (tools/, web/, search/, documents/, ocr/, shared/), old root files become thin wrappers, setup_and_run.py, ARCHITECTURE.md and the first unit tests appear."], "d0c111a": ["ux", "p3", "Gives setup_and_run.py coloured output (with Windows ANSI support) and clearer menu prompts."], "9b42d75": ["other", "p3", "Merge of pull request #1 (refactor/package-local-mcp) into main, bringing in the package layout."], "661f35b": ["feature", "p4", "Adds the first generate_file tool, which writes Markdown into a required output folder (LOCAL_MCP_FILE_OUTPUT_DIR) with path checks, plus tests and docs."], "97a23d3": ["feature", "p4", "By nayan-dey: adds web_fetch, a richer scraping tool on top of new html.py helpers (metadata, images, Markdown), with tests."], "daa742e": ["fix", "p4", "Splits the 'document-deep' extra into document-deep-marker and document-deep-mineru because their Pillow version needs conflict, fixing installs on Mac."], "5e5269b": ["other", "p4", "Merges the feat/web-fetch branch, resolving conflicts in README, ARCHITECTURE, docs index and pyproject."], "25e8ac8": ["refactor", "p3", "Deletes the old root files (server.py, fetcher.py, ocr.py, searxng.py, document_parser.py and others, about 3,800 lines) now that everything lives in local_mcp/; adds __main__.py and improves the setup menu's status report."], "dcd3bb0": ["ux", "p3", "Reorders and relabels the setup menu so it shows before any install, and updates setup docs."], "f3d38f2": ["feature", "p3", "Adds menu option 12 to restart a local SearXNG Docker container on port 8888 with the bundled settings, and documents the docker run command."], "e08bbf7": ["feature", "p4", "Adds web_search_to_file, which searches and writes results straight into a Markdown file, and adds append mode to the file writer. prompt.txt becomes prompt.md."], "dbdfbfc": ["other", "p4", "Merge of pull request #2 (feat/web_search_to_file) into main."], "67e5a93": ["feature", "p4", "Adds PDF output: a 284-line pdf.py that lays out pages and writes raw PDF objects by hand, with no PDF library."], "71c7876": ["feature", "p5", "Adds web_summarize, a 432-line addition to web.py that fetches several URLs or search results and summarises them. Removed again four commits later."], "ba124f7": ["feature", "p5", "Adds the tool-profile system (full/simple/both) and simple.py wrappers for small models, an automatic fetch-and-summarise follow-up on web_search, and the min_words length guard, with a long compatibility doc."], "5c1ee8a": ["refactor", "p5", "By sam: changes web_search output to put the follow-up summary first and hide metadata, and trims web.py."], "79f2052": ["refactor", "p5", "Removes web_summarize and its docs, tests and OpenWebUI method (about 875 lines deleted), trying to fix web_search by simplifying."], "9e49b3b": ["other", "p5", "Merges sam's web_search optimisation with the local removal of web_summarize, resolving conflicts in search.py and tests."], "19af0df": ["feature", "p5", "web_search now returns an 'Overall Summary' built from snippets plus a plain list of source titles and URLs."], "6ceef3a": ["feature", "p5", "Reframes the tools for local models: web_search becomes a discovery-only JSON envelope, web_fetch an evidence envelope, with guidance.py holding the workflow text and a new extractive summarize.py."], "49dd916": ["refactor", "p5", "Strips the envelopes back down: drops prefetch modes, scores and server-side summaries, so web_search returns just urls plus guidance and web_fetch returns url plus content. About 800 lines removed."], "e288392": ["feature", "p6", "Adds smart_search: SearXNG search, Gemini ranks all candidates, crawl down the ranking until enough pages load, Gemini writes a cited summary. Adds the gemini/ REST client and web/content.py shared fetch helper."], "c2e193f": ["feature", "p6", "By sam: adds llm/client.py to switch between providers and an ollama/ client, making local Ollama (qwen2.5:7b) the default so no API key is needed."], "a16a530": ["feature", "p6", "Adds deep_research (442 lines): plan sub-questions, concurrent search rounds, per-source notes, reflection for new queries, long report synthesis and a verification pass, with tests."], "7421434": ["feature", "p7", "Folds generate_file and web_search_to_file into one generate_file with content or query mode (smart or deep research) and adds txt, Word and PowerPoint output via python-docx and python-pptx."], "4ad139e": ["feature", "p7", "Adds shared/progress.py and progress calls in every tool, sent on the same HTTP stream as the result, and rewrites the OpenWebUI bridge to read the SSE stream and show live status lines."]}, "standalone": true, "commitsData": [{"h": "a4ef270", "date": "2026-06-08", "author": "shadab15github", "subj": "Initial Commit", "body": "", "add": 623, "del_": 0, "files": 10, "areas": {"setup": [52, 0], "docs": [63, 0], "other": [508, 0]}, "code": [488, 0], "test": [0, 0], "docs": [135, 0], "paths": [".gitignore", "README.md", "errors.py", "extract.py", "fetcher.py", "prompt.txt", "pyproject.toml", "requirements.txt", "server.py", "sitemap.py"], "fa": {"setup": 3, "docs": 1, "other": 6}}, {"h": "76e95c6", "date": "2026-06-13", "author": "shadab15github", "subj": "extract_image_text: Complete the tool with local file text extraction", "body": "", "add": 280, "del_": 7, "files": 6, "areas": {"docs": [17, 3], "other": [256, 1], "setup": [7, 3]}, "code": [251, 4], "test": [0, 0], "docs": [29, 3], "paths": ["README.md", "ocr.py", "prompt.txt", "pyproject.toml", "requirements.txt", "server.py"], "fa": {"setup": 3, "docs": 1, "other": 7}}, {"h": "91ddb76", "date": "2026-06-13", "author": "shadab15github", "subj": "extract_urls: Now User can extract the Url From Same Path", "body": "", "add": 61, "del_": 7, "files": 5, "areas": {"docs": [1, 0], "other": [60, 7]}, "code": [54, 7], "test": [0, 0], "docs": [7, 0], "paths": ["README.md", "errors.py", "prompt.txt", "server.py", "sitemap.py"], "fa": {"setup": 3, "docs": 1, "other": 7}}, {"h": "b64e5b7", "date": "2026-06-13", "author": "shadab15github", "subj": "extract_urls: Also add stats numbers", "body": "", "add": 70, "del_": 30, "files": 3, "areas": {"docs": [1, 1], "other": [69, 29]}, "code": [69, 29], "test": [0, 0], "docs": [1, 1], "paths": ["README.md", "server.py", "sitemap.py"], "fa": {"setup": 3, "docs": 1, "other": 7}}, {"h": "8cd3dc3", "date": "2026-06-15", "author": "shadab15github", "subj": "Fixed Build Issue", "body": "", "add": 5, "del_": 0, "files": 1, "areas": {"other": [5, 0]}, "code": [5, 0], "test": [0, 0], "docs": [0, 0], "paths": ["server.py"], "fa": {"setup": 3, "docs": 1, "other": 7}}, {"h": "cdfe72c", "date": "2026-06-16", "author": "shadab15github", "subj": "Handle missing crawl4ai dependency gracefully and update documentation", "body": "", "add": 18, "del_": 4, "files": 3, "areas": {"other": [7, 1], "setup": [11, 3]}, "code": [13, 2], "test": [0, 0], "docs": [5, 2], "paths": ["fetcher.py", "pyproject.toml", "requirements.txt"], "fa": {"setup": 3, "docs": 1, "other": 7}}, {"h": "90ab5e4", "date": "2026-06-16", "author": "shadab15github", "subj": "Configure transport security settings to disable DNS rebinding protection for remote deployments", "body": "", "add": 8, "del_": 0, "files": 1, "areas": {"other": [8, 0]}, "code": [8, 0], "test": [0, 0], "docs": [0, 0], "paths": ["server.py"], "fa": {"setup": 3, "docs": 1, "other": 7}}, {"h": "279c20b", "date": "2026-06-17", "author": "sam", "subj": "Fixed Some Issue", "body": "", "add": 231, "del_": 0, "files": 2, "areas": {"setup": [1, 0], "other": [230, 0]}, "code": [231, 0], "test": [0, 0], "docs": [0, 0], "paths": [".gitignore", "openwebui_tool.py"], "fa": {"setup": 3, "docs": 1, "other": 8}}, {"h": "7f721c6", "date": "2026-06-17", "author": "shadab15github", "subj": "tool-extract_content: Implement the extract content tool", "body": "", "add": 147, "del_": 48, "files": 7, "areas": {"docs": [9, 0], "other": [136, 48], "setup": [2, 0]}, "code": [125, 0], "test": [0, 0], "docs": [22, 48], "paths": ["README.md", "extract.py", "fetcher.py", "prompt.txt", "pyproject.toml", "requirements.txt", "server.py"], "fa": {"setup": 3, "docs": 1, "other": 8}}, {"h": "b3e14a2", "date": "2026-06-17", "author": "shadab15github", "subj": "Refactor OpenWebUI tool: Improve documentation, enhance error handling, and add extract_content method", "body": "", "add": 106, "del_": 55, "files": 1, "areas": {"other": [106, 55]}, "code": [106, 55], "test": [0, 0], "docs": [0, 0], "paths": ["openwebui_tool.py"], "fa": {"setup": 3, "docs": 1, "other": 8}}, {"h": "198511e", "date": "2026-06-30", "author": "nayan-dey", "subj": "added new tool", "body": "", "add": 426, "del_": 4, "files": 8, "areas": {"docs": [42, 1], "other": [366, 0], "setup": [18, 3]}, "code": [369, 3], "test": [0, 0], "docs": [57, 1], "paths": ["README.md", "openwebui_tool.py", "prompt.txt", "pyproject.toml", "requirements.txt", "searxng-settings.yml", "searxng.py", "server.py"], "fa": {"setup": 4, "docs": 1, "other": 9}}, {"h": "f39351a", "date": "2026-06-30", "author": "sam", "subj": "Fixed: Now Web Search Is worked on Mac", "body": "", "add": 25, "del_": 14, "files": 2, "areas": {"other": [25, 14]}, "code": [25, 14], "test": [0, 0], "docs": [0, 0], "paths": ["openwebui_tool.py", "searxng.py"], "fa": {"setup": 4, "docs": 1, "other": 9}}, {"h": "328390f", "date": "2026-07-01", "author": "shadab15github", "subj": "chore: rename MCP server to local-mcp and add tool docs", "body": "- Add docs for web_search, extract_urls, extract_content, and extract_image_text\n- Rename server/package identity from claw-site to local-mcp\n- Update CLI entry point, health response, OpenWebUI client, README, and prompts\n- Replace project env var prefix with LOCAL_MCP_* in code and documentation", "add": 1234, "del_": 43, "files": 14, "areas": {"docs": [1198, 7], "other": [31, 31], "setup": [5, 5]}, "code": [20, 20], "test": [0, 0], "docs": [1214, 23], "paths": ["README.md", "docs/README.md", "docs/extract_content.md", "docs/extract_image_text.md", "docs/extract_urls.md", "docs/web_search.md", "fetcher.py", "ocr.py", "openwebui_tool.py", "prompt.txt", "pyproject.toml", "requirements.txt", "searxng.py", "server.py"], "fa": {"setup": 4, "docs": 6, "other": 9}}, {"h": "0ad17b2", "date": "2026-07-01", "author": "shadab15github", "subj": "Add document parsing capabilities with multiple parser backends", "body": "- Introduced `parse_document` tool for parsing PDFs and documents into Markdown, plain text, or JSON.\n- Updated `pyproject.toml` and `requirements.txt` to include new dependencies for document parsing.\n- Created `document_parser.py` for handling document parsing logic with support for various parsers like pypdf, pymupdf4llm, pdfplumber, docling, marker, and mineru.\n- Enhanced server functionality to integrate document parsing.\n- Updated documentation to include usage examples and parser selection details.", "add": 1147, "del_": 7, "files": 9, "areas": {"docs": [274, 3], "other": [865, 1], "setup": [8, 3]}, "code": [858, 4], "test": [0, 0], "docs": [289, 3], "paths": ["README.md", "docs/README.md", "docs/parse_document.md", "document_parser.py", "openwebui_tool.py", "prompt.txt", "pyproject.toml", "requirements.txt", "server.py"], "fa": {"setup": 4, "docs": 7, "other": 10}}, {"h": "18f5445", "date": "2026-07-01", "author": "shadab15github", "subj": "- Move active implementation into local_mcp package modules - Add compatibility wrappers for existing root entry points - Add setup_and_run.py for dependency install and MCP run options - Add architecture documentation - Add unittest coverage for helpers and compatibility imports", "body": "", "add": 3785, "del_": 19, "files": 53, "areas": {"docs": [160, 16], "other": [107, 0], "openwebui": [385, 0], "app": [77, 0], "readers": [1743, 0], "search": [188, 0], "shared": [178, 0], "registry": [18, 0], "webtools": [277, 0], "web": [339, 0], "setup": [154, 3], "tests": [159, 0]}, "code": [3466, 3], "test": [159, 0], "docs": [160, 16], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/extract_content.md", "docs/extract_image_text.md", "docs/extract_urls.md", "docs/parse_document.md", "docs/web_search.md", "document_parser.py", "errors.py", "extract.py", "fetcher.py", "integrations/__init__.py", "integrations/openwebui_tool.py", "local_mcp/__init__.py", "local_mcp/app.py", "local_mcp/cli.py", "local_mcp/documents/__init__.py", "local_mcp/documents/api.py", "local_mcp/documents/formatting.py", "local_mcp/documents/models.py", "local_mcp/documents/parsers.py", "local_mcp/documents/service.py", "local_mcp/documents/source.py", "local_mcp/ocr/__init__.py", "local_mcp/ocr/tesseract.py", "local_mcp/search/__init__.py", "local_mcp/search/searxng.py", "local_mcp/shared/__init__.py", "local_mcp/shared/errors.py", "local_mcp/shared/files.py", "local_mcp/shared/urls.py", "local_mcp/tools/__init__.py", "local_mcp/tools/documents.py", "local_mcp/tools/ocr.py", "local_mcp/tools/search.py", "local_mcp/tools/web.py", "local_mcp/web/__init__.py", "local_mcp/web/fetcher.py", "local_mcp/web/html.py", "local_mcp/web/sitemap.py", "ocr.py", "openwebui_tool.py", "pyproject.toml", "searxng.py", "server.py", "setup_and_run.py", "sitemap.py", "tests/test_compatibility_imports.py", "tests/test_document_helpers.py", "tests/test_search_helpers.py", "tests/test_shared_urls.py", "tests/test_web_helpers.py"], "fa": {"setup": 5, "docs": 8, "other": 10, "openwebui": 2, "app": 3, "readers": 11, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 5}}, {"h": "d0c111a", "date": "2026-07-01", "author": "shadab15github", "subj": "Enhance terminal interface with color support and improved user prompts", "body": "", "add": 121, "del_": 29, "files": 1, "areas": {"setup": [121, 29]}, "code": [121, 29], "test": [0, 0], "docs": [0, 0], "paths": ["setup_and_run.py"], "fa": {"setup": 5, "docs": 8, "other": 10, "openwebui": 2, "app": 3, "readers": 11, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 5}}, {"h": "9b42d75", "date": "2026-07-01", "author": "Shadab Khan", "subj": "Merge pull request #1 from mymacmeet-crypto/refactor/package-local-mcp", "body": "Refactor/package local mcp", "add": 0, "del_": 0, "files": 0, "areas": {}, "code": [0, 0], "test": [0, 0], "docs": [0, 0], "paths": [], "fa": {"setup": 5, "docs": 8, "other": 10, "openwebui": 2, "app": 3, "readers": 11, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 5}}, {"h": "661f35b", "date": "2026-07-02", "author": "shadab15github", "subj": "Implement file generation tool with Markdown support and update documentation", "body": "", "add": 424, "del_": 7, "files": 14, "areas": {"setup": [8, 2], "docs": [119, 3], "openwebui": [38, 0], "filegen": [170, 0], "registry": [2, 1], "other": [2, 0], "tests": [85, 1]}, "code": [220, 3], "test": [85, 1], "docs": [119, 3], "paths": [".env.example", "README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/generate_file.md", "integrations/openwebui_tool.py", "local_mcp/file_generation/__init__.py", "local_mcp/file_generation/markdown.py", "local_mcp/tools/__init__.py", "local_mcp/tools/file_generation.py", "pyproject.toml", "server.py", "tests/test_compatibility_imports.py", "tests/test_file_generation.py"], "fa": {"setup": 6, "docs": 9, "other": 10, "openwebui": 2, "app": 3, "readers": 11, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 6}}, {"h": "97a23d3", "date": "2026-07-02", "author": "nayan-dey", "subj": "Add web fetch scraping tool", "body": "", "add": 832, "del_": 14, "files": 14, "areas": {"docs": [179, 5], "openwebui": [47, 0], "registry": [1, 0], "webtools": [225, 1], "web": [186, 5], "other": [16, 1], "setup": [2, 2], "tests": [176, 0]}, "code": [463, 9], "test": [176, 0], "docs": [193, 5], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/web_fetch.md", "integrations/openwebui_tool.py", "local_mcp/tools/__init__.py", "local_mcp/tools/web.py", "local_mcp/web/html.py", "prompt.txt", "pyproject.toml", "server.py", "tests/test_compatibility_imports.py", "tests/test_web_fetch_tool.py", "tests/test_web_helpers.py"], "fa": {"setup": 5, "docs": 9, "other": 10, "openwebui": 2, "app": 3, "readers": 11, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 6}}, {"h": "daa742e", "date": "2026-07-02", "author": "sam", "subj": "Fixed Parse PDF tools On Mac System", "body": "", "add": 41, "del_": 16, "files": 9, "areas": {"docs": [20, 4], "other": [2, 2], "readers": [4, 4], "setup": [15, 6]}, "code": [21, 12], "test": [0, 0], "docs": [20, 4], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/parse_document.md", "document_parser.py", "local_mcp/documents/parsers.py", "local_mcp/documents/service.py", "pyproject.toml", "setup_and_run.py"], "fa": {"setup": 6, "docs": 9, "other": 10, "openwebui": 2, "app": 3, "readers": 11, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 6}}, {"h": "5e5269b", "date": "2026-07-03", "author": "shadab15github", "subj": "Merge branch 'feat/web-fetch' of https://github.com/mymacmeet-crypto/local-mcp", "body": "# Conflicts:\n#\tREADME.md\n#\tdocs/ARCHITECTURE.md\n#\tdocs/README.md\n#\tpyproject.toml", "add": 0, "del_": 0, "files": 0, "areas": {}, "code": [0, 0], "test": [0, 0], "docs": [0, 0], "paths": [], "fa": {"setup": 6, "docs": 10, "other": 10, "openwebui": 2, "app": 3, "readers": 11, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 7}}, {"h": "25e8ac8", "date": "2026-07-03", "author": "shadab15github", "subj": "Refactor local-mcp: Remove legacy compatibility files and update project structure", "body": "- Deleted legacy compatibility files: `searxng.py`, `server.py`, `sitemap.py`, and their associated imports.\n- Updated `prompt.txt` to remove deprecated `extract_content` examples.\n- Modified `pyproject.toml` to streamline project description.\n- Refactored `setup_and_run.py` to enhance tool status reporting and command detection.\n- Updated tests to reflect changes in module imports and ensure compatibility with the new structure.\n- Adjusted file generation tests to utilize environment variables for output paths.", "add": 219, "del_": 3785, "files": 31, "areas": {"setup": [101, 14], "docs": [54, 325], "other": [0, 2536], "openwebui": [2, 29], "app": [7, 0], "readers": [0, 767], "filegen": [10, 19], "registry": [0, 1], "webtools": [1, 46], "tests": [44, 48]}, "code": [121, 3398], "test": [44, 48], "docs": [54, 339], "paths": [".env.example", "README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/extract_content.md", "docs/extract_image_text.md", "docs/extract_urls.md", "docs/generate_file.md", "docs/parse_document.md", "docs/web_search.md", "document_parser.py", "errors.py", "extract.py", "fetcher.py", "integrations/openwebui_tool.py", "local_mcp/__main__.py", "local_mcp/documents/service.py", "local_mcp/file_generation/markdown.py", "local_mcp/tools/__init__.py", "local_mcp/tools/file_generation.py", "local_mcp/tools/web.py", "ocr.py", "openwebui_tool.py", "prompt.txt", "pyproject.toml", "searxng.py", "server.py", "setup_and_run.py", "sitemap.py", "tests/test_compatibility_imports.py", "tests/test_file_generation.py"], "fa": {"setup": 6, "docs": 9, "openwebui": 2, "app": 4, "readers": 10, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "other": 1, "tests": 7}}, {"h": "dcd3bb0", "date": "2026-07-03", "author": "shadab15github", "subj": "Update setup instructions and enhance terminal menu options in setup_and_run.py", "body": "", "add": 65, "del_": 59, "files": 4, "areas": {"docs": [5, 3], "setup": [60, 56]}, "code": [60, 56], "test": [0, 0], "docs": [5, 3], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/README.md", "setup_and_run.py"], "fa": {"setup": 6, "docs": 9, "openwebui": 2, "app": 4, "readers": 10, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "other": 1, "tests": 7}}, {"h": "f3d38f2", "date": "2026-07-03", "author": "shadab15github", "subj": "Enhance setup instructions and add Docker container management for SearXNG", "body": "", "add": 78, "del_": 14, "files": 4, "areas": {"docs": [29, 9], "setup": [49, 5]}, "code": [49, 5], "test": [0, 0], "docs": [29, 9], "paths": ["README.md", "docs/README.md", "docs/web_search.md", "setup_and_run.py"], "fa": {"setup": 6, "docs": 9, "openwebui": 2, "app": 4, "readers": 10, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "other": 1, "tests": 7}}, {"h": "e08bbf7", "date": "2026-07-03", "author": "shadab15github", "subj": "feat: add web_search_to_file tool for direct Markdown output", "body": "- Implemented `web_search_to_file` function to search SearXNG and write results directly to a Markdown file.\n- Updated file generation methods to support appending content and writing new files.\n- Enhanced documentation for `web_search_to_file` and related tools.\n- Added tests for file generation and web search functionalities.\n- Updated imports and initialization for new file generation methods.", "add": 633, "del_": 108, "files": 19, "areas": {"setup": [1, 0], "docs": [277, 20], "openwebui": [64, 3], "filegen": [218, 9], "registry": [1, 0], "webtools": [2, 2], "other": [0, 73], "tests": [70, 1]}, "code": [286, 14], "test": [70, 1], "docs": [277, 93], "paths": [".gitignore", "README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/extract_image_text.md", "docs/extract_urls.md", "docs/generate_file.md", "docs/parse_document.md", "docs/web_search_to_file.md", "integrations/openwebui_tool.py", "local_mcp/file_generation/__init__.py", "local_mcp/file_generation/markdown.py", "local_mcp/tools/__init__.py", "local_mcp/tools/file_generation.py", "local_mcp/tools/search.py", "prompt.md", "prompt.txt", "tests/test_compatibility_imports.py", "tests/test_file_generation.py"], "fa": {"setup": 6, "docs": 11, "openwebui": 2, "app": 4, "readers": 10, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 7}}, {"h": "dbdfbfc", "date": "2026-07-03", "author": "Shadab Khan", "subj": "Merge pull request #2 from mymacmeet-crypto/feat/web_search_to_file", "body": "Feat/web search to file", "add": 0, "del_": 0, "files": 0, "areas": {}, "code": [0, 0], "test": [0, 0], "docs": [0, 0], "paths": [], "fa": {"setup": 6, "docs": 11, "openwebui": 2, "app": 4, "readers": 10, "filegen": 3, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 7}}, {"h": "67e5a93", "date": "2026-07-05", "author": "shadab15github", "subj": "Add PDF support on generate file tool", "body": "", "add": 607, "del_": 76, "files": 12, "areas": {"docs": [103, 37], "openwebui": [12, 9], "filegen": [360, 29], "setup": [28, 0], "tests": [104, 1]}, "code": [400, 38], "test": [104, 1], "docs": [103, 37], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/generate_file.md", "docs/web_search_to_file.md", "integrations/openwebui_tool.py", "local_mcp/file_generation/markdown.py", "local_mcp/file_generation/pdf.py", "local_mcp/tools/file_generation.py", "prompt.md", "setup_and_run.py", "tests/test_file_generation.py"], "fa": {"setup": 6, "docs": 11, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 7}}, {"h": "71c7876", "date": "2026-07-05", "author": "shadab15github", "subj": "feat: add web_summarize tool for summarizing multiple URLs and search results", "body": "", "add": 730, "del_": 3, "files": 10, "areas": {"docs": [140, 3], "openwebui": [65, 0], "registry": [1, 0], "webtools": [432, 0], "tests": [92, 0]}, "code": [498, 0], "test": [92, 0], "docs": [140, 3], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/web_summarize.md", "integrations/openwebui_tool.py", "local_mcp/tools/__init__.py", "local_mcp/tools/web.py", "prompt.md", "tests/test_compatibility_imports.py", "tests/test_web_fetch_tool.py"], "fa": {"setup": 6, "docs": 12, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 4, "registry": 1, "webtools": 2, "web": 4, "tests": 7}}, {"h": "ba124f7", "date": "2026-07-06", "author": "shadab15github", "subj": "feat: enhance local model compatibility with new tool profiles and follow-up features", "body": "- Added a simple tool profile for smaller models to reduce complexity and improve performance.\n- Implemented automatic follow-up for web searches to fetch and summarize results.\n- Introduced minimum word count validation for generated files to ensure content quality.\n- Updated documentation to reflect new features and usage patterns for smaller models.\n- Added tests to validate new functionality and ensure compatibility with existing tools.", "add": 774, "del_": 21, "files": 13, "areas": {"setup": [9, 0], "docs": [290, 0], "registry": [182, 3], "readers": [6, 3], "filegen": [39, 6], "webtools": [84, 8], "tests": [164, 1]}, "code": [320, 20], "test": [164, 1], "docs": [290, 0], "paths": [".env.example", "README.md", "docs/README.md", "docs/low_model_compatibility.md", "local_mcp/tools/__init__.py", "local_mcp/tools/documents.py", "local_mcp/tools/file_generation.py", "local_mcp/tools/search.py", "local_mcp/tools/simple.py", "local_mcp/tools/web.py", "tests/test_compatibility_imports.py", "tests/test_file_generation.py", "tests/test_search_helpers.py"], "fa": {"setup": 6, "docs": 13, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 4, "registry": 2, "webtools": 2, "web": 4, "tests": 7}}, {"h": "5c1ee8a", "date": "2026-07-06", "author": "sam", "subj": "Optimize web search tool", "body": "", "add": 48, "del_": 60, "files": 4, "areas": {"webtools": [46, 51], "tests": [2, 9]}, "code": [46, 51], "test": [2, 9], "docs": [0, 0], "paths": ["local_mcp/tools/search.py", "local_mcp/tools/web.py", "tests/test_search_helpers.py", "tests/test_web_fetch_tool.py"], "fa": {"setup": 6, "docs": 13, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 4, "registry": 2, "webtools": 2, "web": 4, "tests": 7}}, {"h": "79f2052", "date": "2026-07-09", "author": "shadab15github", "subj": "Try to fixed web search tool", "body": "", "add": 25, "del_": 875, "files": 14, "areas": {"docs": [17, 167], "openwebui": [0, 65], "registry": [0, 36], "webtools": [0, 456], "tests": [8, 151]}, "code": [0, 557], "test": [8, 151], "docs": [17, 167], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/low_model_compatibility.md", "docs/web_summarize.md", "integrations/openwebui_tool.py", "local_mcp/tools/__init__.py", "local_mcp/tools/search.py", "local_mcp/tools/simple.py", "local_mcp/tools/web.py", "prompt.md", "tests/test_compatibility_imports.py", "tests/test_search_helpers.py", "tests/test_web_fetch_tool.py"], "fa": {"setup": 6, "docs": 12, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 4, "registry": 2, "webtools": 2, "web": 4, "tests": 7}}, {"h": "9e49b3b", "date": "2026-07-09", "author": "shadab15github", "subj": "Merge branch 'main' of https://github.com/mymacmeet-crypto/local-mcp", "body": "# Conflicts:\n#\tlocal_mcp/tools/web.py\n#\ttests/test_search_helpers.py\n#\ttests/test_web_fetch_tool.py", "add": 0, "del_": 0, "files": 0, "areas": {}, "code": [0, 0], "test": [0, 0], "docs": [0, 0], "paths": [], "fa": {"setup": 6, "docs": 12, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 4, "registry": 2, "webtools": 2, "web": 4, "tests": 7}}, {"h": "19af0df", "date": "2026-07-09", "author": "shadab15github", "subj": "feat: update web search tool to return overall summary and plain source list", "body": "", "add": 198, "del_": 49, "files": 6, "areas": {"docs": [23, 15], "openwebui": [1, 1], "webtools": [132, 32], "tests": [42, 1]}, "code": [133, 33], "test": [42, 1], "docs": [23, 15], "paths": ["README.md", "docs/ARCHITECTURE.md", "docs/web_search.md", "integrations/openwebui_tool.py", "local_mcp/tools/search.py", "tests/test_search_helpers.py"], "fa": {"setup": 6, "docs": 12, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 4, "registry": 2, "webtools": 2, "web": 4, "tests": 7}}, {"h": "6ceef3a", "date": "2026-07-12", "author": "shadab15github", "subj": "feat: enforce search->fetch->analyze->answer workflow for local models", "body": "Restructure the web tools so open-source reasoning models (Qwen, DeepSeek,\nLlama, Mistral) treat search results as discovery data and fetched pages as\nevidence, instead of returning either as a final answer.\n\n- web_search is now discovery-only: returns a JSON envelope with\n  requires_fetch, ranked results ({title,url,snippet,relevance_score}),\n  recommended_urls, and embedded agent_guidance/next_action. Adds relevance\n  scoring (engine rank + query keyword overlap) and configurable\n  recommended_urls. Follow-up modes (fetch_first/summarize) attach\n  prefetched_sources and flip requires_fetch to false.\n- web_fetch is now evidence-only: returns a JSON envelope with server-side\n  summary + key_points, display_policy=internal_working_material, and\n  agent_guidance instructing the model not to paste raw content but to\n  synthesize a cited answer.\n- Add shared modules: local_mcp/shared/guidance.py (single source of truth\n  for workflow guidance) and local_mcp/shared/summarize.py (deterministic\n  extractive summary/key-point helpers).\n- Update simple.fetch_web_page and the OpenWebUI integration descriptions.\n- Update docs (README, ARCHITECTURE, web_search, web_fetch,\n  low_model_compatibility) and .env.example.\n- Rewrite web_fetch/search tests for the JSON envelopes; add summarize tests.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>", "add": 690, "del_": 351, "files": 15, "areas": {"setup": [5, 2], "docs": [104, 67], "openwebui": [12, 4], "shared": [245, 0], "webtools": [185, 239], "registry": [6, 1], "tests": [133, 38]}, "code": [453, 246], "test": [133, 38], "docs": [104, 67], "paths": [".env.example", "README.md", "docs/ARCHITECTURE.md", "docs/low_model_compatibility.md", "docs/web_fetch.md", "docs/web_search.md", "integrations/openwebui_tool.py", "local_mcp/shared/guidance.py", "local_mcp/shared/summarize.py", "local_mcp/tools/search.py", "local_mcp/tools/simple.py", "local_mcp/tools/web.py", "tests/test_search_helpers.py", "tests/test_summarize_helpers.py", "tests/test_web_fetch_tool.py"], "fa": {"setup": 6, "docs": 12, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 6, "registry": 2, "webtools": 2, "web": 4, "tests": 8}}, {"h": "49dd916", "date": "2026-07-13", "author": "shadab15github", "subj": "Refactor web search and fetch tools for improved clarity and functionality", "body": "- Simplified parameters and descriptions in `web_search` and `web_fetch` methods.\n- Updated guidance documentation to reflect changes in output structure.\n- Removed unnecessary parameters and logic related to prefetching in search.\n- Enhanced error handling and logging for better debugging.\n- Adjusted tests to align with the new response formats and ensure coverage for edge cases.\n- Streamlined content fetching logic to focus on Markdown output.", "add": 187, "del_": 802, "files": 15, "areas": {"setup": [0, 8], "docs": [62, 191], "openwebui": [11, 56], "shared": [21, 40], "webtools": [31, 344], "registry": [1, 1], "tests": [61, 162]}, "code": [64, 449], "test": [61, 162], "docs": [62, 191], "paths": [".env.example", "README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/low_model_compatibility.md", "docs/web_fetch.md", "docs/web_search.md", "integrations/openwebui_tool.py", "local_mcp/shared/guidance.py", "local_mcp/tools/search.py", "local_mcp/tools/simple.py", "local_mcp/tools/web.py", "prompt.md", "tests/test_search_helpers.py", "tests/test_web_fetch_tool.py"], "fa": {"setup": 6, "docs": 12, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "search": 2, "shared": 6, "registry": 2, "webtools": 2, "web": 4, "tests": 8}}, {"h": "e288392", "date": "2026-07-13", "author": "shadab15github", "subj": "feat: add smart_search tool (search -> Gemini rank -> crawl -> summarize)", "body": "Add a one-shot web-answer tool that runs the whole research pipeline\ninternally and returns a Gemini-written, cited summary, unlike the\ndiscovery-only web_search:\n\n- SearXNG search for candidate sources\n- Gemini ranks all candidates best-first by relevance\n- crawl ranked pages with the shared httpx -> Crawl4AI fetcher, falling\n  through to lower-ranked sources when a page fails, until max_sources load\n- Gemini summarizes the crawled evidence with inline citations\n\nImplementation:\n- local_mcp/gemini/client.py: thin Gemini REST client over httpx (no new\n  dependency), with transient-5xx retry/backoff; reads GEMINI_API_KEY /\n  GEMINI_MODEL (default gemini-flash-latest)\n- local_mcp/web/content.py: shared fetch-to-Markdown helper extracted from\n  tools/web.py so web_fetch and smart_search share identical fetch behavior\n- register smart_search in the full tool profile; add SMART_SEARCH_DESCRIPTION\n- OpenWebUI bridge: add smart_search method\n- docs: new docs/smart_search.md; update docs/README, ARCHITECTURE,\n  low_model_compatibility, top-level README, and .env.example\n- tests: tests/test_smart_search_tool.py (ranking, fallback, crawl, errors)\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>", "add": 860, "del_": 33, "files": 15, "areas": {"setup": [6, 0], "docs": [286, 5], "openwebui": [36, 0], "providers": [142, 0], "shared": [13, 0], "registry": [2, 1], "research": [223, 0], "webtools": [6, 27], "web": [36, 0], "tests": [110, 0]}, "code": [464, 28], "test": [110, 0], "docs": [286, 5], "paths": [".env.example", "README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/low_model_compatibility.md", "docs/smart_search.md", "integrations/openwebui_tool.py", "local_mcp/gemini/__init__.py", "local_mcp/gemini/client.py", "local_mcp/shared/guidance.py", "local_mcp/tools/__init__.py", "local_mcp/tools/smart_search.py", "local_mcp/tools/web.py", "local_mcp/web/content.py", "tests/test_smart_search_tool.py"], "fa": {"setup": 6, "docs": 13, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "providers": 2, "search": 2, "shared": 6, "registry": 2, "webtools": 2, "research": 1, "web": 5, "tests": 9}}, {"h": "c2e193f", "date": "2026-07-14", "author": "sam", "subj": "feat: support local Ollama as default LLM backend for smart_search", "body": "Adds local_mcp/llm as a provider-agnostic client (local_mcp/ollama for the\nOllama backend) so smart_search no longer requires a Gemini API key —\nLLM_PROVIDER=ollama is now the default, with Gemini available as an\nopt-in override.\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>", "add": 341, "del_": 82, "files": 15, "areas": {"setup": [13, 2], "docs": [94, 37], "openwebui": [5, 4], "llm": [63, 0], "providers": [122, 0], "shared": [5, 4], "research": [25, 21], "tests": [14, 14]}, "code": [233, 31], "test": [14, 14], "docs": [94, 37], "paths": [".env.example", ".gitignore", "README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/low_model_compatibility.md", "docs/smart_search.md", "integrations/openwebui_tool.py", "local_mcp/llm/__init__.py", "local_mcp/llm/client.py", "local_mcp/ollama/__init__.py", "local_mcp/ollama/client.py", "local_mcp/shared/guidance.py", "local_mcp/tools/smart_search.py", "tests/test_smart_search_tool.py"], "fa": {"setup": 6, "docs": 13, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "providers": 4, "llm": 2, "search": 2, "shared": 6, "registry": 2, "webtools": 2, "research": 1, "web": 5, "tests": 9}}, {"h": "a16a530", "date": "2026-07-15", "author": "shadab15github", "subj": "Completed Deep Research Tools", "body": "", "add": 779, "del_": 1, "files": 7, "areas": {"setup": [9, 0], "docs": [179, 0], "shared": [16, 0], "registry": [2, 1], "research": [442, 0], "tests": [131, 0]}, "code": [469, 1], "test": [131, 0], "docs": [179, 0], "paths": [".env.example", "README.md", "docs/deep_research.md", "local_mcp/shared/guidance.py", "local_mcp/tools/__init__.py", "local_mcp/tools/deep_research.py", "tests/test_deep_research_tool.py"], "fa": {"setup": 6, "docs": 14, "openwebui": 2, "app": 4, "readers": 10, "filegen": 4, "providers": 4, "llm": 2, "search": 2, "shared": 6, "registry": 2, "research": 2, "webtools": 2, "web": 5, "tests": 10}}, {"h": "7421434", "date": "2026-07-18", "author": "shadab15github", "subj": "feat: unify file generation into one generate_file tool (md/txt/pdf/docx/pptx)", "body": "Replace generate_file + web_search_to_file (and the simple-profile file\nwrappers) with a single generate_file tool that takes exactly one of:\n- content: write the supplied Markdown-like text as-is\n- query: research it first via smart_search (default) or deep_research\n  (search_mode=deep), then write the answer\n\nAdd txt, Word (doc/docx), and PowerPoint (ppt/pptx) output backends using\npython-docx/python-pptx; legacy .doc/.ppt names are written as .docx/.pptx.\nAppend mode stays Markdown/text only. Update the Open WebUI integration,\ntool profiles (simple/both), tests, and docs to match.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>", "add": 776, "del_": 713, "files": 20, "areas": {"setup": [5, 1], "docs": [135, 233], "openwebui": [36, 74], "filegen": [426, 162], "registry": [16, 73], "webtools": [0, 51], "tests": [158, 119]}, "code": [481, 361], "test": [158, 119], "docs": [137, 233], "paths": [".env.example", "README.md", "docs/ARCHITECTURE.md", "docs/README.md", "docs/generate_file.md", "docs/low_model_compatibility.md", "docs/web_search_to_file.md", "integrations/openwebui_tool.py", "local_mcp/file_generation/markdown.py", "local_mcp/file_generation/powerpoint.py", "local_mcp/file_generation/word.py", "local_mcp/tools/__init__.py", "local_mcp/tools/file_generation.py", "local_mcp/tools/search.py", "local_mcp/tools/simple.py", "prompt.md", "pyproject.toml", "requirements.txt", "tests/test_compatibility_imports.py", "tests/test_file_generation.py"], "fa": {"setup": 6, "docs": 13, "openwebui": 2, "app": 4, "readers": 10, "filegen": 6, "providers": 4, "llm": 2, "search": 2, "shared": 6, "registry": 2, "research": 2, "webtools": 2, "web": 5, "tests": 10}}, {"h": "4ad139e", "date": "2026-07-21", "author": "shadab15github", "subj": "feat: enhance progress reporting across tools with live updates", "body": "- Added a Progress class to handle step-wise progress reporting for long-running tasks.\n- Integrated progress reporting into the deep_research, parse_document, generate_file, extract_image_text, web_search, smart_search, and other tools.\n- Updated README.md to document the new progress reporting features and tool behavior.\n- Refactored openwebui_tool.py to support streaming progress notifications to the OpenWebUI interface.", "add": 386, "del_": 142, "files": 10, "areas": {"docs": [3, 1], "openwebui": [229, 135], "shared": [78, 0], "research": [31, 2], "readers": [16, 2], "filegen": [10, 2], "webtools": [19, 0]}, "code": [383, 141], "test": [0, 0], "docs": [3, 1], "paths": ["docs/README.md", "integrations/openwebui_tool.py", "local_mcp/shared/progress.py", "local_mcp/tools/deep_research.py", "local_mcp/tools/documents.py", "local_mcp/tools/file_generation.py", "local_mcp/tools/ocr.py", "local_mcp/tools/search.py", "local_mcp/tools/smart_search.py", "local_mcp/tools/web.py"], "fa": {"setup": 6, "docs": 13, "openwebui": 2, "app": 4, "readers": 10, "filegen": 6, "providers": 4, "llm": 2, "search": 2, "shared": 7, "registry": 2, "research": 2, "webtools": 2, "web": 5, "tests": 10}}]};
+const HEX = {entry:'#ffd8a8',screen:'#a5d8ff',brain:'#d0bfff',hands:'#b2f2bb',safety:'#ffc9c9',translator:'#ffec99',memory:'#99e9f2',docs:'#e9ecef',ext:'#ffffff'};
+const COMMITS = D.commitsData;
+const GROUPS = Object.fromEntries(Object.entries(D.groups).map(([k,g])=>[k,{name:g.name,hex:HEX[g.color]||HEX[k]||'#e9ecef'}]));
+const NODES = D.nodes;
+const IMPORTS = D.imports||{};
+const KEY = new Set(D.key&&D.key.length?D.key:Object.entries(IMPORTS).flatMap(([a,bs])=>bs.map(b=>a+'>'+b)));
+const RUNTIME = D.runtime||[];
+const TOUR = (D.tour&&D.tour.steps)||[];
+const GLOSS = D.gloss||[];
+const CHECK = (D.check&&D.check.cats)||[];
+const DESIGN = D.design||[];
+const S = D.commits||{};
+const PHASES = D.phases&&D.phases.length?D.phases:[{id:'all',name:'All commits',dates:'',goal:''}];
+const EMO = D.emoji||'💡';
+const KINDS = {feature:['Feature','var(--feature)'],fix:['Fix','var(--fix)'],docs:['Docs','var(--docsk)'],ux:['Polish','var(--ux)'],refactor:['Tidy-up','var(--refactor)'],config:['Setting','var(--config)'],other:['Other','var(--other)']};
+
+/* =====================================================================
+   DERIVED
+   ===================================================================== */
+const $ = s=>document.querySelector(s), $$ = s=>[...document.querySelectorAll(s)];
+const esc = s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n=>n>=1000?(n/1000).toFixed(n>=10000?0:1)+'k':String(n);
+const PIDS=new Set(PHASES.map(p=>p.id));let lastPh=PHASES[0].id;
+COMMITS.forEach((c,i)=>{c.i=i; const s=S[c.h]||Object.entries(S).find(([k])=>k.startsWith(c.h)||c.h.startsWith(k))?.[1]||['other',lastPh,c.subj]; c.kind=KINDS[s[0]]?s[0]:'other'; c.phase=PIDS.has(s[1])?s[1]:lastPh; lastPh=c.phase; c.plain=s[2]||c.subj;});
+const NODE = Object.fromEntries(NODES.map(n=>[n.id,n]));
+NODES.forEach(n=>{n.w=n.w||210;n.h=n.h||80;n.area=n.area||(n.ext?null:n.id);n.role=n.role||'';n.what=n.what||'';});
+// cumulative lines per area after each commit
+const CUM=[]; {let acc={};COMMITS.forEach(c=>{acc={...acc};for(const[k,v]of Object.entries(c.areas))acc[k]=(acc[k]||0)+v[0]-v[1];CUM.push(acc);});}
+const CUMK=[]; {let code=0,test=0,docs=0;COMMITS.forEach(c=>{code+=c.code[0]-c.code[1];test+=c.test[0]-c.test[1];docs+=c.docs[0]-c.docs[1];CUMK.push({code,test,docs});});}
+const LAST=COMMITS.length-1;
+const TOTAL_LINES = Object.entries(CUM[LAST]).filter(([k])=>k!=='other').reduce((a,[,v])=>a+v,0);
+const commitsFor = id => COMMITS.filter(c=>c.areas[id]);
+const AUTH_COLORS = ['#7048e8','#1098ad','#e8590c','#2f9e44','#d6336c'];
+const authors=[...new Set(COMMITS.map(c=>c.author))];
+const authorColor = a => AUTH_COLORS[authors.indexOf(a)%AUTH_COLORS.length];
+function niceStep(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const m=v/p;return (m<=1?1:m<=2?2:m<=5?5:10)*p}
+const dOf=c=>new Date(c.date+'T00:00:00');
+const SPAN=COMMITS.length?Math.max(1,Math.round((dOf(COMMITS[LAST])-dOf(COMMITS[0]))/864e5)+1):0;
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pretty=d=>{const x=new Date(d+'T00:00:00');return MON[x.getMonth()]+' '+x.getDate()+', '+x.getFullYear()};
+const initials = a => a.replace(/[^A-Za-z ]/g,' ').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const LS='repo-map-'+D.repo+'-v1';
+const store=(()=>{let mem={};try{const k='__t';localStorage.setItem(k,'1');localStorage.removeItem(k);return localStorage}catch(e){return{getItem:k=>k in mem?mem[k]:null,setItem:(k,v)=>{mem[k]=String(v)}}}})();
+let saved={};try{saved=JSON.parse(store.getItem(LS)||'{}')||{}}catch(e){saved={}}
+const st = {
+  view:'about', sketch: saved.sketch!==false, theme: saved.theme|| ((window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'),
+  pos: saved.pos||{}, edges:'key', run:true, idx:LAST, tx:0, ty:0, k:1, sel:null, tour:-1, q:'',
+  tlKind:'all', tlArea:'all',
+};
+function persist(){try{store.setItem(LS,JSON.stringify({sketch:st.sketch,theme:st.theme,pos:st.pos,seen:true}))}catch(e){}}
+NODES.forEach(n=>{const p=st.pos[n.id];if(p){n.x=p[0];n.y=p[1];}});
+const HOME = Object.fromEntries(NODES.map(n=>[n.id,[n.x,n.y]]));
+
+/* =====================================================================
+   ROUGH DRAWING (hand-made, Excalidraw-like)
+   ===================================================================== */
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let t=seed>>>0;return()=>{t+=0x6D2B79F5;let r=Math.imul(t^t>>>15,1|t);r^=r+Math.imul(r^r>>>7,61|r);return((r^r>>>14)>>>0)/4294967296}}
+function seg(x1,y1,x2,y2,r,amp){
+  const len=Math.hypot(x2-x1,y2-y1)||1, a=Math.min(amp,len*.03+.5), j=()=>(r()-.5)*2*a;
+  const nx=-(y2-y1)/len, ny=(x2-x1)/len, bow=(r()-.5)*Math.min(len*.035,5);
+  const mx=(x1+x2)/2+nx*bow, my=(y1+y2)/2+ny*bow;
+  return `M${(x1+j()).toFixed(1)} ${(y1+j()).toFixed(1)}Q${(mx+j()).toFixed(1)} ${(my+j()).toFixed(1)} ${(x2+j()).toFixed(1)} ${(y2+j()).toFixed(1)}`;
+}
+function rRect(x,y,w,h,seed){const r=rng(seed);let d='';const o=()=>(r()-.5)*5;const p=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];
+  for(let pass=0;pass<2;pass++)for(let i=0;i<4;i++){const[a,b]=p[i],[c,e]=p[(i+1)%4];d+=seg(a+o(),b+o(),c+o(),e+o(),r,1.5)}return d}
+function rFill(x,y,w,h,seed){const r=rng(seed+99),j=()=>(r()-.5)*4;return `M${x+j()} ${y+j()}L${x+w+j()} ${y+j()}L${x+w+j()} ${y+h+j()}L${x+j()} ${y+h+j()}Z`}
+function cRect(x,y,w,h,q=12){return `M${x+q} ${y}H${x+w-q}Q${x+w} ${y} ${x+w} ${y+q}V${y+h-q}Q${x+w} ${y+h} ${x+w-q} ${y+h}H${x+q}Q${x} ${y+h} ${x} ${y+h-q}V${y+q}Q${x} ${y} ${x+q} ${y}Z`}
+function rQuad(p0,c,p1,seed){const r=rng(seed);let d='';for(let pass=0;pass<(st.sketch?2:1);pass++){const a=st.sketch?(pass?1.2:2):0,j=()=>(r()-.5)*2*a;
+  d+=`M${(p0[0]+j()).toFixed(1)} ${(p0[1]+j()).toFixed(1)}Q${(c[0]+j()*3).toFixed(1)} ${(c[1]+j()*3).toFixed(1)} ${(p1[0]+j()).toFixed(1)} ${(p1[1]+j()).toFixed(1)}`}return d}
+function border(n,tx,ty,pad=7){const cx=n.x+n.w/2,cy=n.y+n.h/2,dx=tx-cx,dy=ty-cy,hw=n.w/2+pad,hh=n.h/2+pad;
+  const s=Math.min(hw/Math.max(Math.abs(dx),1e-6),hh/Math.max(Math.abs(dy),1e-6));return[cx+dx*s,cy+dy*s]}
+function geom(a,b,bendSeed){const A=NODE[a],B=NODE[b];const ac=[A.x+A.w/2,A.y+A.h/2],bc=[B.x+B.w/2,B.y+B.h/2];
+  const dx=bc[0]-ac[0],dy=bc[1]-ac[1],len=Math.hypot(dx,dy)||1;const sgn=(hash(bendSeed)%2)?1:-1;const bend=Math.min(len*.12,60)*sgn;
+  const c=[(ac[0]+bc[0])/2-dy/len*bend,(ac[1]+bc[1])/2+dx/len*bend];return{p0:border(A,c[0],c[1]),p1:border(B,c[0],c[1]),c}}
+function arrow(p1,c,seed){const ang=Math.atan2(p1[1]-c[1],p1[0]-c[0]),L=13,s=.42;const r=rng(seed+5);let d='';
+  for(const t of[ang+Math.PI-s,ang+Math.PI+s]){const e=[p1[0]+Math.cos(t)*L,p1[1]+Math.sin(t)*L];d+=st.sketch?seg(p1[0],p1[1],e[0],e[1],r,.8):`M${p1[0]} ${p1[1]}L${e[0]} ${e[1]}`}return d}
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+
+/* =====================================================================
+   MAP RENDER
+   ===================================================================== */
+const svg=$('#svg'), vp=$('#vp'), gE=$('#gEdges'), gN=$('#gNodes'), gF=$('#gFlow');
+const exists = id => {const n=NODE[id];return n.ext||(COMMITS[st.idx].fa[n.area]||0)>0};
+const nodeLines = id => {const n=NODE[id];return n.ext?0:(CUM[st.idx][n.area]||0)};
+function edgeList(){
+  const out=[];
+  if(st.edges!=='none')for(const[a,bs]of Object.entries(IMPORTS))for(const b of bs){if(st.edges==='key'&&!KEY.has(a+'>'+b))continue;out.push({a,b,kind:'imp'})}
+  if(st.run)for(const[a,b,l]of RUNTIME)out.push({a,b,kind:'run',label:l});
+  return out;
+}
+function fitText(t,max){let L=t.getComputedTextLength();if(!L||L<=max)return;const fs=parseFloat(getComputedStyle(t).fontSize)||16;
+  t.style.fontSize=Math.max(fs*.75,fs*max/L)+'px';if(t.getComputedTextLength()<=max)return;let s=t.textContent;t.setAttribute('data-full',s);
+  while(s.length>1&&t.getComputedTextLength()>max){s=s.slice(0,-1);t.textContent=s+'…'}const ti=el('title',{},t);ti.textContent=t.getAttribute('data-full')}
+function renderMap(){
+  gE.innerHTML='';gN.innerHTML='';
+  const touched=new Set(Object.keys(COMMITS[st.idx].areas));
+  const maxL=Math.max(...NODES.filter(n=>!n.ext).map(n=>CUM[LAST][n.area]||0));
+  for(const e of edgeList()){
+    if(!exists(e.a)||!exists(e.b))continue;
+    const g=el('g',{class:'edge '+e.kind,'data-a':e.a,'data-b':e.b},gE);
+    const{p0,p1,c}=geom(e.a,e.b,[e.a,e.b].sort().join('|'));const seed=hash(e.a+'>'+e.b);
+    el('path',{d:rQuad(p0,c,p1,seed)+arrow(p1,c,seed)},g);
+    if(e.label){const mx=.25*p0[0]+.5*c[0]+.25*p1[0],my=.25*p0[1]+.5*c[1]+.25*p1[1];
+      const w=e.label.length*7+14;el('rect',{class:'lblbg',x:mx-w/2,y:my-11,width:w,height:21,rx:6},g);
+      const t=el('text',{class:'lbl',x:mx,y:my+5,'text-anchor':'middle'},g);t.textContent=e.label}
+  }
+  for(const n of NODES){
+    const ex=exists(n.id),grp=GROUPS[n.group];
+    const g=el('g',{class:'node'+(n.ext?' ext':'')+(ex?'':' ghost')+(st.idx<LAST&&n.area&&touched.has(n.area)?' touched':'')+(st.sel===n.id?' sel':''),'data-id':n.id},gN);
+    const seed=hash(n.id);
+    el('rect',{class:'ring',x:n.x-7,y:n.y-7,width:n.w+14,height:n.h+14,rx:16},g);
+    el('path',{class:'fill',d:st.sketch?rFill(n.x,n.y,n.w,n.h,seed):cRect(n.x,n.y,n.w,n.h),fill:grp.hex},g);
+    el('path',{class:'stroke',d:st.sketch?rRect(n.x,n.y,n.w,n.h,seed):cRect(n.x,n.y,n.w,n.h)},g);
+    const t1=el('text',{class:'t1',x:n.x+14,y:n.y+30},g);t1.textContent=n.label;fitText(t1,n.w-26);
+    const t2=el('text',{class:'t2',x:n.x+14,y:n.y+50},g);t2.textContent=n.role;fitText(t2,n.w-26);
+    if(!n.ext){const L=nodeLines(n.id);
+      const t3=el('text',{class:'t3',x:n.x+14,y:n.y+n.h-12},g);const F=COMMITS[st.idx].fa[n.area]||0;t3.textContent=ex?(L?`${L.toLocaleString()} lines`:`${F} file${F>1?'s':''}`):'not built yet';
+      const bw=70,bx=n.x+n.w-bw-14,by=n.y+n.h-19;
+      el('rect',{class:'bar',x:bx,y:by,width:bw,height:6,rx:3},g);
+      el('rect',{class:'barfill',x:bx,y:by,width:Math.max(ex?3:0,bw*Math.sqrt(L/maxL)),height:6,rx:3},g);}
+    else{const t3=el('text',{class:'t3',x:n.x+14,y:n.y+n.h-12},g);t3.textContent='outside the program'}
+  }
+  applyFocus();
+}
+function applyTransform(){vp.setAttribute('transform',`translate(${st.tx},${st.ty}) scale(${st.k})`);
+  const m=$('#map');m.style.backgroundSize=`${22*st.k}px ${22*st.k}px`;m.style.backgroundPosition=`${st.tx}px ${st.ty}px`;$('#zLbl').textContent=Math.round(st.k*100)+'%'}
+function fit(anim=true){const b=bounds(),W=innerWidth,H=innerHeight,padL=innerWidth>900?260:20,padT=80,padB=120;
+  const k=Math.min((W-padL-30)/(b.w),(H-padT-padB)/(b.h),1.25);const tx=padL+((W-padL-30)-b.w*k)/2-b.x*k,ty=padT+((H-padT-padB)-b.h*k)/2-b.y*k;tween(tx,ty,k,anim)}
+function bounds(){let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;for(const n of NODES){x1=Math.min(x1,n.x);y1=Math.min(y1,n.y);x2=Math.max(x2,n.x+n.w);y2=Math.max(y2,n.y+n.h)}return{x:x1,y:y1,w:x2-x1,h:y2-y1}}
+let tw=null;function tween(tx,ty,k,anim=true){cancelAnimationFrame(tw);if(!anim){st.tx=tx;st.ty=ty;st.k=k;applyTransform();return}
+  const s={tx:st.tx,ty:st.ty,k:st.k},t0=performance.now(),D=450;const step=t=>{let p=Math.min(1,(t-t0)/D);p=1-Math.pow(1-p,3);
+  st.tx=s.tx+(tx-s.tx)*p;st.ty=s.ty+(ty-s.ty)*p;st.k=s.k+(k-s.k)*p;applyTransform();if(p<1)tw=requestAnimationFrame(step)};tw=requestAnimationFrame(step)}
+function centerOn(id,k=1){const n=NODE[id];const W=innerWidth-(st.sel?440:0),H=innerHeight;tween(W/2-(n.x+n.w/2)*k,H/2-(n.y+n.h/2)*k+10,k)}
+function zoomAt(f,cx=innerWidth/2,cy=innerHeight/2){const k=Math.max(.25,Math.min(3,st.k*f));const wx=(cx-st.tx)/st.k,wy=(cy-st.ty)/st.k;st.k=k;st.tx=cx-wx*k;st.ty=cy-wy*k;applyTransform()}
+
+/* focus / hover */
+let hoverId=null;
+function applyFocus(){
+  const tourOn=st.tour>=0;svg.classList.toggle('tour',tourOn);
+  const focusId=tourOn?null:(hoverId||null);svg.classList.toggle('focus',!!focusId||(!!st.q&&st.view==='map'));
+  const hl=new Set();
+  if(focusId){hl.add(focusId);$$('#gEdges .edge').forEach(e=>{const on=e.dataset.a===focusId||e.dataset.b===focusId;e.classList.toggle('hl',on);if(on){hl.add(e.dataset.a);hl.add(e.dataset.b)}})}
+  else $$('#gEdges .edge').forEach(e=>e.classList.remove('hl'));
+  if(st.q&&!focusId&&!tourOn){const q=st.q.toLowerCase();NODES.forEach(n=>{if((n.label+' '+n.role+' '+n.what+' '+(n.how||[]).join(' ')).toLowerCase().includes(q))hl.add(n.id)})}
+  if(tourOn){const s=TOUR[st.tour];hl.add(s.a);hl.add(s.b)}
+  $$('#gNodes .node').forEach(g=>g.classList.toggle('hl',hl.has(g.dataset.id)));
+}
+
+/* pointer handling: pan, drag nodes, click */
+let drag=null;
+svg.addEventListener('pointerdown',e=>{
+  const ng=e.target.closest('.node');svg.setPointerCapture(e.pointerId);
+  if(ng){const n=NODE[ng.dataset.id];drag={type:'node',id:n.id,sx:e.clientX,sy:e.clientY,ox:n.x,oy:n.y,moved:false}}
+  else{drag={type:'pan',sx:e.clientX,sy:e.clientY,ox:st.tx,oy:st.ty,moved:false};$('#map').classList.add('panning')}
+});
+svg.addEventListener('pointermove',e=>{
+  if(!drag){const ng=e.target.closest('.node');const id=ng?ng.dataset.id:null;if(id!==hoverId){hoverId=id;applyFocus()}return}
+  const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;if(Math.abs(dx)+Math.abs(dy)>6)drag.moved=true;
+  if(drag.type==='pan'){st.tx=drag.ox+dx;st.ty=drag.oy+dy;applyTransform()}
+  else if(drag.moved){const n=NODE[drag.id];n.x=Math.round(drag.ox+dx/st.k);n.y=Math.round(drag.oy+dy/st.k);renderMap()}
+});
+svg.addEventListener('pointerup',e=>{
+  if(!drag)return;$('#map').classList.remove('panning');
+  if(drag.type==='node'){if(drag.moved){const n=NODE[drag.id];st.pos[n.id]=[n.x,n.y];persist()}else openNode(drag.id)}
+  else if(!drag.moved&&st.sel){closeDrawer()}
+  drag=null;
+});
+svg.addEventListener('pointerleave',()=>{if(!drag&&hoverId){hoverId=null;applyFocus()}});
+svg.addEventListener('wheel',e=>{e.preventDefault();
+  const pan=!e.ctrlKey&&(Math.abs(e.deltaX)>0||(e.deltaMode===0&&Math.abs(e.deltaY)<40));
+  if(pan){st.tx-=e.deltaX;st.ty-=e.deltaY;applyTransform()}else zoomAt(Math.exp(-e.deltaY*(e.ctrlKey?.01:.0015)),e.clientX,e.clientY)},{passive:false});
+
+/* =====================================================================
+   DRAWER
+   ===================================================================== */
+function openNode(id){
+  const n=NODE[id];st.sel=id;const grp=GROUPS[n.group];
+  const L=n.ext?0:(CUM[LAST][n.area]||0);const cs=n.ext?[]:commitsFor(n.area);
+  const conns=new Set();for(const[a,bs]of Object.entries(IMPORTS))for(const b of bs){if(a===id)conns.add('→ '+b);if(b===id)conns.add('← '+a)}
+  RUNTIME.forEach(([a,b,l])=>{if(a===id)conns.add('→ '+b);if(b===id)conns.add('← '+a)});
+  $('#dHd').innerHTML=`<button class="iconbtn x" onclick="closeDrawer()">✕</button>
+    <div class="small" style="margin-bottom:4px"><span class="swatch" style="background:${grp.hex}"></span>${esc(grp.name)}</div>
+    <h2>${esc(n.label)}</h2><div class="kitchen-tag">${EMO} ${esc(n.role)}</div>
+    ${n.path?`<div style="margin-top:6px"><code>${esc(n.path)}</code></div>`:''}`;
+  let h=`<div class="sec"><h5>What it does</h5><p>${esc(n.what)}</p></div>`;
+  if(!n.ext)h+=`<div class="stats"><div class="stat"><b>${L.toLocaleString()}</b><span>lines today</span></div><div class="stat"><b>${(L/TOTAL_LINES*100).toFixed(1)}%</b><span>of the project</span></div><div class="stat"><b>${cs.length}</b><span>commits touched it</span></div></div>`;
+  if(n.how?.length)h+=`<div class="sec"><h5>How it works</h5><ul>${n.how.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  if(n.ideas?.length)h+=`<div class="sec"><h5>Ideas worth keeping</h5><ul>${n.ideas.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  if(n.files?.length)h+=`<div class="sec"><h5>Files to read</h5><ul>${n.files.map(x=>{const[f,...r]=x.split(':');return`<li><code>${esc(f)}</code>${r.length?' — '+esc(r.join(':')):''}</li>`}).join('')}</ul></div>`;
+  if(conns.size)h+=`<div class="sec"><h5>Connected to <span class="muted" style="text-transform:none;letter-spacing:0">(→ uses / talks to · ← used by)</span></h5><div class="chips">${[...conns].map(c=>{const t=c.slice(2);return`<button class="chip" onclick="openNode('${t}');centerOn('${t}',st.k)"><i style="background:${GROUPS[NODE[t].group].hex}"></i>${esc(c)}</button>`}).join('')}</div></div>`;
+  if(cs.length)h+=`<div class="sec"><h5>History: commits that changed it</h5><div class="clist">${cs.map(c=>{const a=c.areas[n.area];return`<button class="crow" onclick="gotoCommit(${c.i})"><span class="h">${c.h}</span><span class="s">${esc(c.plain)}</span><span class="d"><span class="plus">+${a[0]}</span> <span class="minus">−${a[1]}</span></span></button>`}).join('')}</div></div>`;
+  $('#dBd').innerHTML=h;$('#dBd').scrollTop=0;$('#drawer').classList.add('on');
+  if(st.view==='map')renderMap();
+}
+function closeDrawer(){st.sel=null;$('#drawer').classList.remove('on');if(st.view==='map')renderMap()}
+
+/* =====================================================================
+   HISTORY SCRUBBER
+   ===================================================================== */
+const slider=$('#slider');slider.max=LAST;slider.value=LAST;
+function setIdx(i){st.idx=Math.max(0,Math.min(LAST,i));slider.value=st.idx;const c=COMMITS[st.idx];
+  const tot=Object.entries(CUM[st.idx]).filter(([k])=>k!=='other').reduce((a,[,v])=>a+v,0);
+  $('#scrubMeta').innerHTML=`<b>${st.idx+1}/${COMMITS.length}</b> · ${c.date} · <span class="pill" style="color:${KINDS[c.kind][1]}">${KINDS[c.kind][0]}</span> ${esc(c.plain)} <span class="muted">· ${tot.toLocaleString()} lines total</span>`;
+  $('#scrubMeta').title=c.plain;renderMap()}
+slider.addEventListener('input',()=>{stopHist();setIdx(+slider.value)});
+let histT=null;function stopHist(){clearInterval(histT);histT=null;$('#histPlay').textContent='▶ Replay history'}
+$('#histPlay').onclick=()=>{if(histT){stopHist();return}if(st.idx>=LAST)setIdx(0);$('#histPlay').textContent='⏸ Pause';
+  histT=setInterval(()=>{if(st.idx>=LAST){stopHist();return}setIdx(st.idx+1)},650)};
+$('#histNow').onclick=()=>{stopHist();setIdx(LAST)};
+
+/* =====================================================================
+   TOUR: one turn through the system
+   ===================================================================== */
+let tourAuto=null,dotRAF=null;
+function startTour(){if(st.view!=='map')show('map');stopHist();setIdx(LAST);closeDrawer();st.tour=0;$('#caption').classList.add('on');document.body.classList.add('touring');
+  $('#capDots').innerHTML=TOUR.map(()=>'<i></i>').join('');drawTour()}
+function endTour(){st.tour=-1;clearInterval(tourAuto);tourAuto=null;$('#capAuto').textContent='Auto-play';cancelAnimationFrame(dotRAF);gF.innerHTML='';$('#caption').classList.remove('on');document.body.classList.remove('touring');applyFocus()}
+function drawTour(){
+  const s=TOUR[st.tour];$('#capNum').textContent=`STEP ${st.tour+1} OF ${TOUR.length}`;$('#capTitle').textContent=s.t;$('#capText').textContent=s.x;$('#capKitchen').textContent=EMO+' '+s.k;
+  $$('#capDots i').forEach((d,i)=>d.classList.toggle('on',i<=st.tour));$('#capPrev').disabled=st.tour===0;$('#capNext').textContent=st.tour===TOUR.length-1?'Finish ✓':'Next →';
+  gF.innerHTML='';const{p0,p1,c}=geom(s.a,s.b,'tour'+st.tour);
+  const path=el('path',{class:'flowpath',d:`M${p0[0]} ${p0[1]}Q${c[0]} ${c[1]} ${p1[0]} ${p1[1]}`},gF);
+  el('path',{d:arrow(p1,c,7),fill:'none',stroke:'var(--accent)','stroke-width':3,'stroke-linecap':'round'},gF);
+  const dot=el('circle',{class:'flowdot',r:8},gF);const len=path.getTotalLength();cancelAnimationFrame(dotRAF);const t0=performance.now();
+  const anim=t=>{const p=((t-t0)%1600)/1600;const pt=path.getPointAtLength(len*p);dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);dotRAF=requestAnimationFrame(anim)};dotRAF=requestAnimationFrame(anim);
+  applyFocus();followTour(s);
+}
+function followTour(s){const A=NODE[s.a],B=NODE[s.b];const ax=A.x+A.w/2,ay=A.y+A.h/2,bx=B.x+B.w/2,by=B.y+B.h/2;
+  const availH=innerHeight-340,availW=innerWidth-(innerWidth>900?300:40);
+  const k=Math.max(.45,Math.min(1.05,(availH-40)/(Math.abs(ay-by)+A.h+40),(availW-40)/(Math.abs(ax-bx)+A.w+60)));
+  const mx=(ax+bx)/2,my=(ay+by)/2;tween((innerWidth>900?270:20)+availW/2-mx*k,76+availH/2-my*k,k)}
+function tourStep(d){const n=st.tour+d;if(n>=TOUR.length){endTour();toast('That was one full turn. Click any box to dig deeper.');return}if(n<0)return;st.tour=n;drawTour()}
+$('#tourStart').onclick=startTour;$('#capNext').onclick=()=>tourStep(1);$('#capPrev').onclick=()=>tourStep(-1);$('#capX').onclick=endTour;
+$('#capAuto').onclick=()=>{if(tourAuto){clearInterval(tourAuto);tourAuto=null;$('#capAuto').textContent='Auto-play';return}
+  $('#capAuto').textContent='⏸ Pause';tourAuto=setInterval(()=>{if(st.tour>=TOUR.length-1){clearInterval(tourAuto);tourAuto=null;$('#capAuto').textContent='Auto-play';return}tourStep(1)},4200)};
+
+/* =====================================================================
+   LEGEND
+   ===================================================================== */
+$('#lgGroups').innerHTML=Object.entries(GROUPS).map(([k,g])=>{const cnt=NODES.filter(n=>n.group===k).length;return`<div class="lg" data-g="${k}"><i style="background:${g.hex}${k==='ext'?';border-style:dashed':''}"></i>${esc(g.name)}<em>${cnt}</em></div>`}).join('');
+$$('#lgGroups .lg').forEach(d=>{d.onmouseenter=()=>{svg.classList.add('focus');$$('#gNodes .node').forEach(g=>g.classList.toggle('hl',NODE[g.dataset.id].group===d.dataset.g))};d.onmouseleave=()=>applyFocus()});
+$$('#edgeSeg button').forEach(b=>b.onclick=()=>{st.edges=b.dataset.e;$$('#edgeSeg button').forEach(x=>x.classList.toggle('on',x===b));renderMap()});
+$('#runChk').onchange=e=>{st.run=e.target.checked;renderMap()};
+$('#zIn').onclick=()=>zoomAt(1.2);$('#zOut').onclick=()=>zoomAt(1/1.2);$('#zFit').onclick=()=>fit();
+$('#zReset').onclick=()=>{NODES.forEach(n=>{[n.x,n.y]=HOME[n.id]});st.pos={};persist();renderMap();fit();toast('Box positions reset')};
+
+/* =====================================================================
+   TIMELINE
+   ===================================================================== */
+function renderChart(){
+  const cv=$('#chart');const W=cv.clientWidth||1000,H=260,pl=48,pr=12,pt=26,pb=28;cv.setAttribute('viewBox',`0 0 ${W} ${H}`);cv.innerHTML='';
+  const n=COMMITS.length,top0=Math.max(10,...CUMK.map(c=>c.code+c.test+c.docs));const stepV=niceStep(top0/4),max=Math.ceil(top0/stepV)*stepV;
+  const X=i=>n<2?(pl+W-pr)/2:pl+(W-pl-pr)*i/(n-1),Y=v=>H-pb-(H-pt-pb)*v/max;
+  // phase bands
+  let start=0;PHASES.forEach((p,pi)=>{const idx=COMMITS.filter(c=>c.phase===p.id).map(c=>c.i);if(!idx.length)return;const a=Math.min(...idx),b=Math.max(...idx);
+    const x1=a===0?pl:(X(a)+X(a-1))/2,x2=b===n-1?W-pr:(X(b)+X(b+1))/2;
+    el('rect',{x:x1,y:pt-18,width:x2-x1,height:H-pb-pt+18,fill:pi%2?'transparent':'var(--panel2)'},cv);
+    if(x2-x1>34){const t=el('text',{class:'ph',x:x1+5,y:pt-4},cv);{const nm=p.name.split(' ·')[0];const mx=Math.floor((x2-x1-8)/6.2);t.textContent=nm.length>mx?nm.slice(0,Math.max(1,mx-1))+'…':nm}}});
+  for(let v=0;v<=max;v+=stepV){el('line',{x1:pl,x2:W-pr,y1:Y(v),y2:Y(v),stroke:'var(--line)'},cv);const t=el('text',{x:pl-8,y:Y(v)+3,'text-anchor':'end'},cv);t.textContent=v?fmt(v):'0'}
+  const layers=[['code','#9775fa'],['test','#69db7c'],['docs','#74c0fc']];let base=CUMK.map(()=>0);
+  for(const[k,col]of layers){const top=CUMK.map((c,i)=>base[i]+c[k]);
+    let d=`M${X(0)} ${Y(base[0])}`;top.forEach((v,i)=>d+=`L${X(i)} ${Y(v)}`);for(let i=n-1;i>=0;i--)d+=`L${X(i)} ${Y(base[i])}`;
+    el('path',{d:d+'Z',fill:col,'fill-opacity':.55,stroke:col,'stroke-width':1.5},cv);base=top}
+  COMMITS.forEach(c=>{const a=c.add+c.del_;if(!a)return;el('rect',{x:X(c.i)-1.5,y:H-pb+4,width:3,height:Math.min(16,2+Math.log10(a+1)*4),fill:KINDS[c.kind][1],rx:1},cv)});
+  const ds=new Set();let lastX=-1e9;COMMITS.forEach(c=>{if(ds.has(c.date))return;ds.add(c.date);if(X(c.i)-lastX<44)return;lastX=X(c.i);const t=el('text',{x:X(c.i),y:H-4,'text-anchor':'middle'},cv);t.textContent=c.date.slice(5).replace('-','/')});
+  const vline=el('line',{y1:pt-18,y2:H-pb,stroke:'var(--ink)','stroke-dasharray':'3 3',opacity:0},cv);
+  const tip=$('#tip');
+  cv.onmousemove=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width;const i=Math.max(0,Math.min(n-1,Math.round((x-pl)/(W-pl-pr)*(n-1))));const c=COMMITS[i],k=CUMK[i];
+    vline.setAttribute('x1',X(i));vline.setAttribute('x2',X(i));vline.setAttribute('opacity',.6);
+    tip.style.display='block';tip.innerHTML=`<b>${c.h}</b> · ${c.date} · <span style="color:${KINDS[c.kind][1]};font-weight:600">${KINDS[c.kind][0]}</span><div style="margin:4px 0">${esc(c.plain)}</div><span class="muted">code ${fmt(k.code)} · tests ${fmt(k.test)} · docs ${fmt(k.docs)} · <span class="plus">+${c.add}</span> <span class="minus">−${c.del_}</span></span>`;
+    const px=(e.clientX-r.left)+16;tip.style.left=Math.min(px,r.width-310)+'px';tip.style.top=(e.clientY-r.top+10)+'px'};
+  cv.onmouseleave=()=>{tip.style.display='none';vline.setAttribute('opacity',0)};
+  cv.onclick=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width;const i=Math.max(0,Math.min(n-1,Math.round((x-pl)/(W-pl-pr)*(n-1))));scrollToCard(i)};
+}
+function renderFilters(){
+  const cnt=k=>COMMITS.filter(c=>k==='all'||c.kind===k).length;
+  const areas=[...new Set(COMMITS.flatMap(c=>Object.keys(c.areas)))].filter(a=>a!=='meta'&&a!=='other').sort();
+  $('#filters').innerHTML=['all',...Object.keys(KINDS)].filter(k=>cnt(k)).map(k=>`<button class="fbtn ${st.tlKind===k?'on':''}" data-k="${k}">${k==='all'?'All':`<i style="background:${KINDS[k][1]}"></i>${KINDS[k][0]}`}<span class="c">${cnt(k)}</span></button>`).join('')+
+   `<select class="fsel" id="areaSel"><option value="all">Any folder</option>${areas.map(a=>`<option value="${a}" ${st.tlArea===a?'selected':''}>${a}</option>`).join('')}</select><span class="small" id="tlCount" style="margin-left:auto"></span>`;
+  $$('#filters .fbtn').forEach(b=>b.onclick=()=>{st.tlKind=b.dataset.k;renderFilters();renderPhases()});
+  $('#areaSel').onchange=e=>{st.tlArea=e.target.value;renderPhases()};
+}
+function renderPhases(){
+  const q=st.q.toLowerCase();let shown=0;
+  const html=PHASES.map(p=>{
+    const all=COMMITS.filter(c=>c.phase===p.id);
+    const cs=all.filter(c=>(st.tlKind==='all'||c.kind===st.tlKind)&&(st.tlArea==='all'||c.areas[st.tlArea])&&(!q||(c.plain+' '+c.subj+' '+c.body+' '+c.h).toLowerCase().includes(q)));
+    if(!cs.length)return'';shown+=cs.length;const add=all.reduce((a,c)=>a+c.add,0);
+    return`<div class="phase"><div class="phase-hd"><h2>${esc(p.name)}</h2><span class="tag">${p.dates} · ${all.length} commits · +${add.toLocaleString()} lines</span><p>${esc(p.goal)}</p></div><div class="cards">${cs.map(card).join('')}</div></div>`}).join('');
+  $('#phases').innerHTML=html||'<div class="empty">No commits match. Try clearing the search or filters.</div>';
+  $('#tlCount').textContent=`showing ${shown} of ${COMMITS.length}`;
+  $$('#phases .card').forEach(cd=>cd.onclick=e=>{if(e.target.closest('button'))return;cd.classList.toggle('open')});
+}
+function card(c){
+  const[kn,kc]=KINDS[c.kind];const tot=c.add+c.del_||1;const areas=Object.entries(c.areas).filter(([a])=>a!=='meta').sort((a,b)=>(b[1][0]+b[1][1])-(a[1][0]+a[1][1]));
+  const chip=a=>{const nd=NODES.find(n=>n.area===a);const col=nd?GROUPS[nd.group].hex:'#dee2e6';return`<button class="chip" ${nd?`onclick="showOnMap(${c.i},'${nd.id}')"`:''} title="${nd?'See on the map':''}"><i style="background:${col}"></i>${esc(a)}</button>`};
+  return`<div class="card" id="c-${c.i}" style="--k:${kc}">
+   <div class="top"><span class="h">${c.h}</span><span class="dt">${c.date}</span><span class="kind">${kn}</span>
+     <span class="who"><span class="av" style="background:${authorColor(c.author)}">${initials(c.author)}</span>${esc(c.author)}</span></div>
+   <div class="plain">${esc(c.plain)}</div>
+   <div class="orig">commit message: “${esc(c.subj)}”</div>
+   <div class="foot"><span class="delta"><span class="dbar"><i style="width:${c.add/tot*100}%;background:var(--done)"></i><i style="width:${c.del_/tot*100}%;background:var(--missing)"></i></span><span class="plus">+${c.add.toLocaleString()}</span><span class="minus">−${c.del_.toLocaleString()}</span><span class="muted">· ${c.files} files</span></span>
+     <span class="chips">${areas.slice(0,7).map(([a])=>chip(a)).join('')}${areas.length>7?`<span class="small">+${areas.length-7} more</span>`:''}</span></div>
+   <div class="more">${c.body?`<pre>${esc(c.body)}</pre>`:'<p class="small">No longer description in the original commit.</p>'}
+     <div class="sec"><h5>Files changed</h5><div class="files">${c.paths.map(p=>`<div>${esc(p)}</div>`).join('')}${c.files>c.paths.length?`<div class="muted">…and ${c.files-c.paths.length} more</div>`:''}</div></div>
+     <button class="pbtn primary" onclick="showOnMap(${c.i})">🗺️ See the project at this moment</button></div>
+  </div>`}
+function scrollToCard(i){st.tlKind='all';st.tlArea='all';if(st.q){st.q='';$('#q').value=''}renderFilters();renderPhases();const cd=$('#c-'+i);if(!cd)return;cd.classList.add('open','flash');cd.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>cd.classList.remove('flash'),1700)}
+function gotoCommit(i){closeDrawer();show('timeline');setTimeout(()=>scrollToCard(i),60)}
+function showOnMap(i,id){show('map');setIdx(i);if(id){openNode(id);centerOn(id,st.k)}else fit();toast(`The map now shows the project right after commit ${COMMITS[i].h}. Glowing boxes were changed by it.`)}
+
+/* =====================================================================
+   PROGRESS
+   ===================================================================== */
+function renderProgress(){
+  const all=CHECK.flatMap(c=>c.items);const cnt={done:0,partial:0,missing:0};all.forEach(i=>cnt[i[1]]++);
+  const pct=Math.round((cnt.done+cnt.partial*.5)/all.length*100);
+  const R=96,C=2*Math.PI*R;const segs=[['done',cnt.done],['partial',cnt.partial],['missing',cnt.missing]];let off=0;
+  $('#ring').innerHTML=`<svg width="240" height="240" viewBox="0 0 240 240"><circle cx="120" cy="120" r="${R}" fill="none" stroke="var(--panel2)" stroke-width="22"/>${segs.map(([k,v])=>{const l=C*v/all.length;const s=`<circle cx="120" cy="120" r="${R}" fill="none" stroke="var(--${k})" stroke-width="22" stroke-dasharray="${l-2} ${C-l+2}" stroke-dashoffset="${-off}" transform="rotate(-90 120 120)"/>`;off+=l;return s}).join('')}</svg><div class="big"><b>${pct}%</b><span>${esc(D.check&&D.check.short||'complete')}</span></div>`;
+  $('#counts').innerHTML=`<span><i style="background:var(--done)"></i>${cnt.done} done</span><span><i style="background:var(--partial)"></i>${cnt.partial} partly</span><span><i style="background:var(--missing)"></i>${cnt.missing} missing</span>`;
+  $('#catbars').innerHTML=CHECK.map((c,ci)=>{const n=c.items.length,d=c.items.filter(i=>i[1]==='done').length,p=c.items.filter(i=>i[1]==='partial').length,m=n-d-p;const pc=Math.round((d+p*.5)/n*100);
+    return`<div class="cb" onclick="document.getElementById('cat-${ci}').scrollIntoView({behavior:'smooth',block:'center'})"><div class="l"><b>${esc(c.cat)}</b><span>${pc}%</span></div><div class="track"><i style="width:${d/n*100}%;background:var(--done)"></i><i style="width:${p/n*100}%;background:var(--partial)"></i><i style="width:${m/n*100}%;background:var(--missing);opacity:.75"></i></div></div>`}).join('');
+  const tests=CUMK[LAST].test,code=CUMK[LAST].code;
+  const nums=[[COMMITS.length,`commit${COMMITS.length>1?'s':''} in ${SPAN} day${SPAN>1?'s':''}`],[fmt(code),'lines of code & config'],[fmt(tests),'lines of tests'+(code+tests?' ('+Math.round(tests/(code+tests)*100)+'%)':'')],[fmt(CUMK[LAST].docs),'lines of docs'],[NODES.filter(n=>!n.ext).length,'parts on the map'],...(D.numbers||[]),[authors.length,'author'+(authors.length>1?'s':'')]];
+  $('#numgrid').innerHTML=nums.map(([b,s])=>`<div class="num"><b>${b}</b><span>${s}</span></div>`).join('');
+  const sym={done:'✓',partial:'½',missing:'✕',design:'–'};
+  $('#checkgrid').innerHTML=CHECK.map((c,ci)=>`<div class="box cat" id="cat-${ci}"><h3>${esc(c.cat)}<button class="chip" style="margin-left:8px" onclick="show('map');openNode('${c.node}');centerOn('${c.node}',1)" ${NODE[c.node]?'':'hidden'}>see on map</button><small>${c.items.filter(i=>i[1]==='done').length}/${c.items.length}</small></h3>
+     ${c.items.map(([t,s,d])=>`<div class="item"><span class="st" style="background:var(--${s})">${sym[s]}</span><div><b>${esc(t)}</b><p>${esc(d)}</p></div></div>`).join('')}</div>`).join('')+
+   (DESIGN.length?`<div class="box cat"><h3>Not planned, on purpose<small>${DESIGN.length}</small></h3><p class="small" style="margin:2px 0 6px">Choices made deliberately. These don't count against the score.</p>${DESIGN.map(([t,d])=>`<div class="item"><span class="st" style="background:var(--design)">–</span><div><b>${esc(t)}</b><p>${esc(d)}</p></div></div>`).join('')}</div>`:'');
+  const rows=NODES.filter(n=>!n.ext).map(n=>[n,CUM[LAST][n.area]||0]).sort((a,b)=>b[1]-a[1]);const mx=Math.max(1,rows[0]?rows[0][1]:1);
+  $('#where').innerHTML=rows.map(([n,v])=>`<div class="wrow" onclick="show('map');openNode('${n.id}');centerOn('${n.id}',1)"><span>${esc(n.label)}</span><div class="b" style="width:${Math.max(2,v/mx*100)}%;background:${GROUPS[n.group].hex}"></div><span>${v.toLocaleString()}</span></div>`).join('');
+}
+
+/* =====================================================================
+   GLOSSARY
+   ===================================================================== */
+function renderGloss(){const q=st.q.toLowerCase();const list=GLOSS.filter(g=>!q||g.join(' ').toLowerCase().includes(q));
+  $('#gloss').innerHTML=list.length?list.map(([t,d,k,node])=>`<div class="term"><h3>${esc(t)}</h3><p>${esc(d)}</p><div class="k">${EMO} ${esc(k)}</div>${node&&NODE[node]?`<button class="chip" onclick="show('map');openNode('${node}');centerOn('${node}',1)"><i style="background:${GROUPS[NODE[node].group].hex}"></i>see it on the map: ${esc(NODE[node].label)}</button>`:''}</div>`).join(''):'<div class="empty">No word matches that search.</div>'}
+
+/* =====================================================================
+   ABOUT
+   ===================================================================== */
+const PCT=(()=>{const all=CHECK.flatMap(c=>c.items);if(!all.length)return null;return Math.round(all.reduce((a,i)=>a+(i[1]==='done'?1:i[1]==='partial'?.5:0),0)/all.length*100)})();
+const paras=t=>String(t||'').split(/\n\s*\n/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join('');
+function renderAbout(){
+  const A=D.about||{};
+  const facts=[...(A.facts||[])];
+  const parts=Object.entries(GROUPS).map(([k,g])=>{const ns=NODES.filter(n=>n.group===k);if(!ns.length)return'';
+    return`<div class="pgrp"><div class="small"><span class="swatch" style="background:${g.hex}"></span>${esc(g.name)}</div><div class="chips">${ns.map(n=>`<button class="chip" onclick="show('map');openNode('${n.id}');centerOn('${n.id}',1)" title="${esc(n.role)}"><i style="background:${g.hex}"></i>${esc(n.label)}</button>`).join('')}</div></div>`}).join('');
+  $('#aboutBody').innerHTML=`
+  <div class="ahero">
+    <div class="alogo">${esc(D.logo||D.name[0])}</div>
+    <div><h1>${esc(D.name)}</h1><p class="lede" style="font-size:17px">${esc(D.tagline||'')}</p>
+    <div class="small" style="margin-top:6px"><code>github.com/mymacmeet-crypto/${esc(D.repo)}</code> · ${COMMITS.length} commits · ${COMMITS.length?pretty(COMMITS[0].date)+' – '+pretty(COMMITS[LAST].date):''}</div></div>
+  </div>
+  <div class="numgrid">${facts.map(([k,v])=>`<div class="num"><b style="font-size:20px">${esc(v)}</b><span>${esc(k)}</span></div>`).join('')}</div>
+  <div class="agrid">
+    <div class="box"><h3>What it is</h3>${paras(A.what)}</div>
+    <div class="box"><h3>Why it exists</h3>${paras(A.why)}</div>
+    ${A.analogy?`<div class="box wide an"><h3>${EMO} The whole thing as ${esc(D.analogy||'a picture')}</h3>${paras(A.analogy)}</div>`:''}
+    ${(A.stack||[]).length?`<div class="box"><h3>Built with</h3><div class="stack">${A.stack.map(([t,d])=>`<div><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join('')}</div></div>`:''}
+    ${(A.run||[]).length?`<div class="box"><h3>How you would run it</h3><ol class="run">${A.run.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><p class="small">From the README and code. Nothing here was run.</p></div>`:''}
+    <div class="box wide"><h3>How finished is it?</h3><div class="status">${PCT!==null?`<button class="mring" onclick="show('progress')" title="Open the Progress tab"><b>${PCT}%</b><span>${esc(D.check&&D.check.short||'complete')}</span></button>`:''}<div>${paras(A.status)}</div></div></div>
+    <div class="box wide"><h3>The parts <span class="small" style="font-family:var(--ui)">click one to see it on the map</span></h3>${parts}</div>
+  </div>
+  <div class="ago">
+    <button class="pbtn primary" onclick="show('map')">🗺️ Open the map</button>
+    <button class="pbtn" onclick="startTour()">${esc(TOURNAME)}</button>
+    <button class="pbtn" onclick="show('timeline')">🕑 Read the history</button>
+    <button class="pbtn" onclick="show('glossary')">📖 Words explained</button>
+  </div>`;
+}
+const TOURNAME='▶ '+((D.tour&&D.tour.button)||'Play the walkthrough');
+document.title=D.name+', explained · interactive map';
+if(D.standalone){const h=document.querySelector('.brand .home');if(h)h.remove()}
+$('#logo').textContent=D.logo||D.name[0];$('#bName').textContent=D.name+', explained';
+$('#bSub').textContent=`${D.repo} · ${COMMITS.length} commit${COMMITS.length>1?'s':''}`+(COMMITS.length?` · ${pretty(COMMITS[0].date).replace(/, \d+$/,'')} – ${pretty(COMMITS[LAST].date)}`:'');
+$('#tourStart').textContent=TOURNAME;$$('.tourName').forEach(x=>x.textContent=TOURNAME);
+if(!TOUR.length)$('#tourStart').parentNode.style.display='none';
+{const used=PHASES.filter(p=>COMMITS.some(c=>c.phase===p.id)).length;$('#tlLede').textContent=`The project grew in ${used} stage${used>1?'s':''} over ${SPAN} day${SPAN>1?'s':''}.`;}
+$('#progLede').innerHTML=esc((D.check&&D.check.lede)||'')+` Each item is marked from the code and docs as <b style="color:var(--done)">done</b>, <b style="color:var(--partial)">partly done</b> or <b style="color:var(--missing)">missing</b>.`+(D.check&&D.check.against?` Measured against: <b>${esc(D.check.against)}</b>.`:'');
+$('#progNote').textContent=(D.check&&D.check.note)||'';if(!(D.check&&D.check.note))$('#progNote').style.display='none';
+$('#glAn').textContent=D.analogy?'the whole project pictured as '+D.analogy:'a real-life comparison';
+$('#helpLede').innerHTML=`This is a living map of <b>${esc(D.name)}</b> (the <code>${esc(D.repo)}</code> repo): ${esc(D.tagline||'')} Start here:`;
+
+/* =====================================================================
+   SHELL: tabs, search, theme, keys
+   ===================================================================== */
+function show(v){st.view=v;$$('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));$$('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(v!=='map'){endTour();closeDrawerSoft()}
+  if(v==='about')renderAbout();if(v==='map'){renderMap()}if(v==='timeline'){renderChart();renderFilters();renderPhases()}if(v==='progress')renderProgress();if(v==='glossary')renderGloss();
+  try{history.replaceState(null,'','#'+v)}catch(e){}}
+function closeDrawerSoft(){st.sel=null;$('#drawer').classList.remove('on')}
+$$('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+$('#q').addEventListener('input',e=>{st.q=e.target.value.trim();if(st.view==='map')applyFocus();if(st.view==='timeline')renderPhases();if(st.view==='glossary')renderGloss();if((st.view==='progress'||st.view==='about')&&st.q){show('glossary')}});
+$('#q').addEventListener('keydown',e=>{if(e.key==='Enter'&&st.view==='map'){const hit=$$('#gNodes .node.hl')[0];if(hit){openNode(hit.dataset.id);centerOn(hit.dataset.id,1.1)}}if(e.key==='Escape'){e.target.value='';st.q='';e.target.blur();show(st.view)}});
+function setTheme(){document.documentElement.dataset.theme=st.theme;$('#themeBtn').textContent=st.theme==='dark'?'☀️':'🌙'}
+$('#themeBtn').onclick=()=>{st.theme=st.theme==='dark'?'light':'dark';setTheme();persist();if(st.view==='timeline')renderChart()};
+$('#sketchBtn').onclick=()=>{st.sketch=!st.sketch;$('#sketchBtn').classList.toggle('on',st.sketch);persist();renderMap();if(st.tour>=0)drawTour();toast(st.sketch?'Hand-drawn style':'Clean style')};
+$('#helpBtn').onclick=()=>$('#help').classList.add('on');
+function closeHelp(){$('#help').classList.remove('on');persist()}
+$('#help').onclick=e=>{if(e.target.id==='help')closeHelp()};
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2600)}
+addEventListener('keydown',e=>{
+  if(e.target.matches('input,select,textarea'))return;
+  if(e.key==='/'){e.preventDefault();$('#q').focus();return}
+  if(e.key==='Escape'){if($('#help').classList.contains('on'))closeHelp();else if(st.tour>=0)endTour();else closeDrawer();return}
+  if(st.tour>=0&&(e.key==='ArrowRight'||e.key===' ')){e.preventDefault();tourStep(1);return}
+  if(st.tour>=0&&e.key==='ArrowLeft'){tourStep(-1);return}
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  const k=e.key.toLowerCase();
+  if(k==='1')show('about');else if(k==='2')show('map');else if(k==='3')show('timeline');else if(k==='4')show('progress');else if(k==='5')show('glossary');
+  else if(k==='f'&&st.view==='map')fit();else if(k==='s')$('#sketchBtn').click();else if(k==='t')$('#themeBtn').click();
+  else if(k==='p'&&st.view==='map')startTour();else if(k==='?')$('#help').classList.add('on');
+  else if(st.view==='map'&&(k==='arrowleft'||k==='arrowright')){stopHist();setIdx(st.idx+(k==='arrowright'?1:-1))}
+});
+addEventListener('resize',()=>{if(st.view==='timeline')renderChart()});
+
+/* boot */
+if(new URLSearchParams(location.search).get('theme'))st.theme=new URLSearchParams(location.search).get('theme');
+setTheme();$('#sketchBtn').classList.toggle('on',st.sketch);
+setIdx(LAST);fit(false);
+const start=(location.hash||'#about').slice(1);show(['about','map','timeline','progress','glossary'].includes(start)?start:'about');
+const QS=new URLSearchParams(location.search);
+
+try{document.fonts&&document.fonts.ready.then(()=>{if(st.view==='map')renderMap()})}catch(e){}
+</script>
+</body>
+</html>
